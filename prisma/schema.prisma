@@ -1,0 +1,212 @@
+// FinPilot - Prisma Schema
+// PostgreSQL (Neon/Supabase compatible)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// For local dev: DIRECT_URL can equal DATABASE_URL
+
+// ============ Auth.js (NextAuth) ============
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  emailVerified DateTime?
+  name         String?
+  image        String?
+  password     String?   // bcrypt hash for Credentials provider
+  businessName String?
+  consentAt    DateTime? // 152-ФЗ, GDPR consent
+  weeklyReport Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  accounts         Account[]
+  sessions         Session[]
+  profiles         CashFlowProfile[]
+  subscription     Subscription?
+  aiRequests       AIRequest[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ============ Core Business ============
+model CashFlowProfile {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  currency  String   @default("RUB")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  regularExpenses     RegularExpense[]
+  regularIncomes      RegularIncome[]
+  manualTransactions  ManualTransaction[]
+  scenarios           WhatIfScenario[]
+  forecasts           Forecast[]
+
+  @@index([userId])
+}
+
+model ExpenseCategory {
+  id       String  @id @default(cuid())
+  name     String
+  slug     String  @unique
+  userId   String? // null = predefined
+  isSystem Boolean @default(true)
+
+  expenses    RegularExpense[]
+  transactions ManualTransaction[]
+
+  @@index([userId])
+}
+
+model RegularExpense {
+  id         String   @id @default(cuid())
+  profileId  String
+  categoryId String
+  name       String
+  amount     Decimal  @db.Decimal(14, 2)
+  frequency  String   // MONTHLY, QUARTERLY, YEARLY
+  startDate  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  profile  CashFlowProfile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  category ExpenseCategory  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@index([profileId])
+}
+
+model RegularIncome {
+  id        String   @id @default(cuid())
+  profileId String
+  name      String
+  avgCheck  Decimal  @db.Decimal(14, 2)
+  salesPlan Json     // { "1": number, "2": number, ... } month -> planned amount
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile CashFlowProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+}
+
+model ManualTransaction {
+  id          String   @id @default(cuid())
+  profileId   String
+  categoryId  String?
+  date        DateTime
+  type        String   // IN, OUT
+  amount      Decimal  @db.Decimal(14, 2)
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  profile  CashFlowProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  category ExpenseCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([profileId])
+  @@index([date])
+}
+
+model WhatIfScenario {
+  id         String   @id @default(cuid())
+  profileId  String
+  name       String
+  changesJson Json
+  createdAt  DateTime @default(now())
+
+  profile CashFlowProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+}
+
+model Forecast {
+  id              String   @id @default(cuid())
+  profileId       String
+  date            DateTime
+  projectedBalance Decimal @db.Decimal(14, 2)
+  actualBalance   Decimal? @db.Decimal(14, 2)
+
+  profile CashFlowProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, date])
+  @@index([profileId])
+  @@index([date])
+}
+
+// ============ Billing ============
+model Subscription {
+  id                   String    @id @default(cuid())
+  userId               String    @unique
+  plan                 String    // FREE, PRO, BUSINESS
+  status               String    // active, canceled, past_due
+  yookassaPaymentId    String?
+  yookassaPaymentMethodId String?
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ============ AI ============
+model AIRequest {
+  id        String   @id @default(cuid())
+  userId    String
+  prompt    String
+  response  String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+}
