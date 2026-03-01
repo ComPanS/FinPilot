@@ -1,0 +1,167 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { getCashFlowHistory } from "@/app/actions/cashflow";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+
+type HistoryItem = {
+  id: string;
+  entityType: string;
+  entityId: string;
+  action: string;
+  oldData: unknown;
+  newData: unknown;
+  createdAt: Date;
+};
+
+const ACTION_LABELS: Record<string, string> = {
+  create: "Создание",
+  update: "Изменение",
+  delete: "Удаление",
+};
+
+function formatDataReadable(d: unknown, currency: string): string {
+  if (!d || typeof d !== "object") return "-";
+  const obj = d as Record<string, unknown>;
+  const parts: string[] = [];
+  if (obj.name != null) parts.push(`${obj.name}`);
+  if (obj.amount != null) parts.push(`${Number(obj.amount).toLocaleString("ru")} ${currency}`);
+  if (obj.frequency != null) {
+    const f = obj.frequency as string;
+    parts.push(f === "MONTHLY" ? "ежемесячно" : f === "QUARTERLY" ? "ежеквартально" : "раз в год");
+  }
+  if (obj.date != null) parts.push(new Date(obj.date as string).toLocaleDateString("ru"));
+  if (obj.type != null) parts.push(obj.type === "IN" ? "поступление" : "расход");
+  if (obj.description != null && obj.description !== "") parts.push(String(obj.description));
+  if (obj.avgCheck != null) parts.push(`ср. чек ${Number(obj.avgCheck).toLocaleString("ru")} ${currency}`);
+  return parts.join(" • ") || "-";
+}
+
+function getAmountFromData(d: unknown): number | null {
+  if (!d || typeof d !== "object") return null;
+  const obj = d as Record<string, unknown>;
+  if (obj.amount != null) return Number(obj.amount);
+  if (obj.avgCheck != null) return Number(obj.avgCheck);
+  return null;
+}
+
+export function HistoryModal({
+  profileId,
+  entityId,
+  entityType,
+  currency,
+  onClose,
+}: {
+  profileId: string;
+  entityId: string;
+  entityType: string;
+  currency: string;
+  zoneGreenMin?: number;
+  zoneRedMax?: number;
+  onClose: () => void;
+}) {
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      const hRes = await getCashFlowHistory(profileId, entityId);
+      if (hRes?.history) setHistory(hRes.history);
+      setLoading(false);
+    }
+    load();
+  }, [profileId, entityId]);
+
+  const chartData = history
+    .map((h) => {
+      const date = new Date(h.createdAt).toLocaleDateString("ru");
+      let amount: number | null = null;
+      if (h.action === "create" || h.action === "update") amount = getAmountFromData(h.newData);
+      else if (h.action === "delete") amount = getAmountFromData(h.oldData);
+      if (amount == null) return null;
+      return { date, amount };
+    })
+    .filter((x): x is { date: string; amount: number } => x != null)
+    .reverse();
+
+  const hasChartData = chartData.length > 0;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-xl border border-border bg-surface p-6">
+        <div className="flex justify-between">
+          <h3 className="text-lg font-semibold">История изменений</h3>
+          <button onClick={onClose} className="rounded px-2 py-1 hover:bg-border">
+            ✕
+          </button>
+        </div>
+
+        {loading ? (
+          <p className="mt-4 text-muted-foreground">Загрузка...</p>
+        ) : (
+          <>
+            <div className="mt-4">
+              <h4 className="font-medium">Таблица изменений</h4>
+              <div className="mt-2 overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="p-2 text-left">Дата</th>
+                      <th className="p-2 text-left">Действие</th>
+                      <th className="p-2 text-left">Было</th>
+                      <th className="p-2 text-left">Стало</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {history.map((h) => (
+                      <tr key={h.id} className="border-b border-border">
+                        <td className="p-2">
+                          {new Date(h.createdAt).toLocaleString("ru")}
+                        </td>
+                        <td className="p-2">{ACTION_LABELS[h.action] ?? h.action}</td>
+                        <td className="max-w-48 p-2 text-xs">
+                          {formatDataReadable(h.oldData, currency)}
+                        </td>
+                        <td className="max-w-48 p-2 text-xs">
+                          {formatDataReadable(h.newData, currency)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {hasChartData && (
+              <div className="mt-6">
+                <h4 className="font-medium">Изменение суммы</h4>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  График изменения поля «Сумма» для этой записи
+                </p>
+                <div className="mt-2 h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                      <XAxis dataKey="date" stroke="var(--muted)" fontSize={11} />
+                      <YAxis stroke="var(--muted)" fontSize={11} tickFormatter={(v) => v.toLocaleString()} />
+                      <Tooltip formatter={(v: number) => [v.toLocaleString("ru") + " " + currency, "Сумма"]} />
+                      <Line type="monotone" dataKey="amount" stroke="var(--primary)" strokeWidth={2} dot={{ r: 4 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -15,7 +15,15 @@ import {
 import { getZone } from "@/lib/services/forecast";
 import type { ForecastDay } from "@/types";
 
-export function ForecastChart({ data }: { data: ForecastDay[] }) {
+export function ForecastChart({
+  data,
+  zoneGreenMin = 50000,
+  zoneRedMax = -50000,
+}: {
+  data: ForecastDay[];
+  zoneGreenMin?: number;
+  zoneRedMax?: number;
+}) {
   const chartData = data.map((d) => ({
     ...d,
     balance: Math.round(d.balance),
@@ -33,8 +41,8 @@ export function ForecastChart({ data }: { data: ForecastDay[] }) {
             formatter={(value) => [String(value ?? 0).replace(/\B(?=(\d{3})+(?!\d))/g, " "), "Баланс"]}
             labelFormatter={(label) => `Дата: ${label}`}
           />
-          <ReferenceLine y={50000} stroke="var(--success)" strokeDasharray="3 3" />
-          <ReferenceLine y={-50000} stroke="var(--danger)" strokeDasharray="3 3" />
+          <ReferenceLine y={zoneGreenMin} stroke="var(--success)" strokeDasharray="3 3" />
+          <ReferenceLine y={zoneRedMax} stroke="var(--danger)" strokeDasharray="3 3" />
           <ReferenceLine y={0} stroke="var(--muted)" />
           <Area
             type="monotone"
@@ -55,9 +63,9 @@ export function ForecastChart({ data }: { data: ForecastDay[] }) {
         </ComposedChart>
       </ResponsiveContainer>
       <div className="mt-2 flex gap-4 text-sm">
-        <span className="text-success">≥ 50 000 — зелёная зона</span>
-        <span className="text-warning">-50 000 … +50 000 — жёлтая</span>
-        <span className="text-danger">&lt; -50 000 — красная зона</span>
+        <span className="text-success">≥ {zoneGreenMin.toLocaleString("ru")} — зелёная зона</span>
+        <span className="text-warning">{zoneRedMax.toLocaleString("ru")} … {zoneGreenMin.toLocaleString("ru")} — жёлтая</span>
+        <span className="text-danger">&lt; {zoneRedMax.toLocaleString("ru")} — красная зона</span>
       </div>
     </div>
   );

@@ -20,10 +20,17 @@ export async function getForecastAction(
     return { error: "Профиль не найден" };
   }
 
+  const profile = user.profiles.find((p) => p.id === profileId)!;
   const days = user.subscription?.plan === "FREE" ? 30 : options?.days ?? 90;
   const forecast = await computeForecast(profileId, {
     days,
     changes: options?.changes,
+    zoneGreenMin: profile.zoneGreenMin ?? 50000,
+    zoneRedMax: profile.zoneRedMax ?? -50000,
   });
-  return { forecast };
+  return {
+    forecast,
+    zoneGreenMin: profile.zoneGreenMin ?? 50000,
+    zoneRedMax: profile.zoneRedMax ?? -50000,
+  };
 }

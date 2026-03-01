@@ -49,6 +49,37 @@ export async function updatePasswordAction(data: {
   return { success: true };
 }
 
+export async function updateZoneSettingsAction(
+  profileId: string,
+  data: { zoneGreenMin: number; zoneRedMax: number }
+) {
+  const session = await auth();
+  if (!session?.user?.email) return { error: "Не авторизован" };
+
+  const user = await prisma.user.findUnique({
+    where: { email: session.user.email },
+    include: { profiles: true },
+  });
+  if (!user || !user.profiles.some((p) => p.id === profileId)) {
+    return { error: "Профиль не найден" };
+  }
+
+  if (data.zoneGreenMin <= data.zoneRedMax) {
+    return { error: "Зелёный порог должен быть выше красного" };
+  }
+
+  await prisma.cashFlowProfile.update({
+    where: { id: profileId },
+    data: {
+      zoneGreenMin: data.zoneGreenMin,
+      zoneRedMax: data.zoneRedMax,
+    },
+  });
+  revalidatePath("/settings");
+  revalidatePath("/cashflow");
+  return { success: true };
+}
+
 export async function deleteAccountAction() {
   const session = await auth();
   if (!session?.user?.email) return { error: "Не авторизован" };

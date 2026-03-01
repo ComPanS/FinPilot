@@ -79,6 +79,8 @@ model CashFlowProfile {
   userId    String
   name      String
   currency  String   @default("RUB")
+  zoneGreenMin   Int @default(50000)   // баланс >= это = зелёная зона
+  zoneRedMax     Int @default(-50000)  // баланс < это = красная зона
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -88,8 +90,39 @@ model CashFlowProfile {
   manualTransactions  ManualTransaction[]
   scenarios           WhatIfScenario[]
   forecasts           Forecast[]
+  cashFlowHistory     CashFlowHistory[]
+  forecastSnapshots   ForecastSnapshot[]
 
   @@index([userId])
+}
+
+model CashFlowHistory {
+  id         String   @id @default(cuid())
+  profileId  String
+  entityType String  // EXPENSE, INCOME, MANUAL
+  entityId   String
+  action     String  // create, update, delete
+  oldData    Json?   // состояние до изменения
+  newData    Json?   // состояние после
+  createdAt  DateTime @default(now())
+
+  profile CashFlowProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@index([entityId])
+}
+
+model ForecastSnapshot {
+  id           String   @id @default(cuid())
+  profileId    String
+  snapshotDate DateTime
+  forecastData Json     // [{date, balance, inflows, outflows}]
+  createdAt    DateTime @default(now())
+
+  profile CashFlowProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@index([snapshotDate])
 }
 
 model ExpenseCategory {

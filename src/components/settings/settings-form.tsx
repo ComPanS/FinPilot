@@ -4,11 +4,19 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { updateProfileAction, updatePasswordAction, deleteAccountAction } from "@/app/actions/settings";
+import { updateProfileAction, updatePasswordAction, updateZoneSettingsAction, deleteAccountAction } from "@/app/actions/settings";
 
 const profileSchema = z.object({
   name: z.string().min(1),
   weeklyReport: z.boolean(),
+});
+
+const zoneSchema = z.object({
+  zoneGreenMin: z.coerce.number(),
+  zoneRedMax: z.coerce.number(),
+}).refine((d) => d.zoneGreenMin > d.zoneRedMax, {
+  message: "Зелёный порог должен быть выше красного",
+  path: ["zoneGreenMin"],
 });
 
 const passwordSchema = z.object({
@@ -22,10 +30,12 @@ const passwordSchema = z.object({
 
 type ProfileData = z.infer<typeof profileSchema>;
 type PasswordData = z.infer<typeof passwordSchema>;
+type ZoneData = z.infer<typeof zoneSchema>;
 
 type User = { id: string; name: string | null; email: string; weeklyReport: boolean };
+type Profile = { id: string; zoneGreenMin: number | null; zoneRedMax: number | null } | null;
 
-export function SettingsForm({ user }: { user: User }) {
+export function SettingsForm({ user, profile }: { user: User; profile?: Profile }) {
   const [message, setMessage] = useState<string | null>(null);
 
   const profileForm = useForm<ProfileData>({
@@ -40,9 +50,23 @@ export function SettingsForm({ user }: { user: User }) {
     resolver: zodResolver(passwordSchema),
   });
 
+  const zoneForm = useForm<ZoneData>({
+    resolver: zodResolver(zoneSchema),
+    defaultValues: {
+      zoneGreenMin: profile?.zoneGreenMin ?? 50000,
+      zoneRedMax: profile?.zoneRedMax ?? -50000,
+    },
+  });
+
   const onProfileSubmit = profileForm.handleSubmit(async (data) => {
     const res = await updateProfileAction(data);
     setMessage(res?.error ?? "Профиль обновлён");
+  });
+
+  const onZoneSubmit = zoneForm.handleSubmit(async (data) => {
+    if (!profile) return;
+    const res = await updateZoneSettingsAction(profile.id, data);
+    setMessage(res?.error ?? "Диапазон зон сохранён");
   });
 
   const onPasswordSubmit = passwordForm.handleSubmit(async (data) => {
@@ -99,6 +123,39 @@ export function SettingsForm({ user }: { user: User }) {
           </button>
         </form>
       </div>
+
+      {profile && (
+        <div className="rounded-xl border border-border bg-surface p-6">
+          <h3 className="font-semibold">Диапазон зон на графике</h3>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Пороги для зелёной зоны (≥) и красной зоны (&lt;)
+          </p>
+          <form onSubmit={onZoneSubmit} className="mt-4 space-y-4">
+            <div>
+              <label className="block text-sm font-medium">Зелёная зона от (₽)</label>
+              <input
+                {...zoneForm.register("zoneGreenMin")}
+                type="number"
+                className="mt-1 w-full max-w-md rounded border border-border px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Красная зона до (₽)</label>
+              <input
+                {...zoneForm.register("zoneRedMax")}
+                type="number"
+                className="mt-1 w-full max-w-md rounded border border-border px-3 py-2"
+              />
+            </div>
+            <button
+              type="submit"
+              className="rounded bg-primary px-4 py-2 text-white hover:bg-primary-dark"
+            >
+              Сохранить
+            </button>
+          </form>
+        </div>
+      )}
 
       <div className="rounded-xl border border-border bg-surface p-6">
         <h3 className="font-semibold">Смена пароля</h3>

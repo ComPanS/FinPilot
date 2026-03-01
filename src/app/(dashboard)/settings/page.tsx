@@ -9,9 +9,11 @@ export default async function SettingsPage() {
 
   const user = await prisma.user.findUnique({
     where: { email: session.user.email },
+    include: { profiles: true },
   });
 
   if (!user) redirect("/login");
+  const profile = user.profiles[0];
 
   return (
     <div className="space-y-8">
@@ -21,7 +23,7 @@ export default async function SettingsPage() {
           Профиль, уведомления и безопасность
         </p>
       </div>
-      <SettingsForm user={user} />
+      <SettingsForm user={user} profile={profile ?? undefined} />
     </div>
   );
 }

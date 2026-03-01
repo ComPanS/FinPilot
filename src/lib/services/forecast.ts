@@ -1,12 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import type { ForecastDay, WhatIfChanges } from "@/types";
 
-const ZONE_GREEN = 50000;
-const ZONE_YELLOW_LOW = -50000;
-
-export function getZone(balance: number): "green" | "yellow" | "red" {
-  if (balance >= ZONE_GREEN) return "green";
-  if (balance >= ZONE_YELLOW_LOW) return "yellow";
+export function getZone(
+  balance: number,
+  zoneGreenMin = 50000,
+  zoneRedMax = -50000
+): "green" | "yellow" | "red" {
+  if (balance >= zoneGreenMin) return "green";
+  if (balance >= zoneRedMax) return "yellow";
   return "red";
 }
 
@@ -46,6 +47,8 @@ export async function computeForecast(
     days?: number;
     initialBalance?: number;
     changes?: WhatIfChanges;
+    zoneGreenMin?: number;
+    zoneRedMax?: number;
   } = {}
 ): Promise<ForecastDay[]> {
   const days = options.days ?? 90;
@@ -143,6 +146,9 @@ export async function computeForecast(
   return result;
 }
 
-export function getRedZones(forecast: ForecastDay[]): ForecastDay[] {
-  return forecast.filter((d) => d.balance < 0);
+export function getRedZones(
+  forecast: ForecastDay[],
+  zoneRedMax = -50000
+): ForecastDay[] {
+  return forecast.filter((d) => d.balance < zoneRedMax);
 }
