@@ -80,6 +80,12 @@ export function HistoryModal({
     load();
   }, [profileId, entityId]);
 
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
   const chartData = history
     .map((h) => {
       const date = new Date(h.createdAt).toLocaleDateString("ru");
@@ -95,11 +101,20 @@ export function HistoryModal({
   const hasChartData = chartData.length > 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-xl border border-border bg-surface p-6">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={onClose}
+      role="button"
+      tabIndex={0}
+      aria-label="Закрыть"
+    >
+      <div
+        className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-xl border border-border bg-surface p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex justify-between">
           <h3 className="text-lg font-semibold">История изменений</h3>
-          <button onClick={onClose} className="rounded px-2 py-1 hover:bg-border">
+          <button onClick={onClose} className="cursor-pointer rounded px-2 py-1 hover:bg-border">
             ✕
           </button>
         </div>
@@ -152,7 +167,7 @@ export function HistoryModal({
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                       <XAxis dataKey="date" stroke="var(--muted)" fontSize={11} />
                       <YAxis stroke="var(--muted)" fontSize={11} tickFormatter={(v) => v.toLocaleString()} />
-                      <Tooltip formatter={(v: number) => [v.toLocaleString("ru") + " " + currency, "Сумма"]} />
+                      <Tooltip formatter={(v) => [(v ?? 0).toLocaleString("ru") + " " + currency, "Сумма"]} />
                       <Line type="monotone" dataKey="amount" stroke="var(--primary)" strokeWidth={2} dot={{ r: 4 }} />
                     </LineChart>
                   </ResponsiveContainer>

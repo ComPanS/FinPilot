@@ -48,7 +48,7 @@ async function parseAndCreate(
   };
 
   const catOther = categories.find((c) => c.slug === "other")?.id ?? categories[0]?.id;
-  if (!catOther) return { error: "Нет категорий" };
+  if (!catOther) return { success: false, error: "Нет категорий" };
 
   if (parsed.type === "expense") {
     await createExpense({
@@ -87,7 +87,7 @@ async function parseAndCreate(
       description: parsed.description ?? parsed.name ?? undefined,
     });
   } else {
-    return { error: "Не удалось определить тип операции" };
+    return { success: false, error: "Не удалось определить тип операции" };
   }
   return { success: true };
 }

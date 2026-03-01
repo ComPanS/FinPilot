@@ -4,6 +4,7 @@ import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { CredentialsSignin } from "next-auth";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
@@ -27,6 +28,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           where: { email: credentials.email as string },
         });
         if (!user?.password) return null;
+        if (!user.emailVerified) {
+          throw new CredentialsSignin("Подтвердите email. Проверьте почту.");
+        }
         const valid = await bcrypt.compare(
           credentials.password as string,
           user.password
@@ -48,6 +52,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     // VK requires custom provider config
   ],
   callbacks: {
+    async signIn({ user, account }) {
+      if (account?.provider === "google" && user?.email) {
+        await prisma.user.updateMany({
+          where: { email: user.email },
+          data: { emailVerified: new Date() },
+        });
+      }
+      return true;
+    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;

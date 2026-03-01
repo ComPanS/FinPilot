@@ -19,11 +19,14 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
+  const verified = searchParams.get("verified") === "1";
+  const emailChanged = searchParams.get("emailChanged") === "1";
   const [error, setError] = useState<string | null>(null);
 
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -37,7 +40,7 @@ export function LoginForm() {
       redirect: false,
     });
     if (result?.error) {
-      setError("Неверный email или пароль");
+      setError(result.error);
       return;
     }
     router.push(callbackUrl);
@@ -46,10 +49,27 @@ export function LoginForm() {
 
   return (
     <div className="rounded-xl border border-border bg-surface p-6 shadow-md">
+      {verified && (
+        <div className="mb-4 rounded-lg bg-primary/10 p-3 text-sm text-primary">
+          Email подтверждён. Войдите в аккаунт.
+        </div>
+      )}
+      {emailChanged && (
+        <div className="mb-4 rounded-lg bg-primary/10 p-3 text-sm text-primary">
+          Email изменён. Войдите с новым email.
+        </div>
+      )}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {error && (
           <div className="rounded-lg bg-danger/10 p-3 text-sm text-danger">
             {error}
+            {error.includes("Подтвердите email") && (
+              <span className="block mt-2">
+                <Link href={`/verify-email?email=${encodeURIComponent(watch("email") || "")}`} className="text-primary hover:underline">
+                  Ввести код
+                </Link>
+              </span>
+            )}
           </div>
         )}
         <div>

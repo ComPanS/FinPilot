@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -33,10 +33,29 @@ export function RegisterForm() {
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
+
+  useEffect(() => {
+    const pending = typeof window !== "undefined" ? sessionStorage.getItem("pending_register") : null;
+    if (pending) {
+      try {
+        const parsed = JSON.parse(pending) as { name?: string; email?: string; password?: string };
+        if (parsed.name || parsed.email || parsed.password) {
+          reset({
+            name: parsed.name ?? "",
+            email: parsed.email ?? "",
+            password: parsed.password ?? "",
+            confirmPassword: parsed.password ?? "",
+            consent: true,
+          });
+        }
+      } catch {}
+    }
+  }, [reset]);
 
   async function onSubmit(data: FormData) {
     setError(null);
@@ -47,6 +66,16 @@ export function RegisterForm() {
     });
     if (result?.error) {
       setError(result.error);
+      return;
+    }
+    if (result.verifyEmail) {
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem(
+          "pending_register",
+          JSON.stringify({ name: data.name, email: data.email, password: data.password })
+        );
+      }
+      router.push(`/verify-email?email=${encodeURIComponent(result.verifyEmail)}`);
       return;
     }
     const signInResult = await signIn("credentials", {
@@ -146,7 +175,7 @@ export function RegisterForm() {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full rounded-lg bg-primary px-4 py-2 font-medium text-white transition-colors hover:bg-primary-dark disabled:opacity-50"
+          className="w-full cursor-pointer rounded-lg bg-primary px-4 py-2 font-medium text-white transition-colors hover:bg-primary-dark disabled:opacity-50"
         >
           {isSubmitting ? "Регистрация..." : "Зарегистрироваться"}
         </button>
@@ -154,7 +183,7 @@ export function RegisterForm() {
       <div className="mt-4 flex justify-center">
         <a
           href="/api/auth/signin/google"
-          className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm transition-colors hover:bg-surface"
+          className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm transition-colors hover:bg-surface"
         >
           Зарегистрироваться через Google
         </a>

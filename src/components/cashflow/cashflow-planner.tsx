@@ -256,7 +256,7 @@ export function CashFlowPlanner({
               setEditingId(null);
               if (t.id === "chart") loadForecast();
             }}
-            className={`border-b-2 px-4 py-2 font-medium ${
+            className={`cursor-pointer border-b-2 px-4 py-2 font-medium ${
               activeTab === t.id
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"
@@ -341,19 +341,23 @@ export function CashFlowPlanner({
                             categoryId: e.categoryId,
                           });
                         }}
-                        className="text-primary hover:underline mr-2"
+                        className="cursor-pointer text-primary hover:underline mr-2"
                       >
                         Изменить
                       </button>
                       <button
                         onClick={() => setHistoryModal({ entityId: e.id, entityType: "EXPENSE" })}
-                        className="text-muted-foreground hover:underline mr-2"
+                        className="cursor-pointer text-muted-foreground hover:underline mr-2"
                       >
                         История
                       </button>
                       <button
-                        onClick={async () => { await deleteExpense(e.id); loadForecast(); }}
-                        className="text-danger hover:underline"
+                        onClick={async () => {
+                          if (!confirm("Удалить этот расход?")) return;
+                          await deleteExpense(e.id);
+                          loadForecast();
+                        }}
+                        className="cursor-pointer text-danger hover:underline"
                       >
                         Удалить
                       </button>
@@ -420,9 +424,9 @@ export function CashFlowPlanner({
                     <td className="p-2">{new Date(i.createdAt).toLocaleDateString("ru")}</td>
                     <td className="p-2">{new Date(i.updatedAt).toLocaleDateString("ru")}</td>
                     <td className="p-2">
-                      <button onClick={() => { setEditingId(i.id); incomeForm.reset({ name: i.name, avgCheck: Number(i.avgCheck), month1: 0, month2: 0, month3: 0 }); }} className="text-primary hover:underline mr-2">Изменить</button>
-                      <button onClick={() => setHistoryModal({ entityId: i.id, entityType: "INCOME" })} className="text-muted-foreground hover:underline mr-2">История</button>
-                      <button onClick={async () => { await deleteIncome(i.id); loadForecast(); }} className="text-danger hover:underline">Удалить</button>
+                      <button onClick={() => { setEditingId(i.id); incomeForm.reset({ name: i.name, avgCheck: Number(i.avgCheck), month1: 0, month2: 0, month3: 0 }); }} className="cursor-pointer text-primary hover:underline mr-2">Изменить</button>
+                      <button onClick={() => setHistoryModal({ entityId: i.id, entityType: "INCOME" })} className="cursor-pointer text-muted-foreground hover:underline mr-2">История</button>
+                      <button onClick={async () => { if (!confirm("Удалить этот доход?")) return; await deleteIncome(i.id); loadForecast(); }} className="cursor-pointer text-danger hover:underline">Удалить</button>
                     </td>
                   </tr>
                 ))}
@@ -491,9 +495,9 @@ export function CashFlowPlanner({
                     <td className="p-2">{t.description ?? "-"}</td>
                     <td className="p-2">{new Date(t.createdAt).toLocaleDateString("ru")}</td>
                     <td className="p-2">
-                      <button onClick={() => { setEditingId(t.id); manualForm.reset({ date: new Date(t.date).toISOString().slice(0, 10), type: t.type as "IN" | "OUT", amount: Number(t.amount), description: t.description ?? "" }); }} className="text-primary hover:underline mr-2">Изменить</button>
-                      <button onClick={() => setHistoryModal({ entityId: t.id, entityType: "MANUAL" })} className="text-muted-foreground hover:underline mr-2">История</button>
-                      <button onClick={async () => { await deleteManualTransaction(t.id); loadForecast(); }} className="text-danger hover:underline">Удалить</button>
+                      <button onClick={() => { setEditingId(t.id); manualForm.reset({ date: new Date(t.date).toISOString().slice(0, 10), type: t.type as "IN" | "OUT", amount: Number(t.amount), description: t.description ?? "" }); }} className="cursor-pointer text-primary hover:underline mr-2">Изменить</button>
+                      <button onClick={() => setHistoryModal({ entityId: t.id, entityType: "MANUAL" })} className="cursor-pointer text-muted-foreground hover:underline mr-2">История</button>
+                      <button onClick={async () => { if (!confirm("Удалить эту операцию?")) return; await deleteManualTransaction(t.id); loadForecast(); }} className="cursor-pointer text-danger hover:underline">Удалить</button>
                     </td>
                   </tr>
                 ))}

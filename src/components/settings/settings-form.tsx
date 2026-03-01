@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { updateProfileAction, updatePasswordAction, updateZoneSettingsAction, deleteAccountAction } from "@/app/actions/settings";
+import { updateProfileAction, updatePasswordAction, updateZoneSettingsAction, deleteAccountAction, requestEmailChangeAction } from "@/app/actions/settings";
 
 const profileSchema = z.object({
   name: z.string().min(1),
@@ -28,15 +28,25 @@ const passwordSchema = z.object({
   path: ["confirmPassword"],
 });
 
+const emailSchema = z.object({
+  newEmail: z.string().email("Введите корректный email"),
+});
+
 type ProfileData = z.infer<typeof profileSchema>;
 type PasswordData = z.infer<typeof passwordSchema>;
 type ZoneData = z.infer<typeof zoneSchema>;
+type EmailData = z.infer<typeof emailSchema>;
 
 type User = { id: string; name: string | null; email: string; weeklyReport: boolean };
 type Profile = { id: string; zoneGreenMin: number | null; zoneRedMax: number | null } | null;
 
 export function SettingsForm({ user, profile }: { user: User; profile?: Profile }) {
   const [message, setMessage] = useState<string | null>(null);
+
+  const emailForm = useForm<EmailData>({
+    resolver: zodResolver(emailSchema),
+    defaultValues: { newEmail: "" },
+  });
 
   const profileForm = useForm<ProfileData>({
     resolver: zodResolver(profileSchema),
@@ -61,6 +71,12 @@ export function SettingsForm({ user, profile }: { user: User; profile?: Profile 
   const onProfileSubmit = profileForm.handleSubmit(async (data) => {
     const res = await updateProfileAction(data);
     setMessage(res?.error ?? "Профиль обновлён");
+  });
+
+  const onEmailSubmit = emailForm.handleSubmit(async (data) => {
+    const res = await requestEmailChangeAction(data.newEmail);
+    setMessage(res?.error ?? "Письмо отправлено на новый email");
+    if (res?.success) emailForm.reset();
   });
 
   const onZoneSubmit = zoneForm.handleSubmit(async (data) => {
@@ -95,6 +111,35 @@ export function SettingsForm({ user, profile }: { user: User; profile?: Profile 
           {message}
         </div>
       )}
+
+      <div className="rounded-xl border border-border bg-surface p-6">
+        <h3 className="font-semibold">Смена email</h3>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Текущий email: {user.email}
+        </p>
+        <form onSubmit={onEmailSubmit} className="mt-4 space-y-4">
+          <div>
+            <label className="block text-sm font-medium">Новый email</label>
+            <input
+              {...emailForm.register("newEmail")}
+              type="email"
+              className="mt-1 w-full max-w-md rounded border border-border px-3 py-2"
+              placeholder="new@example.com"
+            />
+            {emailForm.formState.errors.newEmail && (
+              <p className="mt-1 text-sm text-danger">
+                {emailForm.formState.errors.newEmail.message}
+              </p>
+            )}
+          </div>
+          <button
+            type="submit"
+            className="rounded bg-primary px-4 py-2 text-white hover:bg-primary-dark"
+          >
+            Отправить ссылку подтверждения
+          </button>
+        </form>
+      </div>
 
       <div className="rounded-xl border border-border bg-surface p-6">
         <h3 className="font-semibold">Профиль</h3>

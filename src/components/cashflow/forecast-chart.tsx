@@ -1,8 +1,6 @@
 "use client";
 
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -12,7 +10,6 @@ import {
   Area,
   ComposedChart,
 } from "recharts";
-import { getZone } from "@/lib/services/forecast";
 import type { ForecastDay } from "@/types";
 
 export function ForecastChart({
@@ -24,41 +21,68 @@ export function ForecastChart({
   zoneGreenMin?: number;
   zoneRedMax?: number;
 }) {
-  const chartData = data.map((d) => ({
-    ...d,
-    balance: Math.round(d.balance),
-    dateShort: d.date.slice(5),
-  }));
+  const chartData = data.map((d) => {
+    const balance = Math.round(d.balance);
+    return {
+      ...d,
+      balance,
+      dateShort: d.date.slice(5),
+      positiveBalance: balance >= 0 ? balance : 0,
+      negativeBalance: balance < 0 ? balance : 0,
+    };
+  });
+
+  const tooltipContentStyle = {
+    backgroundColor: "var(--surface)",
+    color: "var(--foreground)",
+    border: "1px solid var(--border)",
+    borderRadius: "8px",
+  };
+
+  const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: { payload?: { balance?: number; date?: string; dateShort?: string } }[] }) => {
+    if (!active || !payload?.length) return null;
+    const point = payload[0]?.payload;
+    const value = point?.balance ?? 0;
+    const fullDate = point?.date ?? point?.dateShort ?? "";
+    const isNegative = value < 0;
+    return (
+      <div style={tooltipContentStyle} className="px-3 py-2">
+        <p className="font-medium" style={{ color: "var(--foreground)" }}>Дата: {fullDate}</p>
+        <p style={{ color: isNegative ? "var(--danger)" : "var(--success)" }}>
+          Баланс: {String(value).replace(/\B(?=(\d{3})+(?!\d))/g, " ")}
+        </p>
+      </div>
+    );
+  };
 
   return (
     <div className="h-80 w-full rounded-lg border border-border bg-surface p-4">
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={chartData}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-          <XAxis dataKey="dateShort" stroke="var(--muted)" fontSize={12} />
-          <YAxis stroke="var(--muted)" fontSize={12} tickFormatter={(v) => v.toLocaleString()} />
-          <Tooltip
-            formatter={(value) => [String(value ?? 0).replace(/\B(?=(\d{3})+(?!\d))/g, " "), "Баланс"]}
-            labelFormatter={(label) => `Дата: ${label}`}
-          />
+          <XAxis dataKey="dateShort" stroke="var(--foreground)" fontSize={12} />
+          <YAxis stroke="var(--foreground)" fontSize={12} tickFormatter={(v) => v.toLocaleString()} />
+          <Tooltip content={<CustomTooltip />} />
           <ReferenceLine y={zoneGreenMin} stroke="var(--success)" strokeDasharray="3 3" />
           <ReferenceLine y={zoneRedMax} stroke="var(--danger)" strokeDasharray="3 3" />
           <ReferenceLine y={0} stroke="var(--muted)" />
           <Area
             type="monotone"
-            dataKey="balance"
-            stroke="var(--primary)"
-            fill="var(--primary)"
+            dataKey="positiveBalance"
+            stroke="var(--success)"
+            fill="var(--success)"
             fillOpacity={0.2}
             strokeWidth={2}
+            baseValue={0}
           />
-          <Line
+          <Area
             type="monotone"
-            dataKey="balance"
-            stroke="var(--primary)"
-            fill="none"
+            dataKey="negativeBalance"
+            stroke="var(--danger)"
+            fill="var(--danger)"
+            fillOpacity={0.2}
             strokeWidth={2}
-            dot={false}
+            baseValue={0}
           />
         </ComposedChart>
       </ResponsiveContainer>

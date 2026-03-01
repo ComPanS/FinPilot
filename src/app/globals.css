@@ -62,3 +62,9 @@ select option {
   background-color: var(--surface) !important;
   color: var(--foreground) !important;
 }
+
+button,
+[role="button"],
+a[href] {
+  cursor: pointer;
+}

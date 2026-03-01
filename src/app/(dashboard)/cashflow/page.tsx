@@ -3,6 +3,25 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { CashFlowPlanner } from "@/components/cashflow/cashflow-planner";
 
+function serializeProfile<T extends { regularExpenses: { amount: unknown }[]; regularIncomes: { avgCheck: unknown; salesPlan: unknown }[]; manualTransactions: { amount: unknown }[] }>(profile: T) {
+  return {
+    ...profile,
+    regularExpenses: profile.regularExpenses.map((e) => ({
+      ...e,
+      amount: Number(e.amount),
+    })),
+    regularIncomes: profile.regularIncomes.map((i) => ({
+      ...i,
+      avgCheck: Number(i.avgCheck),
+      salesPlan: i.salesPlan,
+    })),
+    manualTransactions: profile.manualTransactions.map((t) => ({
+      ...t,
+      amount: Number(t.amount),
+    })),
+  };
+}
+
 export default async function CashFlowPage() {
   const session = await auth();
   if (!session?.user?.email) redirect("/login");
@@ -31,6 +50,8 @@ export default async function CashFlowPage() {
 
   const forecastDays = user.subscription?.plan === "FREE" ? 30 : 90;
 
+  const serializedProfile = serializeProfile(profile);
+
   return (
     <div className="space-y-8">
       <div>
@@ -40,7 +61,7 @@ export default async function CashFlowPage() {
         </p>
       </div>
       <CashFlowPlanner
-        profile={profile}
+        profile={serializedProfile}
         categories={categories}
         forecastDays={forecastDays}
       />
