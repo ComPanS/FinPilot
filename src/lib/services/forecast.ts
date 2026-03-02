@@ -207,7 +207,7 @@ export async function computeForecast(
         }
       }
     } else if (amt > 0) {
-      const incStart = inc.startDate ? new Date(inc.startDate) : new Date();
+      const incStart = inc.startDate ? new Date(inc.startDate) : new Date(startDate);
       incStart.setHours(0, 0, 0, 0);
       const freq = inc.frequency as string;
       const perDay = dailyAmount(freq, amt, inc.customDays); // amt already has tax applied

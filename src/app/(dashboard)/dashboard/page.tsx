@@ -5,6 +5,9 @@ import Link from "next/link";
 import { getForecastAction } from "@/app/actions/forecast";
 import { DashboardCharts } from "@/components/dashboard/dashboard-charts";
 import { ForecastDebug } from "@/components/dashboard/forecast-debug";
+import { IncomeLogger } from "@/components/dashboard/income-logger";
+
+export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -38,6 +41,7 @@ export default async function DashboardPage() {
   const forecastRes = await getForecastAction(profile.id, {
     startDate: firstOfMonth,
     days: daysInMonth,
+    useExpectedData: true,
   });
   const forecastData = forecastRes?.forecast ?? [];
 
@@ -60,6 +64,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      <IncomeLogger incomes={profile.regularIncomes.map((i) => ({ id: i.id, name: i.name, amount: i.amount != null ? Number(i.amount) : undefined, avgCheck: i.avgCheck != null ? Number(i.avgCheck) : undefined, frequency: i.frequency, taxes: i.taxes != null ? Number(i.taxes) : undefined }))} />
       <ForecastDebug profileId={profile.id} />
       <div>
         <h1 className="text-2xl font-bold text-foreground">

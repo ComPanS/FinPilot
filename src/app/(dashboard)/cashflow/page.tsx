@@ -3,7 +3,13 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { CashFlowPlanner } from "@/components/cashflow/cashflow-planner";
 
-function serializeProfile<T extends { regularExpenses: { amount: unknown }[]; regularIncomes: { amount?: unknown; avgCheck?: unknown; salesPlan?: unknown }[]; manualTransactions: { amount: unknown }[] }>(profile: T) {
+export const dynamic = "force-dynamic";
+
+function serializeProfile<T extends {
+  regularExpenses: { amount: unknown }[];
+  regularIncomes: { amount?: unknown; avgCheck?: unknown; taxes?: unknown; salesPlan?: unknown }[];
+  manualTransactions: { amount: unknown; taxes?: unknown }[];
+}>(profile: T) {
   return {
     ...profile,
     regularExpenses: profile.regularExpenses.map((e) => ({
@@ -14,11 +20,13 @@ function serializeProfile<T extends { regularExpenses: { amount: unknown }[]; re
       ...i,
       amount: i.amount != null ? Number(i.amount) : undefined,
       avgCheck: i.avgCheck != null ? Number(i.avgCheck) : undefined,
+      taxes: i.taxes != null ? Number(i.taxes) : undefined,
       salesPlan: i.salesPlan,
     })),
     manualTransactions: profile.manualTransactions.map((t) => ({
       ...t,
       amount: Number(t.amount),
+      taxes: (t as { taxes?: unknown }).taxes != null ? Number((t as { taxes?: unknown }).taxes) : undefined,
     })),
   };
 }

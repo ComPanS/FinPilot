@@ -29,10 +29,8 @@ export function ExpectedPeriodsModal({
 }) {
   const now = new Date();
   const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const nextMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  const defaultMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, "0")}`;
 
-  const [selectedMonth, setSelectedMonth] = useState(defaultMonth);
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthKey);
   const [amountInput, setAmountInput] = useState("");
   const [items, setItems] = useState<{ key: string; label: string; amount: number }[]>([]);
   const [saving, setSaving] = useState(false);
