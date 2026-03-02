@@ -46,6 +46,39 @@ export async function createCategory(data: { userId: string; name: string }) {
   return { category };
 }
 
+export async function createIncomeCategory(data: { userId: string; name: string }) {
+  const session = await auth();
+  if (!session?.user?.email) return { error: "Не авторизован" };
+
+  const user = await prisma.user.findUnique({
+    where: { email: session.user.email },
+  });
+  if (!user || user.id !== data.userId) {
+    return { error: "Профиль не найден" };
+  }
+
+  const baseSlug = slugify(data.name);
+  const slug = `${baseSlug}-${data.userId.slice(0, 8)}`;
+  const existing = await prisma.incomeCategory.findUnique({
+    where: { slug },
+  });
+  if (existing) {
+    return { category: existing };
+  }
+
+  const category = await prisma.incomeCategory.create({
+    data: {
+      name: data.name,
+      slug,
+      userId: data.userId,
+      isSystem: false,
+    },
+  });
+  revalidatePath("/cashflow");
+  revalidatePath("/dashboard");
+  return { category };
+}
+
 async function saveHistory(
   profileId: string,
   entityType: string,
@@ -291,7 +324,8 @@ export async function createManualTransaction(data: {
   amount: number;
   taxes?: number;
   description?: string;
-  categoryId?: string;
+  expenseCategoryId?: string;
+  incomeCategoryId?: string;
 }) {
   const session = await auth();
   if (!session?.user?.email) return { error: "Не авторизован" };
@@ -306,9 +340,14 @@ export async function createManualTransaction(data: {
 
   const tx = await prisma.manualTransaction.create({
     data: {
-      ...data,
+      profileId: data.profileId,
+      date: data.date,
+      type: data.type,
       amount: data.amount,
       taxes: data.taxes ?? undefined,
+      description: data.description,
+      expenseCategoryId: data.type === "OUT" ? data.expenseCategoryId : undefined,
+      incomeCategoryId: data.type === "IN" ? data.incomeCategoryId : undefined,
     },
   });
   await saveHistory(data.profileId, "MANUAL", tx.id, "create", undefined, {
@@ -317,6 +356,8 @@ export async function createManualTransaction(data: {
     amount: data.amount,
     taxes: data.taxes,
     description: data.description,
+    expenseCategoryId: data.expenseCategoryId,
+    incomeCategoryId: data.incomeCategoryId,
   });
   revalidatePath("/cashflow");
   revalidatePath("/dashboard");
@@ -325,7 +366,7 @@ export async function createManualTransaction(data: {
 
 export async function updateManualTransaction(
   id: string,
-  data: { date?: Date; type?: "IN" | "OUT"; amount?: number; taxes?: number; description?: string }
+  data: { date?: Date; type?: "IN" | "OUT"; amount?: number; taxes?: number; description?: string; expenseCategoryId?: string | null; incomeCategoryId?: string | null }
 ) {
   const session = await auth();
   if (!session?.user?.email) return { error: "Не авторизован" };
@@ -344,6 +385,8 @@ export async function updateManualTransaction(
     amount: Number(tx.amount),
     taxes: tx.taxes != null ? Number(tx.taxes) : undefined,
     description: tx.description,
+    expenseCategoryId: tx.expenseCategoryId,
+    incomeCategoryId: tx.incomeCategoryId,
   };
 
   await prisma.manualTransaction.update({
@@ -354,6 +397,8 @@ export async function updateManualTransaction(
       ...(data.amount != null && { amount: data.amount }),
       ...(data.taxes !== undefined && { taxes: data.taxes }),
       ...(data.description !== undefined && { description: data.description }),
+      ...(data.expenseCategoryId !== undefined && { expenseCategoryId: data.expenseCategoryId ?? null }),
+      ...(data.incomeCategoryId !== undefined && { incomeCategoryId: data.incomeCategoryId ?? null }),
     },
   });
 

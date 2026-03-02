@@ -17,6 +17,7 @@ import {
   deleteManualTransaction,
   saveForecastSnapshotAction,
   createCategory,
+  createIncomeCategory,
 } from "@/app/actions/cashflow";
 import { getForecastAction } from "@/app/actions/forecast";
 import { getRedZones } from "@/lib/services/forecast";
@@ -60,18 +61,22 @@ const manualSchema = z.object({
   amount: z.coerce.number().positive(),
   taxes: z.coerce.number().min(0).max(100).optional(),
   description: z.string().optional(),
+  expenseCategoryId: z.string().optional(),
+  incomeCategoryId: z.string().optional(),
 });
 
 const CUSTOM_CATEGORY_VALUE = "__custom__";
 
 export function CashFlowPlanner({
   profile,
-  categories,
+  expenseCategories,
+  incomeCategories,
   forecastDays,
   userId,
 }: {
   profile: Profile;
-  categories: Category[];
+  expenseCategories: Category[];
+  incomeCategories: Category[];
   forecastDays: number;
   userId: string;
 }) {
@@ -105,6 +110,7 @@ export function CashFlowPlanner({
   const [aiText, setAiText] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [customCategoryName, setCustomCategoryName] = useState("");
+  const [customIncomeCategoryName, setCustomIncomeCategoryName] = useState("");
   const router = useRouter();
 
   type ExpenseSortKey = "name" | "amount" | "frequency" | "createdAt" | "updatedAt";
@@ -196,7 +202,7 @@ export function CashFlowPlanner({
     resolver: zodResolver(expenseSchema),
     defaultValues: {
       frequency: "MONTHLY",
-      categoryId: categories[0]?.id ?? "",
+      categoryId: expenseCategories[0]?.id ?? "",
     },
   });
 
@@ -205,7 +211,7 @@ export function CashFlowPlanner({
     defaultValues: {
       taxes: 0,
       frequency: "MONTHLY",
-      categoryId: categories[0]?.id ?? "",
+      categoryId: incomeCategories[0]?.id ?? "",
     },
   });
 
@@ -215,6 +221,8 @@ export function CashFlowPlanner({
       date: new Date().toISOString().slice(0, 10),
       type: "OUT",
       taxes: 0,
+      expenseCategoryId: expenseCategories[0]?.id ?? "",
+      incomeCategoryId: incomeCategories[0]?.id ?? "",
     },
   });
 
@@ -258,6 +266,19 @@ export function CashFlowPlanner({
       alert("Укажите количество дней для кастомной частоты");
       return;
     }
+    let categoryId = data.categoryId;
+    if (categoryId === CUSTOM_CATEGORY_VALUE) {
+      if (!customIncomeCategoryName.trim()) {
+        alert("Введите название своей категории");
+        return;
+      }
+      const res = await createIncomeCategory({ userId, name: customIncomeCategoryName.trim() });
+      if (res?.error) {
+        alert(res.error);
+        return;
+      }
+      categoryId = res.category!.id;
+    }
     const expectedData = addFormExpectedData?.entityType === "INCOME" ? addFormExpectedData.data : undefined;
     await createIncome({
       profileId: profile.id,
@@ -265,13 +286,15 @@ export function CashFlowPlanner({
       amount: data.amount,
       taxes: data.taxes ?? 0,
       frequency: data.frequency,
-      categoryId: data.categoryId || undefined,
+      categoryId: categoryId || undefined,
       customDays: data.frequency === "CUSTOM" ? data.customDays : undefined,
       expectedData: expectedData && Object.keys(expectedData).length > 0 ? expectedData : undefined,
     });
     incomeForm.reset();
+    setCustomIncomeCategoryName("");
     setAddFormExpectedData(null);
     loadForecast();
+    if (categoryId !== data.categoryId) router.refresh();
   });
 
   const onAddManual = manualForm.handleSubmit(async (data) => {
@@ -282,15 +305,22 @@ export function CashFlowPlanner({
       amount: data.amount,
       taxes: data.taxes ?? 0,
       description: data.description,
+      expenseCategoryId: data.type === "OUT" ? data.expenseCategoryId : undefined,
+      incomeCategoryId: data.type === "IN" ? data.incomeCategoryId : undefined,
     });
-    manualForm.reset({ date: new Date().toISOString().slice(0, 10), type: "OUT", taxes: 0 });
+    manualForm.reset({
+      date: new Date().toISOString().slice(0, 10),
+      type: "OUT",
+      taxes: 0,
+      expenseCategoryId: expenseCategories[0]?.id ?? "",
+    });
     loadForecast();
   });
 
   const onAiTextSubmit = async () => {
     if (!aiText.trim()) return;
     setAiLoading(true);
-    const res = await parseCashFlowTextAction(profile.id, aiText, categories);
+    const res = await parseCashFlowTextAction(profile.id, aiText, expenseCategories, incomeCategories);
     setAiLoading(false);
     if (res?.error) {
       alert(res.error);
@@ -404,7 +434,7 @@ export function CashFlowPlanner({
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Категория</label>
               <select {...expenseForm.register("categoryId")} className="rounded border border-border bg-background px-2 py-1 text-foreground">
-                {categories.map((c) => (
+                {expenseCategories.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
                 <option value={CUSTOM_CATEGORY_VALUE}>Своя категория</option>
@@ -530,11 +560,23 @@ export function CashFlowPlanner({
               <label className="mb-1 block text-xs text-muted-foreground">Категория</label>
               <select {...incomeForm.register("categoryId")} className="rounded border border-border bg-background px-2 py-1 text-foreground">
                 <option value="">—</option>
-                {categories.map((c) => (
+                {incomeCategories.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
+                <option value={CUSTOM_CATEGORY_VALUE}>Своя категория</option>
               </select>
             </div>
+            {incomeForm.watch("categoryId") === CUSTOM_CATEGORY_VALUE && (
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">Название своей категории</label>
+                <input
+                  value={customIncomeCategoryName}
+                  onChange={(e) => setCustomIncomeCategoryName(e.target.value)}
+                  placeholder="Введите название..."
+                  className="rounded border border-border bg-background px-2 py-1 text-foreground"
+                />
+              </div>
+            )}
             <button
               type="button"
               onClick={() => setExpectedPeriodsModal({ entityType: "INCOME", addMode: true, initialData: addFormExpectedData?.entityType === "INCOME" ? addFormExpectedData.data : undefined })}
@@ -602,11 +644,39 @@ export function CashFlowPlanner({
             </div>
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Тип</label>
-              <select {...manualForm.register("type")} className="rounded border border-border bg-background px-2 py-1 text-foreground">
+              <select
+                {...manualForm.register("type", {
+                  onChange: (e) => {
+                    manualForm.setValue("expenseCategoryId", expenseCategories[0]?.id ?? "");
+                    manualForm.setValue("incomeCategoryId", incomeCategories[0]?.id ?? "");
+                  },
+                })}
+                className="rounded border border-border bg-background px-2 py-1 text-foreground"
+              >
                 <option value="IN">Поступление</option>
                 <option value="OUT">Расход</option>
               </select>
             </div>
+            {manualForm.watch("type") === "OUT" ? (
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">Категория</label>
+                <select {...manualForm.register("expenseCategoryId")} className="rounded border border-border bg-background px-2 py-1 text-foreground">
+                  {expenseCategories.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">Категория</label>
+                <select {...manualForm.register("incomeCategoryId")} className="rounded border border-border bg-background px-2 py-1 text-foreground">
+                  <option value="">—</option>
+                  {incomeCategories.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Сумма (₽)</label>
               <input {...manualForm.register("amount")} type="number" min={0} placeholder="0" onKeyDown={(e) => { if (e.key === "-" || e.key === "e" || e.key === "E") e.preventDefault(); }} className="w-24 rounded border border-border bg-background px-2 py-1 text-foreground" />
@@ -629,6 +699,7 @@ export function CashFlowPlanner({
                 <tr className="border-b border-border">
                   <th className="cursor-pointer p-2 text-left hover:bg-surface/50" onClick={() => toggleManualSort("date")}>Дата {manualSort.key === "date" && (manualSort.dir === "desc" ? "↓" : "↑")}</th>
                   <th className="cursor-pointer p-2 text-left hover:bg-surface/50" onClick={() => toggleManualSort("type")}>Тип {manualSort.key === "type" && (manualSort.dir === "desc" ? "↓" : "↑")}</th>
+                  <th className="p-2 text-left">Категория</th>
                   <th className="cursor-pointer p-2 text-left hover:bg-surface/50" onClick={() => toggleManualSort("amount")}>Сумма {manualSort.key === "amount" && (manualSort.dir === "desc" ? "↓" : "↑")}</th>
                   <th className="cursor-pointer p-2 text-left hover:bg-surface/50" onClick={() => toggleManualSort("description")}>Описание {manualSort.key === "description" && (manualSort.dir === "desc" ? "↓" : "↑")}</th>
                   <th className="cursor-pointer p-2 text-left hover:bg-surface/50" onClick={() => toggleManualSort("createdAt")}>Создан {manualSort.key === "createdAt" && (manualSort.dir === "desc" ? "↓" : "↑")}</th>
@@ -640,6 +711,7 @@ export function CashFlowPlanner({
                   <tr key={t.id} className="border-b border-border">
                     <td className="p-2">{new Date(t.date).toLocaleDateString("ru")}</td>
                     <td className="p-2">{t.type === "IN" ? "+" : "-"}</td>
+                    <td className="p-2">{(t as { expenseCategory?: { name: string }; incomeCategory?: { name: string } }).expenseCategory?.name ?? (t as { incomeCategory?: { name: string } }).incomeCategory?.name ?? "-"}</td>
                     <td className="p-2">{Number(t.amount)} {profile.currency}</td>
                     <td className="p-2">{t.description ?? "-"}</td>
                     <td className="p-2">{new Date(t.createdAt).toLocaleDateString("ru")}</td>
@@ -717,7 +789,8 @@ export function CashFlowPlanner({
         <EditModal
           entityType={editModal.entityType}
           entity={editModal.entity}
-          categories={categories}
+          expenseCategories={expenseCategories}
+          incomeCategories={incomeCategories}
           currency={profile.currency}
           onClose={() => setEditModal(null)}
           onSuccess={() => {

@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-const categories = [
+const expenseCategories = [
   { slug: "rent", name: "Аренда" },
   { slug: "salary", name: "Зарплата" },
   { slug: "taxes", name: "Налоги" },
@@ -17,8 +17,18 @@ const categories = [
   { slug: "custom", name: "Своя категория" },
 ];
 
+const incomeCategories = [
+  { slug: "sales", name: "Продажи" },
+  { slug: "services", name: "Услуги" },
+  { slug: "salary", name: "Зарплата" },
+  { slug: "investments", name: "Инвестиции" },
+  { slug: "rent", name: "Аренда" },
+  { slug: "other", name: "Прочее" },
+  { slug: "custom", name: "Своя категория" },
+];
+
 async function main() {
-  for (const cat of categories) {
+  for (const cat of expenseCategories) {
     await prisma.expenseCategory.upsert({
       where: { slug: cat.slug },
       create: { ...cat, isSystem: true },
@@ -26,6 +36,15 @@ async function main() {
     });
   }
   console.log("Seeded expense categories");
+
+  for (const cat of incomeCategories) {
+    await prisma.incomeCategory.upsert({
+      where: { slug: cat.slug },
+      create: { ...cat, isSystem: true },
+      update: {},
+    });
+  }
+  console.log("Seeded income categories");
 }
 
 main()

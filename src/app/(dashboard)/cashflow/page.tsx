@@ -34,7 +34,7 @@ export default async function CashFlowPage() {
         include: {
           regularExpenses: { include: { category: true } },
           regularIncomes: { include: { category: true } },
-          manualTransactions: true,
+          manualTransactions: { include: { expenseCategory: true, incomeCategory: true } },
         },
       },
       subscription: true,
@@ -45,9 +45,14 @@ export default async function CashFlowPage() {
   const profile = user.profiles[0];
   if (!profile) redirect("/onboarding");
 
-  const categories = await prisma.expenseCategory.findMany({
-    where: { OR: [{ isSystem: true }, { userId: user.id }] },
-  });
+  const [expenseCategories, incomeCategories] = await Promise.all([
+    prisma.expenseCategory.findMany({
+      where: { OR: [{ isSystem: true }, { userId: user.id }] },
+    }),
+    prisma.incomeCategory.findMany({
+      where: { OR: [{ isSystem: true }, { userId: user.id }] },
+    }),
+  ]);
 
   const forecastDays = user.subscription?.plan === "FREE" ? 30 : 90;
 
@@ -63,7 +68,8 @@ export default async function CashFlowPage() {
       </div>
       <CashFlowPlanner
         profile={serializedProfile}
-        categories={categories}
+        expenseCategories={expenseCategories}
+        incomeCategories={incomeCategories}
         forecastDays={forecastDays}
         userId={user.id}
       />

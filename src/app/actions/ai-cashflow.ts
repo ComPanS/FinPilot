@@ -12,7 +12,8 @@ type Category = { id: string; name: string; slug: string };
 async function parseAndCreate(
   profileId: string,
   text: string,
-  categories: Category[]
+  expenseCategories: Category[],
+  incomeCategories: Category[]
 ): Promise<{ success: boolean; error?: string }> {
   const currentYear = new Date().getFullYear();
   const prompt = `Распарсь текст о доходе или расходе. Верни ТОЛЬКО один JSON объект без markdown:
@@ -48,8 +49,9 @@ async function parseAndCreate(
     manualType?: "IN" | "OUT" | null;
   };
 
-  const catOther = categories.find((c) => c.slug === "other")?.id ?? categories[0]?.id;
-  if (!catOther) return { success: false, error: "Нет категорий" };
+  const catExpenseOther = expenseCategories.find((c) => c.slug === "other")?.id ?? expenseCategories[0]?.id;
+  const catIncomeOther = incomeCategories.find((c) => c.slug === "other")?.id ?? incomeCategories[0]?.id;
+  if (!catExpenseOther || !catIncomeOther) return { success: false, error: "Нет категорий" };
 
   if (parsed.amount == null || typeof parsed.amount !== "number" || parsed.amount <= 0) {
     return { success: false, error: "Сумма должна быть положительной" };
@@ -62,7 +64,7 @@ async function parseAndCreate(
       name: parsed.name ?? "Расход",
       amount: parsed.amount,
       frequency: freq,
-      categoryId: catOther,
+      categoryId: catExpenseOther,
       customDays: freq === "CUSTOM" && parsed.customDays ? parsed.customDays : undefined,
     });
   } else if (parsed.type === "income") {
@@ -70,6 +72,7 @@ async function parseAndCreate(
       profileId,
       name: parsed.name ?? "Доход",
       amount: parsed.amount,
+      categoryId: catIncomeOther,
       frequency: (parsed.frequency as string) ?? "MONTHLY",
       customDays: parsed.frequency === "CUSTOM" && parsed.customDays ? parsed.customDays : undefined,
     });
@@ -85,12 +88,15 @@ async function parseAndCreate(
     } else {
       date = new Date();
     }
+    const manualType = parsed.manualType ?? "OUT";
     await createManualTransaction({
       profileId,
       date,
-      type: parsed.manualType ?? "OUT",
+      type: manualType,
       amount: parsed.amount,
       description: parsed.description ?? parsed.name ?? undefined,
+      expenseCategoryId: manualType === "OUT" ? catExpenseOther : undefined,
+      incomeCategoryId: manualType === "IN" ? catIncomeOther : undefined,
     });
   } else {
     return { success: false, error: "Не удалось определить тип операции" };
@@ -101,7 +107,8 @@ async function parseAndCreate(
 export async function parseCashFlowTextAction(
   profileId: string,
   text: string,
-  categories: Category[]
+  expenseCategories: Category[],
+  incomeCategories: Category[]
 ) {
   const session = await auth();
   if (!session?.user?.email) return { error: "Не авторизован" };
@@ -124,7 +131,7 @@ export async function parseCashFlowTextAction(
 
   for (const part of parts.length > 1 ? parts : [text]) {
     try {
-      const res = await parseAndCreate(profileId, part, categories);
+      const res = await parseAndCreate(profileId, part, expenseCategories, incomeCategories);
       if (res.error) {
         errors.push(`${part}: ${res.error}`);
       } else {

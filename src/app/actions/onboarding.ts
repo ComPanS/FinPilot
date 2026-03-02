@@ -51,10 +51,11 @@ export async function completeOnboarding(data: {
     }
   }
 
-  const catOther = await prisma.expenseCategory.findFirst({
-    where: { slug: "other" },
-  });
-  if (!catOther) return { error: "Категория не найдена" };
+  const [catExpenseOther, catIncomeOther] = await Promise.all([
+    prisma.expenseCategory.findFirst({ where: { slug: "other" } }),
+    prisma.incomeCategory.findFirst({ where: { slug: "other" } }),
+  ]);
+  if (!catExpenseOther || !catIncomeOther) return { error: "Категория не найдена" };
 
   await prisma.user.update({
     where: { id: existingUser.id },
@@ -77,7 +78,7 @@ export async function completeOnboarding(data: {
       await prisma.regularExpense.create({
         data: {
           profileId: profile.id,
-          categoryId: catOther.id,
+          categoryId: catExpenseOther.id,
           name: item.name,
           amount: item.amount,
           frequency: (item.frequency as "MONTHLY" | "QUARTERLY" | "YEARLY") ?? "MONTHLY",
@@ -94,7 +95,7 @@ export async function completeOnboarding(data: {
           name: item.name,
           amount: item.amount,
           frequency: (item.frequency as string) ?? "MONTHLY",
-          categoryId: catOther.id,
+          categoryId: catIncomeOther.id,
           startDate,
         },
       });
@@ -115,10 +116,11 @@ export async function completeOnboarding(data: {
   }
 
   if (data.aiText?.trim()) {
-    const categories = await prisma.expenseCategory.findMany({
-      where: { OR: [{ isSystem: true }, { userId: existingUser.id }] },
-    });
-    await parseCashFlowTextAction(profile.id, data.aiText.trim(), categories);
+const [expenseCategories, incomeCategories] = await Promise.all([
+    prisma.expenseCategory.findMany({ where: { OR: [{ isSystem: true }, { userId: existingUser.id }] } }),
+    prisma.incomeCategory.findMany({ where: { OR: [{ isSystem: true }, { userId: existingUser.id }] } }),
+  ]);
+  await parseCashFlowTextAction(profile.id, data.aiText.trim(), expenseCategories, incomeCategories);
   }
 
   revalidatePath("/dashboard");

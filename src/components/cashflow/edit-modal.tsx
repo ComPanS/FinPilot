@@ -36,6 +36,8 @@ const manualSchema = z.object({
   amount: z.coerce.number().positive(),
   taxes: z.coerce.number().min(0).max(100).optional(),
   description: z.string().optional(),
+  expenseCategoryId: z.string().optional(),
+  incomeCategoryId: z.string().optional(),
 });
 
 type ExpenseEntity = Prisma.RegularExpenseGetPayload<{ include: { category: true } }>;
@@ -45,14 +47,16 @@ type ManualEntity = Prisma.ManualTransactionGetPayload<object>;
 export function EditModal({
   entityType,
   entity,
-  categories,
+  expenseCategories,
+  incomeCategories,
   currency,
   onClose,
   onSuccess,
 }: {
   entityType: "EXPENSE" | "INCOME" | "MANUAL";
   entity: ExpenseEntity | IncomeEntity | ManualEntity;
-  categories: Category[];
+  expenseCategories: Category[];
+  incomeCategories: Category[];
   currency: string;
   onClose: () => void;
   onSuccess: () => void;
@@ -96,6 +100,8 @@ export function EditModal({
             amount: Number((entity as ManualEntity).amount),
             taxes: (entity as ManualEntity).taxes != null ? Number((entity as ManualEntity).taxes) : 0,
             description: (entity as ManualEntity).description ?? "",
+            expenseCategoryId: (entity as ManualEntity & { expenseCategoryId?: string }).expenseCategoryId ?? "",
+            incomeCategoryId: (entity as ManualEntity & { incomeCategoryId?: string }).incomeCategoryId ?? "",
           }
         : undefined,
   });
@@ -144,6 +150,8 @@ export function EditModal({
       amount: data.amount,
       taxes: data.taxes ?? 0,
       description: data.description,
+      expenseCategoryId: data.type === "OUT" ? (data.expenseCategoryId || null) : null,
+      incomeCategoryId: data.type === "IN" ? (data.incomeCategoryId || null) : null,
     });
     onSuccess();
     onClose();
@@ -200,7 +208,7 @@ export function EditModal({
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Категория</label>
               <select {...expenseForm.register("categoryId")} className="w-full rounded border border-border bg-background px-2 py-1 text-foreground">
-                {categories.map((c) => (
+                {expenseCategories.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
@@ -252,7 +260,7 @@ export function EditModal({
               <label className="mb-1 block text-xs text-muted-foreground">Категория</label>
               <select {...incomeForm.register("categoryId")} className="w-full rounded border border-border bg-background px-2 py-1 text-foreground">
                 <option value="">—</option>
-                {categories.map((c) => (
+                {incomeCategories.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
@@ -281,6 +289,27 @@ export function EditModal({
                 <option value="OUT">Расход</option>
               </select>
             </div>
+            {manualForm.watch("type") === "OUT" ? (
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">Категория</label>
+                <select {...manualForm.register("expenseCategoryId")} className="w-full rounded border border-border bg-background px-2 py-1 text-foreground">
+                  <option value="">—</option>
+                  {expenseCategories.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">Категория</label>
+                <select {...manualForm.register("incomeCategoryId")} className="w-full rounded border border-border bg-background px-2 py-1 text-foreground">
+                  <option value="">—</option>
+                  {incomeCategories.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Сумма ({currency})</label>
               <input {...manualForm.register("amount")} type="number" min={0} placeholder="0" onKeyDown={(e) => { if (e.key === "-" || e.key === "e" || e.key === "E") e.preventDefault(); }} className="w-full rounded border border-border bg-background px-2 py-1 text-foreground" />
