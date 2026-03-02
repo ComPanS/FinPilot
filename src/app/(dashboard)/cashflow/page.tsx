@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { CashFlowPlanner } from "@/components/cashflow/cashflow-planner";
 
-function serializeProfile<T extends { regularExpenses: { amount: unknown }[]; regularIncomes: { avgCheck: unknown; salesPlan: unknown }[]; manualTransactions: { amount: unknown }[] }>(profile: T) {
+function serializeProfile<T extends { regularExpenses: { amount: unknown }[]; regularIncomes: { amount?: unknown; avgCheck?: unknown; salesPlan?: unknown }[]; manualTransactions: { amount: unknown }[] }>(profile: T) {
   return {
     ...profile,
     regularExpenses: profile.regularExpenses.map((e) => ({
@@ -12,7 +12,8 @@ function serializeProfile<T extends { regularExpenses: { amount: unknown }[]; re
     })),
     regularIncomes: profile.regularIncomes.map((i) => ({
       ...i,
-      avgCheck: Number(i.avgCheck),
+      amount: i.amount != null ? Number(i.amount) : undefined,
+      avgCheck: i.avgCheck != null ? Number(i.avgCheck) : undefined,
       salesPlan: i.salesPlan,
     })),
     manualTransactions: profile.manualTransactions.map((t) => ({
@@ -32,7 +33,7 @@ export default async function CashFlowPage() {
       profiles: {
         include: {
           regularExpenses: { include: { category: true } },
-          regularIncomes: true,
+          regularIncomes: { include: { category: true } },
           manualTransactions: true,
         },
       },
@@ -64,6 +65,7 @@ export default async function CashFlowPage() {
         profile={serializedProfile}
         categories={categories}
         forecastDays={forecastDays}
+        userId={user.id}
       />
     </div>
   );

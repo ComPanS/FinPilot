@@ -15,11 +15,15 @@ import {
   deleteIncome,
   deleteManualTransaction,
   saveForecastSnapshotAction,
+  createCategory,
 } from "@/app/actions/cashflow";
 import { getForecastAction } from "@/app/actions/forecast";
 import { getRedZones } from "@/lib/services/forecast";
 import { ForecastChart } from "./forecast-chart";
 import { HistoryModal } from "./history-modal";
+import { EditModal } from "./edit-modal";
+import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
+import { ExpectedPeriodsModal } from "./expected-periods-modal";
 import { parseCashFlowTextAction } from "@/app/actions/ai-cashflow";
 import type { Prisma } from "@prisma/client";
 
@@ -35,16 +39,17 @@ type Category = { id: string; name: string; slug: string };
 const expenseSchema = z.object({
   name: z.string().min(1),
   amount: z.coerce.number().positive(),
-  frequency: z.enum(["MONTHLY", "QUARTERLY", "YEARLY"]),
+  frequency: z.enum(["MONTHLY", "QUARTERLY", "YEARLY", "WEEKLY", "DAILY", "CUSTOM"]),
   categoryId: z.string(),
+  customDays: z.coerce.number().positive().optional(),
 });
 
 const incomeSchema = z.object({
   name: z.string().min(1),
-  avgCheck: z.coerce.number().positive(),
-  month1: z.coerce.number().min(0),
-  month2: z.coerce.number().min(0),
-  month3: z.coerce.number().min(0),
+  amount: z.coerce.number().positive(),
+  frequency: z.enum(["MONTHLY", "QUARTERLY", "YEARLY", "WEEKLY", "DAILY", "CUSTOM"]),
+  categoryId: z.string().optional(),
+  customDays: z.coerce.number().positive().optional(),
 });
 
 const manualSchema = z.object({
@@ -54,14 +59,18 @@ const manualSchema = z.object({
   description: z.string().optional(),
 });
 
+const CUSTOM_CATEGORY_VALUE = "__custom__";
+
 export function CashFlowPlanner({
   profile,
   categories,
   forecastDays,
+  userId,
 }: {
   profile: Profile;
   categories: Category[];
   forecastDays: number;
+  userId: string;
 }) {
   const [activeTab, setActiveTab] = useState<
     "expenses" | "incomes" | "manual" | "chart"
@@ -71,14 +80,98 @@ export function CashFlowPlanner({
     zoneGreenMin: number;
     zoneRedMax: number;
   } | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editModal, setEditModal] = useState<{
+    entityType: "EXPENSE" | "INCOME" | "MANUAL";
+    entity: (typeof profile.regularExpenses)[0] | (typeof profile.regularIncomes)[0] | (typeof profile.manualTransactions)[0];
+  } | null>(null);
   const [historyModal, setHistoryModal] = useState<{
     entityId: string;
     entityType: string;
   } | null>(null);
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState<{
+    message: string;
+    onConfirm: () => Promise<void>;
+  } | null>(null);
+  const [expectedPeriodsModal, setExpectedPeriodsModal] = useState<{
+    entityType: "EXPENSE" | "INCOME";
+    entity?: (typeof profile.regularExpenses)[0] | (typeof profile.regularIncomes)[0];
+    addMode?: boolean;
+    initialData?: Record<string, number>;
+  } | null>(null);
+  const [addFormExpectedData, setAddFormExpectedData] = useState<{ entityType: "EXPENSE" | "INCOME"; data: Record<string, number> } | null>(null);
   const [aiText, setAiText] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
-  const [formResetKey, setFormResetKey] = useState(0);
+  const [customCategoryName, setCustomCategoryName] = useState("");
+
+  type ExpenseSortKey = "name" | "amount" | "frequency" | "createdAt" | "updatedAt";
+  type IncomeSortKey = "name" | "amount" | "frequency" | "createdAt" | "updatedAt";
+  type ManualSortKey = "date" | "type" | "amount" | "description" | "createdAt" | "updatedAt";
+  const [expenseSort, setExpenseSort] = useState<{ key: ExpenseSortKey; dir: "asc" | "desc" }>({ key: "updatedAt", dir: "desc" });
+  const [incomeSort, setIncomeSort] = useState<{ key: IncomeSortKey; dir: "asc" | "desc" }>({ key: "updatedAt", dir: "desc" });
+  const [manualSort, setManualSort] = useState<{ key: ManualSortKey; dir: "asc" | "desc" }>({ key: "updatedAt", dir: "desc" });
+
+  const toggleExpenseSort = (key: ExpenseSortKey) =>
+    setExpenseSort((prev) => ({ key, dir: prev.key === key && prev.dir === "desc" ? "asc" : "desc" }));
+  const toggleIncomeSort = (key: IncomeSortKey) =>
+    setIncomeSort((prev) => ({ key, dir: prev.key === key && prev.dir === "desc" ? "asc" : "desc" }));
+  const toggleManualSort = (key: ManualSortKey) =>
+    setManualSort((prev) => ({ key, dir: prev.key === key && prev.dir === "desc" ? "asc" : "desc" }));
+
+  const sortExpenses = (arr: typeof profile.regularExpenses) =>
+    [...arr].sort((a, b) => {
+      const mult = expenseSort.dir === "asc" ? 1 : -1;
+      switch (expenseSort.key) {
+        case "name":
+          return mult * (a.name.localeCompare(b.name) || 0);
+        case "amount":
+          return mult * (Number(a.amount) - Number(b.amount));
+        case "frequency":
+          return mult * (a.frequency.localeCompare(b.frequency) || 0);
+        case "createdAt":
+          return mult * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        case "updatedAt":
+        default:
+          return mult * (new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime());
+      }
+    });
+
+  const sortIncomes = (arr: typeof profile.regularIncomes) =>
+    [...arr].sort((a, b) => {
+      const mult = incomeSort.dir === "asc" ? 1 : -1;
+      switch (incomeSort.key) {
+        case "name":
+          return mult * (a.name.localeCompare(b.name) || 0);
+        case "amount":
+          return mult * (Number(a.amount ?? a.avgCheck ?? 0) - Number(b.amount ?? b.avgCheck ?? 0));
+        case "frequency":
+          return mult * ((a.frequency ?? "").localeCompare(b.frequency ?? "") || 0);
+        case "createdAt":
+          return mult * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        case "updatedAt":
+        default:
+          return mult * (new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime());
+      }
+    });
+
+  const sortManual = (arr: typeof profile.manualTransactions) =>
+    [...arr].sort((a, b) => {
+      const mult = manualSort.dir === "asc" ? 1 : -1;
+      switch (manualSort.key) {
+        case "date":
+          return mult * (new Date(a.date).getTime() - new Date(b.date).getTime());
+        case "type":
+          return mult * (a.type.localeCompare(b.type) || 0);
+        case "amount":
+          return mult * (Number(a.amount) - Number(b.amount));
+        case "description":
+          return mult * ((a.description ?? "").localeCompare(b.description ?? "") || 0);
+        case "createdAt":
+          return mult * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        case "updatedAt":
+        default:
+          return mult * (new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime());
+      }
+    });
 
   const zoneGreenMin = profile.zoneGreenMin ?? 50000;
   const zoneRedMax = profile.zoneRedMax ?? -50000;
@@ -106,9 +199,8 @@ export function CashFlowPlanner({
   const incomeForm = useForm<z.infer<typeof incomeSchema>>({
     resolver: zodResolver(incomeSchema),
     defaultValues: {
-      month1: "" as unknown as number,
-      month2: "" as unknown as number,
-      month3: "" as unknown as number,
+      frequency: "MONTHLY",
+      categoryId: categories[0]?.id ?? "",
     },
   });
 
@@ -121,71 +213,68 @@ export function CashFlowPlanner({
   });
 
   const onAddExpense = expenseForm.handleSubmit(async (data) => {
-    if (editingId) {
-      await updateExpense(editingId, {
-        name: data.name,
-        amount: data.amount,
-        frequency: data.frequency,
-        categoryId: data.categoryId,
-      });
-      setEditingId(null);
-    } else {
-      await createExpense({
-        profileId: profile.id,
-        name: data.name,
-        amount: data.amount,
-        frequency: data.frequency,
-        categoryId: data.categoryId,
-      });
+    if (data.frequency === "CUSTOM" && (!data.customDays || data.customDays < 1)) {
+      alert("Укажите количество дней для кастомной частоты");
+      return;
     }
+    let categoryId = data.categoryId;
+    if (categoryId === CUSTOM_CATEGORY_VALUE) {
+      if (!customCategoryName.trim()) {
+        alert("Введите название своей категории");
+        return;
+      }
+      const res = await createCategory({ userId, name: customCategoryName.trim() });
+      if (res?.error) {
+        alert(res.error);
+        return;
+      }
+      categoryId = res.category!.id;
+    }
+    const expectedData = addFormExpectedData?.entityType === "EXPENSE" ? addFormExpectedData.data : undefined;
+    await createExpense({
+      profileId: profile.id,
+      name: data.name,
+      amount: data.amount,
+      frequency: data.frequency,
+      categoryId,
+      customDays: data.frequency === "CUSTOM" ? data.customDays : undefined,
+      expectedData: expectedData && Object.keys(expectedData).length > 0 ? expectedData : undefined,
+    });
     expenseForm.reset();
+    setCustomCategoryName("");
+    setAddFormExpectedData(null);
     loadForecast();
+    if (categoryId !== data.categoryId) window.location.reload();
   });
 
   const onAddIncome = incomeForm.handleSubmit(async (data) => {
-    const salesPlan: Record<string, number> = {};
-    const now = new Date();
-    for (let i = 0; i < 12; i++) {
-      const m = ((now.getMonth() + i) % 12) + 1;
-      salesPlan[String(m)] = [data.month1, data.month2, data.month3][i % 3] ?? data.month1;
+    if (data.frequency === "CUSTOM" && (!data.customDays || data.customDays < 1)) {
+      alert("Укажите количество дней для кастомной частоты");
+      return;
     }
-    if (editingId) {
-      await updateIncome(editingId, {
-        name: data.name,
-        avgCheck: data.avgCheck,
-        salesPlan,
-      });
-      setEditingId(null);
-    } else {
-      await createIncome({
-        profileId: profile.id,
-        name: data.name,
-        avgCheck: data.avgCheck,
-        salesPlan,
-      });
-    }
+    const expectedData = addFormExpectedData?.entityType === "INCOME" ? addFormExpectedData.data : undefined;
+    await createIncome({
+      profileId: profile.id,
+      name: data.name,
+      amount: data.amount,
+      frequency: data.frequency,
+      categoryId: data.categoryId || undefined,
+      customDays: data.frequency === "CUSTOM" ? data.customDays : undefined,
+      expectedData: expectedData && Object.keys(expectedData).length > 0 ? expectedData : undefined,
+    });
     incomeForm.reset();
+    setAddFormExpectedData(null);
     loadForecast();
   });
 
   const onAddManual = manualForm.handleSubmit(async (data) => {
-    if (editingId) {
-      await updateManualTransaction(editingId, {
-        date: new Date(data.date),
-        type: data.type as "IN" | "OUT",
-        amount: data.amount,
-        description: data.description,
-      });
-      setEditingId(null);
-    } else {
-      await createManualTransaction({
-        profileId: profile.id,
-        date: new Date(data.date),
-        type: data.type as "IN" | "OUT",
-        amount: data.amount,
-        description: data.description,
-      });
-    }
+    await createManualTransaction({
+      profileId: profile.id,
+      date: new Date(data.date),
+      type: data.type as "IN" | "OUT",
+      amount: data.amount,
+      description: data.description,
+    });
     manualForm.reset({ date: new Date().toISOString().slice(0, 10), type: "OUT" });
     loadForecast();
   });
@@ -213,14 +302,23 @@ export function CashFlowPlanner({
     { id: "chart" as const, label: "График" },
   ];
 
-  const freqLabel = (f: string) =>
-    f === "MONTHLY" ? "Ежемесячно" : f === "QUARTERLY" ? "Ежеквартально" : "Раз в год";
+  const freqLabel = (f: string, customDays?: number | null) =>
+    f === "MONTHLY" ? "Ежемесячно"
+    : f === "QUARTERLY" ? "Ежеквартально"
+    : f === "YEARLY" ? "Раз в год"
+    : f === "WEEKLY" ? "Еженедельно"
+    : f === "DAILY" ? "Ежедневно"
+    : f === "CUSTOM" && customDays ? `Каждые ${customDays} дн.`
+    : "Кастомный";
 
-  const monthNames = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
-  const now = new Date();
-  const planMonth1 = monthNames[now.getMonth()];
-  const planMonth2 = monthNames[(now.getMonth() + 1) % 12];
-  const planMonth3 = monthNames[(now.getMonth() + 2) % 12];
+  const incomeFreqLabel = (f: string, customDays?: number | null) =>
+    f === "MONTHLY" ? "Ежемесячно"
+    : f === "QUARTERLY" ? "Ежеквартально"
+    : f === "YEARLY" ? "Раз в год"
+    : f === "WEEKLY" ? "Еженедельно"
+    : f === "DAILY" ? "Ежедневно"
+    : f === "CUSTOM" && customDays ? `Каждые ${customDays} дн.`
+    : "Кастомный";
 
   return (
     <div className="space-y-6">
@@ -253,7 +351,7 @@ export function CashFlowPlanner({
             key={t.id}
             onClick={() => {
               setActiveTab(t.id);
-              setEditingId(null);
+              setEditModal(null);
               if (t.id === "chart") loadForecast();
             }}
             className={`cursor-pointer border-b-2 px-4 py-2 font-medium ${
@@ -269,7 +367,7 @@ export function CashFlowPlanner({
 
       {activeTab === "expenses" && (
         <div className="space-y-4">
-          <form key={`exp-${formResetKey}`} onSubmit={onAddExpense} className="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-surface p-4">
+          <form onSubmit={onAddExpense} className="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-surface p-4">
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Название</label>
               <input {...expenseForm.register("name")} placeholder="Например: Аренда" className="rounded border border-border bg-background px-2 py-1 text-foreground" />
@@ -284,63 +382,71 @@ export function CashFlowPlanner({
                 <option value="MONTHLY">Ежемесячно</option>
                 <option value="QUARTERLY">Ежеквартально</option>
                 <option value="YEARLY">Раз в год</option>
+                <option value="WEEKLY">Еженедельно</option>
+                <option value="DAILY">Ежедневно</option>
+                <option value="CUSTOM">Кастомный</option>
               </select>
             </div>
+            {expenseForm.watch("frequency") === "CUSTOM" && (
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">Каждые (дней)</label>
+                <input {...expenseForm.register("customDays")} type="number" min={1} placeholder="7" className="w-20 rounded border border-border bg-background px-2 py-1 text-foreground" />
+              </div>
+            )}
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Категория</label>
               <select {...expenseForm.register("categoryId")} className="rounded border border-border bg-background px-2 py-1 text-foreground">
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
+                <option value={CUSTOM_CATEGORY_VALUE}>Своя категория</option>
               </select>
             </div>
-            <button type="submit" className="rounded bg-primary px-4 py-1 text-white hover:bg-primary-dark">
-              {editingId ? "Сохранить" : "Добавить"}
-            </button>
-            {editingId && (
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingId(null);
-                  setFormResetKey((k) => k + 1);
-                }}
-                className="rounded border px-2 py-1"
-              >
-                Отмена
-              </button>
+            {expenseForm.watch("categoryId") === CUSTOM_CATEGORY_VALUE && (
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">Название своей категории</label>
+                <input
+                  value={customCategoryName}
+                  onChange={(e) => setCustomCategoryName(e.target.value)}
+                  placeholder="Введите название..."
+                  className="rounded border border-border bg-background px-2 py-1 text-foreground"
+                />
+              </div>
             )}
+            <button
+              type="button"
+              onClick={() => setExpectedPeriodsModal({ entityType: "EXPENSE", addMode: true, initialData: addFormExpectedData?.entityType === "EXPENSE" ? addFormExpectedData.data : undefined })}
+              className="rounded border border-border px-4 py-1 text-muted-foreground hover:bg-surface"
+            >
+              Ожидаемые данные
+            </button>
+            <button type="submit" className="rounded bg-primary px-4 py-1 text-white hover:bg-primary-dark">
+              Добавить
+            </button>
           </form>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="p-2 text-left">Название</th>
-                  <th className="p-2 text-left">Сумма</th>
-                  <th className="p-2 text-left">Частота</th>
-                  <th className="p-2 text-left">Создан</th>
-                  <th className="p-2 text-left">Изменён</th>
+                  <th className="cursor-pointer p-2 text-left hover:bg-surface/50" onClick={() => toggleExpenseSort("name")}>Название {expenseSort.key === "name" && (expenseSort.dir === "desc" ? "↓" : "↑")}</th>
+                  <th className="cursor-pointer p-2 text-left hover:bg-surface/50" onClick={() => toggleExpenseSort("amount")}>Сумма {expenseSort.key === "amount" && (expenseSort.dir === "desc" ? "↓" : "↑")}</th>
+                  <th className="cursor-pointer p-2 text-left hover:bg-surface/50" onClick={() => toggleExpenseSort("frequency")}>Частота {expenseSort.key === "frequency" && (expenseSort.dir === "desc" ? "↓" : "↑")}</th>
+                  <th className="cursor-pointer p-2 text-left hover:bg-surface/50" onClick={() => toggleExpenseSort("createdAt")}>Создан {expenseSort.key === "createdAt" && (expenseSort.dir === "desc" ? "↓" : "↑")}</th>
+                  <th className="cursor-pointer p-2 text-left hover:bg-surface/50" onClick={() => toggleExpenseSort("updatedAt")}>Изменён {expenseSort.key === "updatedAt" && (expenseSort.dir === "desc" ? "↓" : "↑")}</th>
                   <th className="p-2 text-left">Действия</th>
                 </tr>
               </thead>
               <tbody>
-                {[...profile.regularExpenses].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((e) => (
+                {sortExpenses(profile.regularExpenses).map((e) => (
                   <tr key={e.id} className="border-b border-border">
                     <td className="p-2">{e.name}</td>
                     <td className="p-2">{Number(e.amount)} {profile.currency}</td>
-                    <td className="p-2">{freqLabel(e.frequency)}</td>
+                    <td className="p-2">{freqLabel(e.frequency, e.customDays)}</td>
                     <td className="p-2">{new Date(e.createdAt).toLocaleDateString("ru")}</td>
                     <td className="p-2">{new Date(e.updatedAt).toLocaleDateString("ru")}</td>
                     <td className="p-2">
                       <button
-                        onClick={() => {
-                          setEditingId(e.id);
-                          expenseForm.reset({
-                            name: e.name,
-                            amount: Number(e.amount),
-                            frequency: e.frequency as "MONTHLY" | "QUARTERLY" | "YEARLY",
-                            categoryId: e.categoryId,
-                          });
-                        }}
+                        onClick={() => setEditModal({ entityType: "EXPENSE", entity: e })}
                         className="cursor-pointer text-primary hover:underline mr-2"
                       >
                         Изменить
@@ -352,11 +458,21 @@ export function CashFlowPlanner({
                         История
                       </button>
                       <button
-                        onClick={async () => {
-                          if (!confirm("Удалить этот расход?")) return;
-                          await deleteExpense(e.id);
-                          loadForecast();
-                        }}
+                        onClick={() => setExpectedPeriodsModal({ entityType: "EXPENSE", entity: e })}
+                        className="cursor-pointer text-muted-foreground hover:underline mr-2"
+                      >
+                        Ожидаемые данные
+                      </button>
+                      <button
+                        onClick={() =>
+                          setDeleteConfirmModal({
+                            message: "Удалить этот расход?",
+                            onConfirm: async () => {
+                              await deleteExpense(e.id);
+                              loadForecast();
+                            },
+                          })
+                        }
                         className="cursor-pointer text-danger hover:underline"
                       >
                         Удалить
@@ -372,61 +488,90 @@ export function CashFlowPlanner({
 
       {activeTab === "incomes" && (
         <div className="space-y-4">
-          <form key={`inc-${formResetKey}`} onSubmit={onAddIncome} className="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-surface p-4">
+          <form onSubmit={onAddIncome} className="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-surface p-4">
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Название</label>
               <input {...incomeForm.register("name")} placeholder="Например: Продажи" className="rounded border border-border bg-background px-2 py-1 text-foreground" />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-muted-foreground">Средний чек (₽)</label>
-              <input {...incomeForm.register("avgCheck")} type="number" placeholder="0" className="w-28 rounded border border-border bg-background px-2 py-1 text-foreground" />
+              <label className="mb-1 block text-xs text-muted-foreground">Сумма (₽)</label>
+              <input {...incomeForm.register("amount")} type="number" placeholder="0" className="w-24 rounded border border-border bg-background px-2 py-1 text-foreground" />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-muted-foreground">План продаж по месяцам (₽)</label>
-              <div className="flex gap-1">
-                <input {...incomeForm.register("month1")} type="number" placeholder={planMonth1} title={`План на ${planMonth1}`} className="w-24 rounded border border-border bg-background px-2 py-1 text-foreground" />
-                <input {...incomeForm.register("month2")} type="number" placeholder={planMonth2} title={`План на ${planMonth2}`} className="w-24 rounded border border-border bg-background px-2 py-1 text-foreground" />
-                <input {...incomeForm.register("month3")} type="number" placeholder={planMonth3} title={`План на ${planMonth3}`} className="w-24 rounded border border-border bg-background px-2 py-1 text-foreground" />
-              </div>
+              <label className="mb-1 block text-xs text-muted-foreground">Частота</label>
+              <select {...incomeForm.register("frequency")} className="rounded border border-border bg-background px-2 py-1 text-foreground">
+                <option value="MONTHLY">Ежемесячно</option>
+                <option value="QUARTERLY">Ежеквартально</option>
+                <option value="YEARLY">Раз в год</option>
+                <option value="WEEKLY">Еженедельно</option>
+                <option value="DAILY">Ежедневно</option>
+                <option value="CUSTOM">Кастомный</option>
+              </select>
             </div>
-            <button type="submit" className="rounded bg-primary px-4 py-1 text-white hover:bg-primary-dark">
-              {editingId ? "Сохранить" : "Добавить"}
-            </button>
-            {editingId && (
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingId(null);
-                  setFormResetKey((k) => k + 1);
-                }}
-                className="rounded border px-2 py-1"
-              >
-                Отмена
-              </button>
+            {incomeForm.watch("frequency") === "CUSTOM" && (
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">Каждые (дней)</label>
+                <input {...incomeForm.register("customDays")} type="number" min={1} placeholder="7" className="w-20 rounded border border-border bg-background px-2 py-1 text-foreground" />
+              </div>
             )}
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Категория</label>
+              <select {...incomeForm.register("categoryId")} className="rounded border border-border bg-background px-2 py-1 text-foreground">
+                <option value="">—</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              onClick={() => setExpectedPeriodsModal({ entityType: "INCOME", addMode: true, initialData: addFormExpectedData?.entityType === "INCOME" ? addFormExpectedData.data : undefined })}
+              className="rounded border border-border px-4 py-1 text-muted-foreground hover:bg-surface"
+            >
+              Ожидаемые данные
+            </button>
+            <button type="submit" className="rounded bg-primary px-4 py-1 text-white hover:bg-primary-dark">
+              Добавить
+            </button>
           </form>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="p-2 text-left">Название</th>
-                  <th className="p-2 text-left">Средний чек</th>
-                  <th className="p-2 text-left">Создан</th>
-                  <th className="p-2 text-left">Изменён</th>
+                  <th className="cursor-pointer p-2 text-left hover:bg-surface/50" onClick={() => toggleIncomeSort("name")}>Название {incomeSort.key === "name" && (incomeSort.dir === "desc" ? "↓" : "↑")}</th>
+                  <th className="cursor-pointer p-2 text-left hover:bg-surface/50" onClick={() => toggleIncomeSort("amount")}>Сумма {incomeSort.key === "amount" && (incomeSort.dir === "desc" ? "↓" : "↑")}</th>
+                  <th className="cursor-pointer p-2 text-left hover:bg-surface/50" onClick={() => toggleIncomeSort("frequency")}>Частота {incomeSort.key === "frequency" && (incomeSort.dir === "desc" ? "↓" : "↑")}</th>
+                  <th className="cursor-pointer p-2 text-left hover:bg-surface/50" onClick={() => toggleIncomeSort("createdAt")}>Создан {incomeSort.key === "createdAt" && (incomeSort.dir === "desc" ? "↓" : "↑")}</th>
+                  <th className="cursor-pointer p-2 text-left hover:bg-surface/50" onClick={() => toggleIncomeSort("updatedAt")}>Изменён {incomeSort.key === "updatedAt" && (incomeSort.dir === "desc" ? "↓" : "↑")}</th>
                   <th className="p-2 text-left">Действия</th>
                 </tr>
               </thead>
               <tbody>
-                {[...profile.regularIncomes].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((i) => (
+                {sortIncomes(profile.regularIncomes).map((i) => (
                   <tr key={i.id} className="border-b border-border">
                     <td className="p-2">{i.name}</td>
-                    <td className="p-2">{Number(i.avgCheck)} {profile.currency}</td>
+                    <td className="p-2">{Number(i.amount ?? i.avgCheck ?? 0)} {profile.currency}</td>
+                    <td className="p-2">{incomeFreqLabel(i.frequency ?? "MONTHLY", i.customDays)}</td>
                     <td className="p-2">{new Date(i.createdAt).toLocaleDateString("ru")}</td>
                     <td className="p-2">{new Date(i.updatedAt).toLocaleDateString("ru")}</td>
                     <td className="p-2">
-                      <button onClick={() => { setEditingId(i.id); incomeForm.reset({ name: i.name, avgCheck: Number(i.avgCheck), month1: 0, month2: 0, month3: 0 }); }} className="cursor-pointer text-primary hover:underline mr-2">Изменить</button>
+                      <button onClick={() => setEditModal({ entityType: "INCOME", entity: i })} className="cursor-pointer text-primary hover:underline mr-2">Изменить</button>
                       <button onClick={() => setHistoryModal({ entityId: i.id, entityType: "INCOME" })} className="cursor-pointer text-muted-foreground hover:underline mr-2">История</button>
-                      <button onClick={async () => { if (!confirm("Удалить этот доход?")) return; await deleteIncome(i.id); loadForecast(); }} className="cursor-pointer text-danger hover:underline">Удалить</button>
+                      <button onClick={() => setExpectedPeriodsModal({ entityType: "INCOME", entity: i })} className="cursor-pointer text-muted-foreground hover:underline mr-2">Ожидаемые данные</button>
+                      <button
+                        onClick={() =>
+                          setDeleteConfirmModal({
+                            message: "Удалить этот доход?",
+                            onConfirm: async () => {
+                              await deleteIncome(i.id);
+                              loadForecast();
+                            },
+                          })
+                        }
+                        className="cursor-pointer text-danger hover:underline"
+                      >
+                        Удалить
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -438,7 +583,7 @@ export function CashFlowPlanner({
 
       {activeTab === "manual" && (
         <div className="space-y-4">
-          <form key={`man-${formResetKey}`} onSubmit={onAddManual} className="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-surface p-4">
+          <form onSubmit={onAddManual} className="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-surface p-4">
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Дата</label>
               <input {...manualForm.register("date")} type="date" className="rounded border border-border bg-background px-2 py-1 text-foreground" />
@@ -459,35 +604,23 @@ export function CashFlowPlanner({
               <input {...manualForm.register("description")} placeholder="Например: Покупка оборудования" className="rounded border border-border bg-background px-2 py-1 text-foreground" />
             </div>
             <button type="submit" className="rounded bg-primary px-4 py-1 text-white hover:bg-primary-dark">
-              {editingId ? "Сохранить" : "Добавить"}
+              Добавить
             </button>
-            {editingId && (
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingId(null);
-                  setFormResetKey((k) => k + 1);
-                }}
-                className="rounded border px-2 py-1"
-              >
-                Отмена
-              </button>
-            )}
           </form>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="p-2 text-left">Дата</th>
-                  <th className="p-2 text-left">Тип</th>
-                  <th className="p-2 text-left">Сумма</th>
-                  <th className="p-2 text-left">Описание</th>
-                  <th className="p-2 text-left">Создан</th>
+                  <th className="cursor-pointer p-2 text-left hover:bg-surface/50" onClick={() => toggleManualSort("date")}>Дата {manualSort.key === "date" && (manualSort.dir === "desc" ? "↓" : "↑")}</th>
+                  <th className="cursor-pointer p-2 text-left hover:bg-surface/50" onClick={() => toggleManualSort("type")}>Тип {manualSort.key === "type" && (manualSort.dir === "desc" ? "↓" : "↑")}</th>
+                  <th className="cursor-pointer p-2 text-left hover:bg-surface/50" onClick={() => toggleManualSort("amount")}>Сумма {manualSort.key === "amount" && (manualSort.dir === "desc" ? "↓" : "↑")}</th>
+                  <th className="cursor-pointer p-2 text-left hover:bg-surface/50" onClick={() => toggleManualSort("description")}>Описание {manualSort.key === "description" && (manualSort.dir === "desc" ? "↓" : "↑")}</th>
+                  <th className="cursor-pointer p-2 text-left hover:bg-surface/50" onClick={() => toggleManualSort("createdAt")}>Создан {manualSort.key === "createdAt" && (manualSort.dir === "desc" ? "↓" : "↑")}</th>
                   <th className="p-2 text-left">Действия</th>
                 </tr>
               </thead>
               <tbody>
-                {[...profile.manualTransactions].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((t) => (
+                {sortManual(profile.manualTransactions).map((t) => (
                   <tr key={t.id} className="border-b border-border">
                     <td className="p-2">{new Date(t.date).toLocaleDateString("ru")}</td>
                     <td className="p-2">{t.type === "IN" ? "+" : "-"}</td>
@@ -495,9 +628,22 @@ export function CashFlowPlanner({
                     <td className="p-2">{t.description ?? "-"}</td>
                     <td className="p-2">{new Date(t.createdAt).toLocaleDateString("ru")}</td>
                     <td className="p-2">
-                      <button onClick={() => { setEditingId(t.id); manualForm.reset({ date: new Date(t.date).toISOString().slice(0, 10), type: t.type as "IN" | "OUT", amount: Number(t.amount), description: t.description ?? "" }); }} className="cursor-pointer text-primary hover:underline mr-2">Изменить</button>
+                      <button onClick={() => setEditModal({ entityType: "MANUAL", entity: t })} className="cursor-pointer text-primary hover:underline mr-2">Изменить</button>
                       <button onClick={() => setHistoryModal({ entityId: t.id, entityType: "MANUAL" })} className="cursor-pointer text-muted-foreground hover:underline mr-2">История</button>
-                      <button onClick={async () => { if (!confirm("Удалить эту операцию?")) return; await deleteManualTransaction(t.id); loadForecast(); }} className="cursor-pointer text-danger hover:underline">Удалить</button>
+                      <button
+                        onClick={() =>
+                          setDeleteConfirmModal({
+                            message: "Удалить эту операцию?",
+                            onConfirm: async () => {
+                              await deleteManualTransaction(t.id);
+                              loadForecast();
+                            },
+                          })
+                        }
+                        className="cursor-pointer text-danger hover:underline"
+                      >
+                        Удалить
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -548,6 +694,50 @@ export function CashFlowPlanner({
           zoneGreenMin={zoneGreenMin}
           zoneRedMax={zoneRedMax}
           onClose={() => setHistoryModal(null)}
+        />
+      )}
+
+      {editModal && (
+        <EditModal
+          entityType={editModal.entityType}
+          entity={editModal.entity}
+          categories={categories}
+          currency={profile.currency}
+          onClose={() => setEditModal(null)}
+          onSuccess={() => {
+            loadForecast();
+            window.location.reload();
+          }}
+        />
+      )}
+
+      {deleteConfirmModal && (
+        <ConfirmDeleteModal
+          message={deleteConfirmModal.message}
+          onConfirm={deleteConfirmModal.onConfirm}
+          onCancel={() => setDeleteConfirmModal(null)}
+        />
+      )}
+
+      {expectedPeriodsModal && (
+        <ExpectedPeriodsModal
+          entityType={expectedPeriodsModal.entityType}
+          entity={expectedPeriodsModal.entity ? {
+            ...expectedPeriodsModal.entity,
+            expectedData: expectedPeriodsModal.entity.expectedData as Record<string, number> | null | undefined,
+          } : undefined}
+          currency={profile.currency}
+          onClose={() => setExpectedPeriodsModal(null)}
+          onSuccess={() => {
+            loadForecast();
+            window.location.reload();
+          }}
+          addMode={expectedPeriodsModal.addMode}
+          initialData={expectedPeriodsModal.initialData}
+          onSaveForAdd={expectedPeriodsModal.addMode ? (data) => {
+            setAddFormExpectedData({ entityType: expectedPeriodsModal.entityType, data });
+            setExpectedPeriodsModal(null);
+          } : undefined}
         />
       )}
     </div>

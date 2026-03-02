@@ -2,12 +2,26 @@
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { computeForecast } from "@/lib/services/forecast";
+import { computeForecast, computeForecastDebug } from "@/lib/services/forecast";
 import type { WhatIfChanges } from "@/types";
+
+export async function getForecastDebugAction(profileId: string) {
+  const session = await auth();
+  if (!session?.user?.email) return { error: "Не авторизован" };
+  const user = await prisma.user.findUnique({
+    where: { email: session.user.email },
+    include: { profiles: true, subscription: true },
+  });
+  if (!user || !user.profiles.some((p) => p.id === profileId)) {
+    return { error: "Профиль не найден" };
+  }
+  const days = user.subscription?.plan === "FREE" ? 30 : 90;
+  return computeForecastDebug(profileId, { days });
+}
 
 export async function getForecastAction(
   profileId: string,
-  options?: { days?: number; changes?: WhatIfChanges }
+  options?: { days?: number; changes?: WhatIfChanges; useExpectedData?: boolean }
 ) {
   const session = await auth();
   if (!session?.user?.email) return { error: "Не авторизован" };
@@ -21,12 +35,14 @@ export async function getForecastAction(
   }
 
   const profile = user.profiles.find((p) => p.id === profileId)!;
-  const days = user.subscription?.plan === "FREE" ? 30 : options?.days ?? 90;
+  const defaultDays = user.subscription?.plan === "FREE" ? 30 : 90;
+  const days = options?.days ?? defaultDays;
   const forecast = await computeForecast(profileId, {
     days,
     changes: options?.changes,
     zoneGreenMin: profile.zoneGreenMin ?? 50000,
     zoneRedMax: profile.zoneRedMax ?? -50000,
+    useExpectedData: options?.useExpectedData,
   });
   return {
     forecast,

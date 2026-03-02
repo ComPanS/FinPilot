@@ -4,6 +4,48 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9а-яё-]/gi, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "") || "custom";
+}
+
+export async function createCategory(data: { userId: string; name: string }) {
+  const session = await auth();
+  if (!session?.user?.email) return { error: "Не авторизован" };
+
+  const user = await prisma.user.findUnique({
+    where: { email: session.user.email },
+  });
+  if (!user || user.id !== data.userId) {
+    return { error: "Профиль не найден" };
+  }
+
+  const baseSlug = slugify(data.name);
+  const slug = `${baseSlug}-${data.userId.slice(0, 8)}`;
+  const existing = await prisma.expenseCategory.findUnique({
+    where: { slug },
+  });
+  if (existing) {
+    return { category: existing };
+  }
+
+  const category = await prisma.expenseCategory.create({
+    data: {
+      name: data.name,
+      slug,
+      userId: data.userId,
+      isSystem: false,
+    },
+  });
+  revalidatePath("/cashflow");
+  revalidatePath("/dashboard");
+  return { category };
+}
+
 async function saveHistory(
   profileId: string,
   entityType: string,
@@ -40,6 +82,8 @@ export async function createExpense(data: {
   amount: number;
   frequency: string;
   categoryId: string;
+  customDays?: number;
+  expectedData?: Record<string, number>;
 }) {
   const session = await auth();
   if (!session?.user?.email) return { error: "Не авторизован" };
@@ -63,6 +107,8 @@ export async function createExpense(data: {
       amount: data.amount,
       frequency: data.frequency,
       categoryId: data.categoryId,
+      customDays: data.customDays ?? undefined,
+      expectedData: data.expectedData ?? undefined,
       startDate,
     },
   });
@@ -71,6 +117,7 @@ export async function createExpense(data: {
     amount: data.amount,
     frequency: data.frequency,
     categoryId: data.categoryId,
+    customDays: data.customDays,
   });
   revalidatePath("/cashflow");
   revalidatePath("/dashboard");
@@ -79,7 +126,7 @@ export async function createExpense(data: {
 
 export async function updateExpense(
   id: string,
-  data: { name?: string; amount?: number; frequency?: string; categoryId?: string }
+  data: { name?: string; amount?: number; frequency?: string; categoryId?: string; customDays?: number; expectedData?: Record<string, number> }
 ) {
   const session = await auth();
   if (!session?.user?.email) return { error: "Не авторизован" };
@@ -97,6 +144,8 @@ export async function updateExpense(
     amount: Number(exp.amount),
     frequency: exp.frequency,
     categoryId: exp.categoryId,
+    customDays: exp.customDays,
+    expectedData: exp.expectedData,
   };
 
   await prisma.regularExpense.update({
@@ -106,6 +155,8 @@ export async function updateExpense(
       ...(data.amount != null && { amount: data.amount }),
       ...(data.frequency && { frequency: data.frequency }),
       ...(data.categoryId && { categoryId: data.categoryId }),
+      ...(data.customDays !== undefined && { customDays: data.customDays }),
+      ...(data.expectedData !== undefined && { expectedData: data.expectedData }),
     },
   });
 
@@ -119,8 +170,13 @@ export async function updateExpense(
 export async function createIncome(data: {
   profileId: string;
   name: string;
-  avgCheck: number;
-  salesPlan: Record<string, number>;
+  amount?: number;
+  avgCheck?: number;
+  salesPlan?: Record<string, number>;
+  frequency?: string;
+  categoryId?: string;
+  customDays?: number;
+  expectedData?: Record<string, number>;
 }) {
   const session = await auth();
   if (!session?.user?.email) return { error: "Не авторизован" };
@@ -133,17 +189,33 @@ export async function createIncome(data: {
     return { error: "Профиль не найден" };
   }
 
+  const amt = data.amount ?? data.avgCheck ?? 0;
+  const salesPlan = data.salesPlan;
+  const frequency = data.frequency ?? "MONTHLY";
+  const startDate = new Date();
+  startDate.setDate(1);
+  startDate.setHours(0, 0, 0, 0);
+
   const inc = await prisma.regularIncome.create({
     data: {
-      ...data,
+      profileId: data.profileId,
+      name: data.name,
+      amount: amt,
       avgCheck: data.avgCheck,
-      salesPlan: data.salesPlan,
+      salesPlan: salesPlan ?? undefined,
+      frequency,
+      customDays: data.customDays ?? undefined,
+      categoryId: data.categoryId ?? undefined,
+      expectedData: data.expectedData ?? undefined,
+      startDate,
     },
   });
   await saveHistory(data.profileId, "INCOME", inc.id, "create", undefined, {
     name: data.name,
-    avgCheck: data.avgCheck,
-    salesPlan: data.salesPlan,
+    amount: amt,
+    salesPlan,
+    frequency,
+    categoryId: data.categoryId,
   });
   revalidatePath("/cashflow");
   revalidatePath("/dashboard");
@@ -152,7 +224,16 @@ export async function createIncome(data: {
 
 export async function updateIncome(
   id: string,
-  data: { name?: string; avgCheck?: number; salesPlan?: Record<string, number> }
+  data: {
+    name?: string;
+    amount?: number;
+    avgCheck?: number;
+    salesPlan?: Record<string, number>;
+    frequency?: string;
+    categoryId?: string;
+    customDays?: number;
+    expectedData?: Record<string, number>;
+  }
 ) {
   const session = await auth();
   if (!session?.user?.email) return { error: "Не авторизован" };
@@ -167,16 +248,26 @@ export async function updateIncome(
 
   const oldData = {
     name: inc.name,
-    avgCheck: Number(inc.avgCheck),
+    amount: inc.amount != null ? Number(inc.amount) : undefined,
+    avgCheck: inc.avgCheck != null ? Number(inc.avgCheck) : undefined,
     salesPlan: inc.salesPlan,
+    frequency: inc.frequency,
+    categoryId: inc.categoryId,
+    customDays: inc.customDays,
+    expectedData: inc.expectedData,
   };
 
   await prisma.regularIncome.update({
     where: { id },
     data: {
       ...(data.name && { name: data.name }),
+      ...(data.amount != null && { amount: data.amount }),
       ...(data.avgCheck != null && { avgCheck: data.avgCheck }),
       ...(data.salesPlan && { salesPlan: data.salesPlan }),
+      ...(data.frequency && { frequency: data.frequency }),
+      ...(data.categoryId !== undefined && { categoryId: data.categoryId }),
+      ...(data.customDays !== undefined && { customDays: data.customDays }),
+      ...(data.expectedData !== undefined && { expectedData: data.expectedData }),
     },
   });
 
@@ -279,6 +370,7 @@ export async function deleteExpense(id: string) {
     amount: Number(exp.amount),
     frequency: exp.frequency,
     categoryId: exp.categoryId,
+    customDays: exp.customDays,
   };
   await saveHistory(exp.profileId, "EXPENSE", id, "delete", oldData, undefined);
 
@@ -302,8 +394,11 @@ export async function deleteIncome(id: string) {
 
   const oldData = {
     name: inc.name,
-    avgCheck: Number(inc.avgCheck),
+    amount: inc.amount != null ? Number(inc.amount) : undefined,
+    avgCheck: inc.avgCheck != null ? Number(inc.avgCheck) : undefined,
     salesPlan: inc.salesPlan,
+    frequency: inc.frequency,
+    categoryId: inc.categoryId,
   };
   await saveHistory(inc.profileId, "INCOME", id, "delete", oldData, undefined);
 

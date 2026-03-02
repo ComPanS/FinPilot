@@ -16,10 +16,10 @@ async function parseAndCreate(
 ): Promise<{ success: boolean; error?: string }> {
   const currentYear = new Date().getFullYear();
   const prompt = `Распарсь текст о доходе или расходе. Верни ТОЛЬКО один JSON объект без markdown:
-{"type":"expense"|"income"|"manual","name":"название","amount":число,"frequency":"MONTHLY"|"QUARTERLY"|"YEARLY"|null,"date":"YYYY-MM-DD"|null,"description":строка|null,"manualType":"IN"|"OUT"|null}
+{"type":"expense"|"income"|"manual","name":"название","amount":число,"frequency":"MONTHLY"|"QUARTERLY"|"YEARLY"|"WEEKLY"|"DAILY"|"CUSTOM"|null,"customDays":число|null,"date":"YYYY-MM-DD"|null,"description":строка|null,"manualType":"IN"|"OUT"|null}
 
-- expense: регулярный расход — name, amount, frequency
-- income: регулярный доход — name, amount
+- expense: регулярный расход — name, amount, frequency (MONTHLY, QUARTERLY, YEARLY, WEEKLY, DAILY, или CUSTOM с customDays)
+- income: регулярный доход — name, amount, frequency (MONTHLY, QUARTERLY, YEARLY, WEEKLY, DAILY, CUSTOM с customDays)
 - manual: разовая операция — name или description, amount, manualType "IN" или "OUT", date в YYYY-MM-DD
 - ВАЖНО: если указан только день и месяц (например 10.03, 15 марта) — используй год ${currentYear}
 
@@ -42,6 +42,7 @@ async function parseAndCreate(
     name?: string;
     amount: number;
     frequency?: string | null;
+    customDays?: number | null;
     date?: string | null;
     description?: string | null;
     manualType?: "IN" | "OUT" | null;
@@ -51,21 +52,22 @@ async function parseAndCreate(
   if (!catOther) return { success: false, error: "Нет категорий" };
 
   if (parsed.type === "expense") {
+    const freq = (parsed.frequency as string) ?? "MONTHLY";
     await createExpense({
       profileId,
       name: parsed.name ?? "Расход",
       amount: parsed.amount,
-      frequency: (parsed.frequency as "MONTHLY" | "QUARTERLY" | "YEARLY") ?? "MONTHLY",
+      frequency: freq,
       categoryId: catOther,
+      customDays: freq === "CUSTOM" && parsed.customDays ? parsed.customDays : undefined,
     });
   } else if (parsed.type === "income") {
-    const salesPlan: Record<string, number> = {};
-    for (let m = 1; m <= 12; m++) salesPlan[String(m)] = parsed.amount;
     await createIncome({
       profileId,
       name: parsed.name ?? "Доход",
-      avgCheck: parsed.amount,
-      salesPlan,
+      amount: parsed.amount,
+      frequency: (parsed.frequency as string) ?? "MONTHLY",
+      customDays: parsed.frequency === "CUSTOM" && parsed.customDays ? parsed.customDays : undefined,
     });
   } else if (parsed.type === "manual") {
     let date: Date;

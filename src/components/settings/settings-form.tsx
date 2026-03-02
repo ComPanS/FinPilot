@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { updateProfileAction, updatePasswordAction, updateZoneSettingsAction, deleteAccountAction, requestEmailChangeAction } from "@/app/actions/settings";
+import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
 
 const profileSchema = z.object({
   name: z.string().min(1),
@@ -42,6 +43,7 @@ type Profile = { id: string; zoneGreenMin: number | null; zoneRedMax: number | n
 
 export function SettingsForm({ user, profile }: { user: User; profile?: Profile }) {
   const [message, setMessage] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const emailForm = useForm<EmailData>({
     resolver: zodResolver(emailSchema),
@@ -95,7 +97,6 @@ export function SettingsForm({ user, profile }: { user: User; profile?: Profile 
   });
 
   const onDelete = async () => {
-    if (!confirm("Удалить все данные? Это действие необратимо.")) return;
     const res = await deleteAccountAction();
     if (res?.error) {
       setMessage(res.error);
@@ -252,12 +253,22 @@ export function SettingsForm({ user, profile }: { user: User; profile?: Profile 
           Удаление всех данных в соответствии с GDPR
         </p>
         <button
-          onClick={onDelete}
-          className="mt-4 rounded bg-danger px-4 py-2 text-white hover:bg-danger/90"
+          onClick={() => setShowDeleteConfirm(true)}
+          className="mt-4 rounded px-4 py-2 text-white hover:opacity-90"
+          style={{ backgroundColor: "var(--danger)" }}
         >
           Удалить аккаунт
         </button>
       </div>
+
+      {showDeleteConfirm && (
+        <ConfirmDeleteModal
+          title="Удаление аккаунта"
+          message="Удалить все данные? Это действие необратимо."
+          onConfirm={onDelete}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
+      )}
     </div>
   );
 }

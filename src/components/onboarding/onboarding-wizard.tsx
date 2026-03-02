@@ -30,6 +30,8 @@ export function OnboardingWizard() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [items, setItems] = useState<Step3Item[]>([]);
+  const [aiText, setAiText] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
 
   const step1Form = useForm<Step1Data>({
     resolver: zodResolver(step1Schema),
@@ -50,11 +52,14 @@ export function OnboardingWizard() {
   }
 
   async function handleStep3() {
+    setAiLoading(true);
     const result = await completeOnboarding({
       businessName: step1Form.getValues("businessName"),
       currency: step2Form.getValues("currency"),
       items,
+      aiText: aiText.trim() || undefined,
     });
+    setAiLoading(false);
     if (result?.error) {
       alert(result.error);
       return;
@@ -141,8 +146,23 @@ export function OnboardingWizard() {
 
       {step === 3 && (
         <div className="space-y-4 rounded-xl border border-border bg-surface p-6">
+          <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
+            <label className="block text-sm font-medium">Добавить текстом (ИИ обработает)</label>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Например: «аренда 50000 ежемесячно», «продажи 100000 в марте», «расход 15000 15.03»
+            </p>
+            <div className="mt-2 flex gap-2">
+              <input
+                value={aiText}
+                onChange={(e) => setAiText(e.target.value)}
+                placeholder="Введите текст..."
+                className="flex-1 rounded border border-border bg-background px-3 py-2"
+                disabled={aiLoading}
+              />
+            </div>
+          </div>
           <p className="text-sm text-muted-foreground">
-            Добавьте до 5 регулярных расходов или доходов (можно пропустить)
+            Или добавьте вручную до 5 регулярных расходов или доходов (можно пропустить)
           </p>
           {items.map((item, i) => (
             <div key={i} className="flex gap-2 rounded-lg border border-border p-3">
@@ -192,9 +212,10 @@ export function OnboardingWizard() {
           <button
             type="button"
             onClick={handleStep3}
-            className="rounded-lg bg-primary px-4 py-2 font-medium text-white hover:bg-primary-dark"
+            disabled={aiLoading}
+            className="rounded-lg bg-primary px-4 py-2 font-medium text-white hover:bg-primary-dark disabled:opacity-50"
           >
-            Завершить
+            {aiLoading ? "Обработка..." : "Завершить"}
           </button>
         </div>
       )}

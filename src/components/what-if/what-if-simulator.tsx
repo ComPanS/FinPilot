@@ -4,6 +4,7 @@ import { useState, useCallback, useRef } from "react";
 import { getForecastAction } from "@/app/actions/forecast";
 import { saveScenarioAction, deleteScenarioAction } from "@/app/actions/what-if";
 import { ForecastChart } from "@/components/cashflow/forecast-chart";
+import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
 import type { WhatIfChanges } from "@/types";
 
 type Scenario = { id: string; name: string; changesJson: unknown; createdAt: Date };
@@ -23,6 +24,7 @@ export function WhatIfSimulator({
   const [newEmployeeDate, setNewEmployeeDate] = useState("");
   const [forecast, setForecast] = useState<{ date: string; balance: number; inflows: number; outflows: number }[] | null>(null);
   const [scenarioName, setScenarioName] = useState("");
+  const [deleteScenarioId, setDeleteScenarioId] = useState<string | null>(null);
 
   const loadForecast = useCallback(async () => {
     const changes: WhatIfChanges = {};
@@ -148,10 +150,7 @@ export function WhatIfSimulator({
             <li key={s.id} className="flex items-center justify-between rounded border border-border p-3">
               <span>{s.name}</span>
               <button
-                onClick={async () => {
-                  await deleteScenarioAction(s.id);
-                  window.location.reload();
-                }}
+                onClick={() => setDeleteScenarioId(s.id)}
                 className="text-danger hover:underline"
               >
                 Удалить
@@ -160,6 +159,18 @@ export function WhatIfSimulator({
           ))}
         </ul>
       </div>
+
+      {deleteScenarioId && (
+        <ConfirmDeleteModal
+          title="Удаление сценария"
+          message="Удалить этот сценарий?"
+          onConfirm={async () => {
+            await deleteScenarioAction(deleteScenarioId);
+            window.location.reload();
+          }}
+          onCancel={() => setDeleteScenarioId(null)}
+        />
+      )}
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { parseCashFlowTextAction } from "./ai-cashflow";
 
 export async function completeOnboarding(data: {
   businessName: string;
@@ -13,6 +14,7 @@ export async function completeOnboarding(data: {
     amount: number;
     frequency?: string;
   }>;
+  aiText?: string;
 }) {
   const session = await auth();
   if (!session?.user?.id) return { error: "Не авторизован" };
@@ -83,14 +85,17 @@ export async function completeOnboarding(data: {
         },
       });
     } else if (item.type === "income" && item.name && item.amount > 0) {
-      const salesPlan: Record<string, number> = {};
-      for (let m = 1; m <= 12; m++) salesPlan[String(m)] = item.amount;
+      const startDate = new Date();
+      startDate.setDate(1);
+      startDate.setHours(0, 0, 0, 0);
       await prisma.regularIncome.create({
         data: {
           profileId: profile.id,
           name: item.name,
-          avgCheck: item.amount,
-          salesPlan,
+          amount: item.amount,
+          frequency: (item.frequency as string) ?? "MONTHLY",
+          categoryId: catOther.id,
+          startDate,
         },
       });
     }
@@ -107,6 +112,13 @@ export async function completeOnboarding(data: {
         status: "active",
       },
     });
+  }
+
+  if (data.aiText?.trim()) {
+    const categories = await prisma.expenseCategory.findMany({
+      where: { OR: [{ isSystem: true }, { userId: existingUser.id }] },
+    });
+    await parseCashFlowTextAction(profile.id, data.aiText.trim(), categories);
   }
 
   revalidatePath("/dashboard");
