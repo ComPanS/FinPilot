@@ -182,8 +182,10 @@ export function OnboardingWizard() {
               />
               <input
                 type="number"
+                min={0}
                 value={item.amount || ""}
                 onChange={(e) => updateItem(i, "amount", Number(e.target.value) || 0)}
+                onKeyDown={(e) => { if (e.key === "-" || e.key === "e" || e.key === "E") e.preventDefault(); }}
                 placeholder="Сумма"
                 className="w-24 rounded border border-border px-2 py-1"
               />

@@ -12,6 +12,47 @@ import {
 } from "recharts";
 import type { ForecastDay } from "@/types";
 
+function insertZeroCrossings<T extends { balance: number; date: string; dateShort: string; positiveBalance: number; negativeBalance: number }>(
+  data: T[]
+): T[] {
+  const result: T[] = [];
+  for (let i = 0; i < data.length; i++) {
+    result.push(data[i]);
+    const a = data[i];
+    const b = data[i + 1];
+    if (b && a.balance > 0 && b.balance < 0) {
+      const t = a.balance / (a.balance - b.balance);
+      const dA = new Date(a.date).getTime();
+      const dB = new Date(b.date).getTime();
+      const midDate = new Date(dA + t * (dB - dA));
+      const midDateStr = midDate.toISOString().slice(0, 10);
+      result.push({
+        ...a,
+        date: midDateStr,
+        dateShort: midDateStr.slice(5),
+        balance: 0,
+        positiveBalance: 0,
+        negativeBalance: 0,
+      } as T);
+    } else if (b && a.balance < 0 && b.balance > 0) {
+      const t = a.balance / (a.balance - b.balance);
+      const dA = new Date(a.date).getTime();
+      const dB = new Date(b.date).getTime();
+      const midDate = new Date(dA + t * (dB - dA));
+      const midDateStr = midDate.toISOString().slice(0, 10);
+      result.push({
+        ...a,
+        date: midDateStr,
+        dateShort: midDateStr.slice(5),
+        balance: 0,
+        positiveBalance: 0,
+        negativeBalance: 0,
+      } as T);
+    }
+  }
+  return result;
+}
+
 export function ForecastChart({
   data,
   zoneGreenMin = 50000,
@@ -21,16 +62,18 @@ export function ForecastChart({
   zoneGreenMin?: number;
   zoneRedMax?: number;
 }) {
-  const chartData = data.map((d) => {
-    const balance = Math.round(d.balance);
-    return {
-      ...d,
-      balance,
-      dateShort: d.date.slice(5),
-      positiveBalance: balance >= 0 ? balance : 0,
-      negativeBalance: balance < 0 ? balance : 0,
-    };
-  });
+  const chartData = insertZeroCrossings(
+    data.map((d) => {
+      const balance = Math.round(d.balance);
+      return {
+        ...d,
+        balance,
+        dateShort: d.date.slice(5),
+        positiveBalance: balance >= 0 ? balance : 0,
+        negativeBalance: balance < 0 ? balance : 0,
+      };
+    })
+  );
 
   const tooltipContentStyle = {
     backgroundColor: "var(--surface)",

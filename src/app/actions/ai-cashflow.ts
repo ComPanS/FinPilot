@@ -51,6 +51,10 @@ async function parseAndCreate(
   const catOther = categories.find((c) => c.slug === "other")?.id ?? categories[0]?.id;
   if (!catOther) return { success: false, error: "Нет категорий" };
 
+  if (parsed.amount == null || typeof parsed.amount !== "number" || parsed.amount <= 0) {
+    return { success: false, error: "Сумма должна быть положительной" };
+  }
+
   if (parsed.type === "expense") {
     const freq = (parsed.frequency as string) ?? "MONTHLY";
     await createExpense({

@@ -374,7 +374,7 @@ export function CashFlowPlanner({
             </div>
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Сумма (₽)</label>
-              <input {...expenseForm.register("amount")} type="number" placeholder="0" className="w-24 rounded border border-border bg-background px-2 py-1 text-foreground" />
+              <input {...expenseForm.register("amount")} type="number" min={0} placeholder="0" onKeyDown={(e) => { if (e.key === "-" || e.key === "e" || e.key === "E") e.preventDefault(); }} className="w-24 rounded border border-border bg-background px-2 py-1 text-foreground" />
             </div>
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Частота</label>
@@ -495,7 +495,7 @@ export function CashFlowPlanner({
             </div>
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Сумма (₽)</label>
-              <input {...incomeForm.register("amount")} type="number" placeholder="0" className="w-24 rounded border border-border bg-background px-2 py-1 text-foreground" />
+              <input {...incomeForm.register("amount")} type="number" min={0} placeholder="0" onKeyDown={(e) => { if (e.key === "-" || e.key === "e" || e.key === "E") e.preventDefault(); }} className="w-24 rounded border border-border bg-background px-2 py-1 text-foreground" />
             </div>
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Частота</label>
@@ -597,7 +597,7 @@ export function CashFlowPlanner({
             </div>
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Сумма (₽)</label>
-              <input {...manualForm.register("amount")} type="number" placeholder="0" className="w-24 rounded border border-border bg-background px-2 py-1 text-foreground" />
+              <input {...manualForm.register("amount")} type="number" min={0} placeholder="0" onKeyDown={(e) => { if (e.key === "-" || e.key === "e" || e.key === "E") e.preventDefault(); }} className="w-24 rounded border border-border bg-background px-2 py-1 text-foreground" />
             </div>
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Описание</label>

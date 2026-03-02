@@ -165,8 +165,8 @@ export function HistoryModal({
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={chartData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                      <XAxis dataKey="date" stroke="var(--muted)" fontSize={11} />
-                      <YAxis stroke="var(--muted)" fontSize={11} tickFormatter={(v) => v.toLocaleString()} />
+                      <XAxis dataKey="date" stroke="var(--foreground)" fontSize={11} />
+                      <YAxis stroke="var(--foreground)" fontSize={11} tickFormatter={(v) => v.toLocaleString()} />
                       <Tooltip formatter={(v) => [(v ?? 0).toLocaleString("ru") + " " + currency, "Сумма"]} />
                       <Line type="monotone" dataKey="amount" stroke="var(--primary)" strokeWidth={2} dot={{ r: 4 }} />
                     </LineChart>

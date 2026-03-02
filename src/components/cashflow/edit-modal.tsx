@@ -171,7 +171,8 @@ export function EditModal({
             </div>
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Сумма ({currency})</label>
-              <input {...expenseForm.register("amount")} type="number" placeholder="0" className="w-full rounded border border-border bg-background px-2 py-1 text-foreground" />
+              <input {...expenseForm.register("amount")} type="number" min={0} placeholder="0" onKeyDown={(e) => { if (e.key === "-" || e.key === "e" || e.key === "E") e.preventDefault(); }} className="w-full rounded border border-border bg-background px-2 py-1 text-foreground" />
+              {expenseForm.formState.errors.amount && <p className="mt-1 text-xs text-danger">Сумма должна быть положительной</p>}
             </div>
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Частота</label>
@@ -217,7 +218,8 @@ export function EditModal({
             </div>
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Сумма ({currency})</label>
-              <input {...incomeForm.register("amount")} type="number" placeholder="0" className="w-full rounded border border-border bg-background px-2 py-1 text-foreground" />
+              <input {...incomeForm.register("amount")} type="number" min={0} placeholder="0" onKeyDown={(e) => { if (e.key === "-" || e.key === "e" || e.key === "E") e.preventDefault(); }} className="w-full rounded border border-border bg-background px-2 py-1 text-foreground" />
+              {incomeForm.formState.errors.amount && <p className="mt-1 text-xs text-danger">Сумма должна быть положительной</p>}
             </div>
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Частота</label>
@@ -271,7 +273,8 @@ export function EditModal({
             </div>
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Сумма ({currency})</label>
-              <input {...manualForm.register("amount")} type="number" placeholder="0" className="w-full rounded border border-border bg-background px-2 py-1 text-foreground" />
+              <input {...manualForm.register("amount")} type="number" min={0} placeholder="0" onKeyDown={(e) => { if (e.key === "-" || e.key === "e" || e.key === "E") e.preventDefault(); }} className="w-full rounded border border-border bg-background px-2 py-1 text-foreground" />
+              {manualForm.formState.errors.amount && <p className="mt-1 text-xs text-danger">Сумма должна быть положительной</p>}
             </div>
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Описание</label>

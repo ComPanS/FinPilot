@@ -19,6 +19,49 @@ type ForecastDay = {
   outflows: number;
 };
 
+type ChartPoint = ForecastDay & {
+  dateShort: string;
+  profit: number;
+  profitPositive: number;
+  profitNegative: number;
+  balance: number;
+  positiveBalance: number;
+  negativeBalance: number;
+  inflows: number;
+  outflows: number;
+};
+
+function insertZeroCrossings<T extends ChartPoint>(
+  data: T[],
+  getValue: (p: T) => number,
+  setZero: (p: T) => T
+): T[] {
+  const result: T[] = [];
+  for (let i = 0; i < data.length; i++) {
+    result.push(data[i]);
+    const a = data[i];
+    const b = data[i + 1];
+    const va = getValue(a);
+    const vb = b ? getValue(b) : undefined;
+    if (vb !== undefined && va > 0 && vb < 0) {
+      const t = va / (va - vb);
+      const dA = new Date(a.date).getTime();
+      const dB = new Date(b.date).getTime();
+      const midDate = new Date(dA + t * (dB - dA));
+      const midDateStr = midDate.toISOString().slice(0, 10);
+      result.push(setZero({ ...a, date: midDateStr, dateShort: midDateStr.slice(5) } as T));
+    } else if (vb !== undefined && va < 0 && vb > 0) {
+      const t = va / (va - vb);
+      const dA = new Date(a.date).getTime();
+      const dB = new Date(b.date).getTime();
+      const midDate = new Date(dA + t * (dB - dA));
+      const midDateStr = midDate.toISOString().slice(0, 10);
+      result.push(setZero({ ...a, date: midDateStr, dateShort: midDateStr.slice(5) } as T));
+    }
+  }
+  return result;
+}
+
 export function DashboardCharts({
   data,
   currency,
@@ -26,7 +69,7 @@ export function DashboardCharts({
   data: ForecastDay[];
   currency: string;
 }) {
-  const chartData = data.map((d) => {
+  const baseChartData: ChartPoint[] = data.map((d) => {
     const profit = Math.round(d.inflows - d.outflows);
     const balance = Math.round(d.balance);
     return {
@@ -42,6 +85,20 @@ export function DashboardCharts({
       outflows: Math.round(d.outflows),
     };
   });
+
+  const chartDataWithProfitCrossings = insertZeroCrossings(
+    baseChartData,
+    (p) => p.profit,
+    (p) => ({ ...p, profit: 0, profitPositive: 0, profitNegative: 0 })
+  );
+
+  const chartDataWithBalanceCrossings = insertZeroCrossings(
+    baseChartData,
+    (p) => p.balance,
+    (p) => ({ ...p, balance: 0, positiveBalance: 0, negativeBalance: 0 })
+  );
+
+  const chartData = baseChartData;
 
   const tooltipStyle = {
     backgroundColor: "var(--surface)",
@@ -96,7 +153,7 @@ export function DashboardCharts({
       </div>
       <div className="grid w-full grid-cols-1 gap-6">
       <div className="min-w-0 rounded-xl border border-border bg-surface p-4">
-        <h3 className="mb-2 text-sm font-medium text-muted-foreground">Прибыль за день</h3>
+        <h3 className="mb-2 text-sm font-medium text-muted-foreground">Прибыль за месяц</h3>
         {negativeBalanceDays.length > 0 && (
           <p className="mb-2 text-xs text-danger">
             Период восстановления: {negativeBalanceDays.length} дн. с отрицательным балансом
@@ -107,41 +164,7 @@ export function DashboardCharts({
         )}
         <div className="h-80 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="dateShort" stroke="var(--muted)" fontSize={11} />
-              <YAxis stroke="var(--muted)" fontSize={11} tickFormatter={(v) => Math.round(v).toLocaleString("ru")} />
-              <Tooltip
-                content={({ active, payload }) => {
-                  if (!active || !payload?.length) return null;
-                  const p = payload[0]?.payload;
-                  const profit = (p?.inflows ?? 0) - (p?.outflows ?? 0);
-                  return (
-                    <div style={tooltipStyle} className="px-3 py-2">
-                      <p className="font-medium">Дата: {p?.date}</p>
-                      <p style={{ color: profit >= 0 ? "var(--success)" : "var(--danger)" }}>
-                        Прибыль за день: {formatValue(profit)}
-                      </p>
-                    </div>
-                  );
-                }}
-              />
-              {negativePeriods.map((p, i) => (
-                <ReferenceArea key={i} x1={p.start} x2={p.end} fill="var(--danger)" fillOpacity={0.08} />
-              ))}
-              <ReferenceLine y={0} stroke="var(--muted)" strokeDasharray="3 3" />
-              <Area type="monotone" dataKey="profitPositive" stroke="var(--success)" fill="var(--success)" fillOpacity={0.25} strokeWidth={2} baseValue={0} />
-              <Area type="monotone" dataKey="profitNegative" stroke="var(--danger)" fill="var(--danger)" fillOpacity={0.25} strokeWidth={2} baseValue={0} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      <div className="min-w-0 rounded-xl border border-border bg-surface p-4">
-        <h3 className="mb-2 text-sm font-medium text-muted-foreground">Прибыль за месяц</h3>
-        <div className="h-80 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData}>
+            <AreaChart data={chartDataWithBalanceCrossings}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="dateShort" stroke="var(--muted)" fontSize={11} />
               <YAxis stroke="var(--muted)" fontSize={11} tickFormatter={(v) => Math.round(v).toLocaleString("ru")} />
@@ -160,9 +183,43 @@ export function DashboardCharts({
                   );
                 }}
               />
+              {negativePeriods.map((p, i) => (
+                <ReferenceArea key={i} x1={p.start} x2={p.end} fill="var(--danger)" fillOpacity={0.08} />
+              ))}
               <ReferenceLine y={0} stroke="var(--muted)" strokeDasharray="3 3" />
               <Area type="monotone" dataKey="positiveBalance" stroke="var(--success)" fill="var(--success)" fillOpacity={0.2} strokeWidth={2} baseValue={0} />
               <Area type="monotone" dataKey="negativeBalance" stroke="var(--danger)" fill="var(--danger)" fillOpacity={0.2} strokeWidth={2} baseValue={0} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="min-w-0 rounded-xl border border-border bg-surface p-4">
+        <h3 className="mb-2 text-sm font-medium text-muted-foreground">Прибыль за день</h3>
+        <div className="h-80 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartDataWithProfitCrossings}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="dateShort" stroke="var(--muted)" fontSize={11} />
+              <YAxis stroke="var(--muted)" fontSize={11} tickFormatter={(v) => Math.round(v).toLocaleString("ru")} />
+              <Tooltip
+                content={({ active, payload }) => {
+                  if (!active || !payload?.length) return null;
+                  const p = payload[0]?.payload;
+                  const profit = (p?.inflows ?? 0) - (p?.outflows ?? 0);
+                  return (
+                    <div style={tooltipStyle} className="px-3 py-2">
+                      <p className="font-medium">Дата: {p?.date}</p>
+                      <p style={{ color: profit >= 0 ? "var(--success)" : "var(--danger)" }}>
+                        Прибыль за день: {formatValue(profit)}
+                      </p>
+                    </div>
+                  );
+                }}
+              />
+              <ReferenceLine y={0} stroke="var(--muted)" strokeDasharray="3 3" />
+              <Area type="monotone" dataKey="profitPositive" stroke="var(--success)" fill="var(--success)" fillOpacity={0.25} strokeWidth={2} baseValue={0} />
+              <Area type="monotone" dataKey="profitNegative" stroke="var(--danger)" fill="var(--danger)" fillOpacity={0.25} strokeWidth={2} baseValue={0} />
             </AreaChart>
           </ResponsiveContainer>
         </div>

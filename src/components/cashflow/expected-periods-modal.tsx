@@ -144,7 +144,7 @@ export function ExpectedPeriodsModal({
               placeholder="0"
               value={amountInput}
               onChange={(e) => setAmountInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAdd())}
+              onKeyDown={(e) => { if (e.key === "-" || e.key === "e" || e.key === "E") e.preventDefault(); else if (e.key === "Enter") { e.preventDefault(); handleAdd(); } }}
               className="mt-1 w-28 rounded border border-border bg-background px-2 py-1 text-foreground"
             />
           </div>
