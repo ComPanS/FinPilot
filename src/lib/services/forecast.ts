@@ -160,7 +160,9 @@ export async function computeForecast(
   }
 
   for (const inc of incomes) {
-    const amt = Number(inc.amount ?? inc.avgCheck ?? 0);
+    const grossAmt = Number(inc.amount ?? inc.avgCheck ?? 0);
+    const taxPct = Number(inc.taxes ?? 0) / 100;
+    const amt = grossAmt * (1 - taxPct);
     const salesPlan = inc.salesPlan as Record<string, number> | null;
     const expectedData = inc.expectedData as Record<string, number> | null | undefined;
     const hasSalesPlan = !useExpectedData && salesPlan && Object.values(salesPlan).some((v) => v > 0);
@@ -171,7 +173,9 @@ export async function computeForecast(
         const d = addDays(startDate, i);
         const mk = monthKey(d);
         const expected = expectedData[mk];
-        const amount = (expected != null && !Number.isNaN(expected) ? expected : amt) / 30;
+        const grossExpected = expected != null && !Number.isNaN(expected) ? expected : grossAmt;
+        const netExpected = grossExpected * (1 - taxPct);
+        const amount = netExpected / 30;
         if (amount > 0) {
           const key = dateKey(d);
           dailyInflows[key] = (dailyInflows[key] ?? 0) + amount;
@@ -182,7 +186,9 @@ export async function computeForecast(
       for (let i = 0; i < days; i++) {
         const d = addDays(start, i);
         const month = d.getMonth() + 1;
-        const amount = (salesPlan![String(month)] ?? amt) / 30;
+        const grossForMonth = salesPlan![String(month)] ?? grossAmt;
+        const netForMonth = grossForMonth * (1 - taxPct);
+        const amount = netForMonth / 30;
         if (changes.paymentDelayDays && amount > 0) {
           const delayedDate = addDays(d, changes.paymentDelayDays);
           const key = dateKey(delayedDate);
@@ -196,7 +202,7 @@ export async function computeForecast(
       const incStart = inc.startDate ? new Date(inc.startDate) : new Date();
       incStart.setHours(0, 0, 0, 0);
       const freq = inc.frequency as string;
-      const perDay = dailyAmount(freq, amt, inc.customDays);
+      const perDay = dailyAmount(freq, amt, inc.customDays); // amt already has tax applied
       if (perDay <= 0) continue;
       for (let i = 0; i < days; i++) {
         const d = addDays(startDate, i);
@@ -209,10 +215,14 @@ export async function computeForecast(
 
   for (const tx of transactions) {
     const key = dateKey(tx.date);
+    const amount = Number(tx.amount);
+    const taxPct = Number(tx.taxes ?? 0) / 100;
     if (tx.type === "IN") {
-      dailyInflows[key] = (dailyInflows[key] ?? 0) + Number(tx.amount);
+      const netAmount = amount * (1 - taxPct);
+      dailyInflows[key] = (dailyInflows[key] ?? 0) + netAmount;
     } else {
-      dailyOutflows[key] = (dailyOutflows[key] ?? 0) + Number(tx.amount);
+      const totalAmount = amount * (1 + taxPct);
+      dailyOutflows[key] = (dailyOutflows[key] ?? 0) + totalAmount;
     }
   }
 
@@ -301,7 +311,9 @@ export async function computeForecastDebug(
   for (const tx of transactions) {
     if (tx.type !== "OUT") continue;
     const key = dateKey(tx.date);
-    dailyOutflows[key] = (dailyOutflows[key] ?? 0) + Number(tx.amount);
+    const amount = Number(tx.amount);
+    const taxPct = Number(tx.taxes ?? 0) / 100;
+    dailyOutflows[key] = (dailyOutflows[key] ?? 0) + amount * (1 + taxPct);
   }
 
   const resultKeys = Array.from({ length: Math.min(7, days) }, (_, i) => dateKey(addDays(startDate, i)));

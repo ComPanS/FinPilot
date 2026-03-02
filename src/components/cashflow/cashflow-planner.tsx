@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -47,6 +48,7 @@ const expenseSchema = z.object({
 const incomeSchema = z.object({
   name: z.string().min(1),
   amount: z.coerce.number().positive(),
+  taxes: z.coerce.number().min(0).max(100).optional(),
   frequency: z.enum(["MONTHLY", "QUARTERLY", "YEARLY", "WEEKLY", "DAILY", "CUSTOM"]),
   categoryId: z.string().optional(),
   customDays: z.coerce.number().positive().optional(),
@@ -56,6 +58,7 @@ const manualSchema = z.object({
   date: z.string(),
   type: z.enum(["IN", "OUT"]),
   amount: z.coerce.number().positive(),
+  taxes: z.coerce.number().min(0).max(100).optional(),
   description: z.string().optional(),
 });
 
@@ -102,6 +105,7 @@ export function CashFlowPlanner({
   const [aiText, setAiText] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [customCategoryName, setCustomCategoryName] = useState("");
+  const router = useRouter();
 
   type ExpenseSortKey = "name" | "amount" | "frequency" | "createdAt" | "updatedAt";
   type IncomeSortKey = "name" | "amount" | "frequency" | "createdAt" | "updatedAt";
@@ -199,6 +203,7 @@ export function CashFlowPlanner({
   const incomeForm = useForm<z.infer<typeof incomeSchema>>({
     resolver: zodResolver(incomeSchema),
     defaultValues: {
+      taxes: 0,
       frequency: "MONTHLY",
       categoryId: categories[0]?.id ?? "",
     },
@@ -209,6 +214,7 @@ export function CashFlowPlanner({
     defaultValues: {
       date: new Date().toISOString().slice(0, 10),
       type: "OUT",
+      taxes: 0,
     },
   });
 
@@ -244,7 +250,7 @@ export function CashFlowPlanner({
     setCustomCategoryName("");
     setAddFormExpectedData(null);
     loadForecast();
-    if (categoryId !== data.categoryId) window.location.reload();
+    if (categoryId !== data.categoryId) router.refresh();
   });
 
   const onAddIncome = incomeForm.handleSubmit(async (data) => {
@@ -257,6 +263,7 @@ export function CashFlowPlanner({
       profileId: profile.id,
       name: data.name,
       amount: data.amount,
+      taxes: data.taxes ?? 0,
       frequency: data.frequency,
       categoryId: data.categoryId || undefined,
       customDays: data.frequency === "CUSTOM" ? data.customDays : undefined,
@@ -273,9 +280,10 @@ export function CashFlowPlanner({
       date: new Date(data.date),
       type: data.type as "IN" | "OUT",
       amount: data.amount,
+      taxes: data.taxes ?? 0,
       description: data.description,
     });
-    manualForm.reset({ date: new Date().toISOString().slice(0, 10), type: "OUT" });
+    manualForm.reset({ date: new Date().toISOString().slice(0, 10), type: "OUT", taxes: 0 });
     loadForecast();
   });
 
@@ -290,7 +298,7 @@ export function CashFlowPlanner({
     }
     setAiText("");
     loadForecast();
-    window.location.reload();
+    router.refresh();
   };
 
   const redZones = forecast ? getRedZones(forecast.forecast, zoneRedMax) : [];
@@ -498,6 +506,10 @@ export function CashFlowPlanner({
               <input {...incomeForm.register("amount")} type="number" min={0} placeholder="0" onKeyDown={(e) => { if (e.key === "-" || e.key === "e" || e.key === "E") e.preventDefault(); }} className="w-24 rounded border border-border bg-background px-2 py-1 text-foreground" />
             </div>
             <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Налоги (%)</label>
+              <input {...incomeForm.register("taxes")} type="number" min={0} max={100} placeholder="0" onKeyDown={(e) => { if (e.key === "-" || e.key === "e" || e.key === "E") e.preventDefault(); }} className="w-20 rounded border border-border bg-background px-2 py-1 text-foreground" />
+            </div>
+            <div>
               <label className="mb-1 block text-xs text-muted-foreground">Частота</label>
               <select {...incomeForm.register("frequency")} className="rounded border border-border bg-background px-2 py-1 text-foreground">
                 <option value="MONTHLY">Ежемесячно</option>
@@ -598,6 +610,10 @@ export function CashFlowPlanner({
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Сумма (₽)</label>
               <input {...manualForm.register("amount")} type="number" min={0} placeholder="0" onKeyDown={(e) => { if (e.key === "-" || e.key === "e" || e.key === "E") e.preventDefault(); }} className="w-24 rounded border border-border bg-background px-2 py-1 text-foreground" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Налоги (%)</label>
+              <input {...manualForm.register("taxes")} type="number" min={0} max={100} placeholder="0" onKeyDown={(e) => { if (e.key === "-" || e.key === "e" || e.key === "E") e.preventDefault(); }} className="w-20 rounded border border-border bg-background px-2 py-1 text-foreground" />
             </div>
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Описание</label>
@@ -706,7 +722,7 @@ export function CashFlowPlanner({
           onClose={() => setEditModal(null)}
           onSuccess={() => {
             loadForecast();
-            window.location.reload();
+            router.refresh();
           }}
         />
       )}
@@ -730,7 +746,7 @@ export function CashFlowPlanner({
           onClose={() => setExpectedPeriodsModal(null)}
           onSuccess={() => {
             loadForecast();
-            window.location.reload();
+            router.refresh();
           }}
           addMode={expectedPeriodsModal.addMode}
           initialData={expectedPeriodsModal.initialData}

@@ -34,6 +34,7 @@ function formatDataReadable(d: unknown, currency: string): string {
   const parts: string[] = [];
   if (obj.name != null) parts.push(`${obj.name}`);
   if (obj.amount != null) parts.push(`${Number(obj.amount).toLocaleString("ru")} ${currency}`);
+  if (obj.taxes != null && Number(obj.taxes) > 0) parts.push(`налоги ${Number(obj.taxes)}%`);
   if (obj.frequency != null) {
     const f = obj.frequency as string;
     parts.push(f === "MONTHLY" ? "ежемесячно" : f === "QUARTERLY" ? "ежеквартально" : "раз в год");

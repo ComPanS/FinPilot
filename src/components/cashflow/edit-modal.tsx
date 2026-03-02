@@ -24,6 +24,7 @@ const expenseSchema = z.object({
 const incomeSchema = z.object({
   name: z.string().min(1),
   amount: z.coerce.number().positive(),
+  taxes: z.coerce.number().min(0).max(100).optional(),
   frequency: z.enum(["MONTHLY", "QUARTERLY", "YEARLY", "WEEKLY", "DAILY", "CUSTOM"]),
   categoryId: z.string().optional(),
   customDays: z.coerce.number().positive().optional(),
@@ -33,6 +34,7 @@ const manualSchema = z.object({
   date: z.string(),
   type: z.enum(["IN", "OUT"]),
   amount: z.coerce.number().positive(),
+  taxes: z.coerce.number().min(0).max(100).optional(),
   description: z.string().optional(),
 });
 
@@ -76,6 +78,7 @@ export function EditModal({
         ? {
             name: (entity as IncomeEntity).name,
             amount: Number((entity as IncomeEntity).amount ?? (entity as IncomeEntity).avgCheck ?? 0),
+            taxes: (entity as IncomeEntity).taxes != null ? Number((entity as IncomeEntity).taxes) : 0,
             frequency: ((entity as IncomeEntity).frequency ?? "MONTHLY") as "MONTHLY" | "QUARTERLY" | "YEARLY" | "WEEKLY" | "DAILY" | "CUSTOM",
             categoryId: (entity as IncomeEntity).categoryId ?? "",
             customDays: (entity as IncomeEntity).customDays ?? undefined,
@@ -91,6 +94,7 @@ export function EditModal({
             date: new Date((entity as ManualEntity).date).toISOString().slice(0, 10),
             type: (entity as ManualEntity).type as "IN" | "OUT",
             amount: Number((entity as ManualEntity).amount),
+            taxes: (entity as ManualEntity).taxes != null ? Number((entity as ManualEntity).taxes) : 0,
             description: (entity as ManualEntity).description ?? "",
           }
         : undefined,
@@ -124,6 +128,7 @@ export function EditModal({
     await updateIncome((entity as IncomeEntity).id, {
       name: data.name,
       amount: data.amount,
+      taxes: data.taxes ?? 0,
       frequency: data.frequency,
       categoryId: data.categoryId || undefined,
       customDays: data.frequency === "CUSTOM" ? data.customDays : undefined,
@@ -137,6 +142,7 @@ export function EditModal({
       date: new Date(data.date),
       type: data.type as "IN" | "OUT",
       amount: data.amount,
+      taxes: data.taxes ?? 0,
       description: data.description,
     });
     onSuccess();
@@ -222,6 +228,10 @@ export function EditModal({
               {incomeForm.formState.errors.amount && <p className="mt-1 text-xs text-danger">Сумма должна быть положительной</p>}
             </div>
             <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Налоги (%)</label>
+              <input {...incomeForm.register("taxes")} type="number" min={0} max={100} placeholder="0" onKeyDown={(e) => { if (e.key === "-" || e.key === "e" || e.key === "E") e.preventDefault(); }} className="w-full rounded border border-border bg-background px-2 py-1 text-foreground" />
+            </div>
+            <div>
               <label className="mb-1 block text-xs text-muted-foreground">Частота</label>
               <select {...incomeForm.register("frequency")} className="w-full rounded border border-border bg-background px-2 py-1 text-foreground">
                 <option value="MONTHLY">Ежемесячно</option>
@@ -275,6 +285,10 @@ export function EditModal({
               <label className="mb-1 block text-xs text-muted-foreground">Сумма ({currency})</label>
               <input {...manualForm.register("amount")} type="number" min={0} placeholder="0" onKeyDown={(e) => { if (e.key === "-" || e.key === "e" || e.key === "E") e.preventDefault(); }} className="w-full rounded border border-border bg-background px-2 py-1 text-foreground" />
               {manualForm.formState.errors.amount && <p className="mt-1 text-xs text-danger">Сумма должна быть положительной</p>}
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Налоги (%)</label>
+              <input {...manualForm.register("taxes")} type="number" min={0} max={100} placeholder="0" onKeyDown={(e) => { if (e.key === "-" || e.key === "e" || e.key === "E") e.preventDefault(); }} className="w-full rounded border border-border bg-background px-2 py-1 text-foreground" />
             </div>
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Описание</label>

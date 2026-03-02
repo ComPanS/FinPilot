@@ -172,6 +172,7 @@ export async function createIncome(data: {
   name: string;
   amount?: number;
   avgCheck?: number;
+  taxes?: number;
   salesPlan?: Record<string, number>;
   frequency?: string;
   categoryId?: string;
@@ -202,6 +203,7 @@ export async function createIncome(data: {
       name: data.name,
       amount: amt,
       avgCheck: data.avgCheck,
+      taxes: data.taxes ?? undefined,
       salesPlan: salesPlan ?? undefined,
       frequency,
       customDays: data.customDays ?? undefined,
@@ -213,6 +215,7 @@ export async function createIncome(data: {
   await saveHistory(data.profileId, "INCOME", inc.id, "create", undefined, {
     name: data.name,
     amount: amt,
+    taxes: data.taxes,
     salesPlan,
     frequency,
     categoryId: data.categoryId,
@@ -228,6 +231,7 @@ export async function updateIncome(
     name?: string;
     amount?: number;
     avgCheck?: number;
+    taxes?: number;
     salesPlan?: Record<string, number>;
     frequency?: string;
     categoryId?: string;
@@ -250,6 +254,7 @@ export async function updateIncome(
     name: inc.name,
     amount: inc.amount != null ? Number(inc.amount) : undefined,
     avgCheck: inc.avgCheck != null ? Number(inc.avgCheck) : undefined,
+    taxes: inc.taxes != null ? Number(inc.taxes) : undefined,
     salesPlan: inc.salesPlan,
     frequency: inc.frequency,
     categoryId: inc.categoryId,
@@ -263,6 +268,7 @@ export async function updateIncome(
       ...(data.name && { name: data.name }),
       ...(data.amount != null && { amount: data.amount }),
       ...(data.avgCheck != null && { avgCheck: data.avgCheck }),
+      ...(data.taxes !== undefined && { taxes: data.taxes }),
       ...(data.salesPlan && { salesPlan: data.salesPlan }),
       ...(data.frequency && { frequency: data.frequency }),
       ...(data.categoryId !== undefined && { categoryId: data.categoryId }),
@@ -283,6 +289,7 @@ export async function createManualTransaction(data: {
   date: Date;
   type: "IN" | "OUT";
   amount: number;
+  taxes?: number;
   description?: string;
   categoryId?: string;
 }) {
@@ -301,12 +308,14 @@ export async function createManualTransaction(data: {
     data: {
       ...data,
       amount: data.amount,
+      taxes: data.taxes ?? undefined,
     },
   });
   await saveHistory(data.profileId, "MANUAL", tx.id, "create", undefined, {
     date: data.date,
     type: data.type,
     amount: data.amount,
+    taxes: data.taxes,
     description: data.description,
   });
   revalidatePath("/cashflow");
@@ -316,7 +325,7 @@ export async function createManualTransaction(data: {
 
 export async function updateManualTransaction(
   id: string,
-  data: { date?: Date; type?: "IN" | "OUT"; amount?: number; description?: string }
+  data: { date?: Date; type?: "IN" | "OUT"; amount?: number; taxes?: number; description?: string }
 ) {
   const session = await auth();
   if (!session?.user?.email) return { error: "Не авторизован" };
@@ -333,6 +342,7 @@ export async function updateManualTransaction(
     date: tx.date,
     type: tx.type,
     amount: Number(tx.amount),
+    taxes: tx.taxes != null ? Number(tx.taxes) : undefined,
     description: tx.description,
   };
 
@@ -342,6 +352,7 @@ export async function updateManualTransaction(
       ...(data.date && { date: data.date }),
       ...(data.type && { type: data.type }),
       ...(data.amount != null && { amount: data.amount }),
+      ...(data.taxes !== undefined && { taxes: data.taxes }),
       ...(data.description !== undefined && { description: data.description }),
     },
   });

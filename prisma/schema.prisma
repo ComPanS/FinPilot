@@ -175,6 +175,7 @@ model RegularIncome {
   name         String
   amount       Decimal?  @db.Decimal(14, 2)  // sum per occurrence (preferred over avgCheck)
   avgCheck     Decimal?  @db.Decimal(14, 2)  // deprecated, use amount
+  taxes        Decimal?  @db.Decimal(14, 2) // налоги (по умолчанию 0)
   salesPlan    Json?     // { "1": number, ... } optional monthly plan
   frequency    String    @default("MONTHLY") // MONTHLY, QUARTERLY, YEARLY, WEEKLY, DAILY, CUSTOM
   customDays   Int?      // used when frequency is CUSTOM
@@ -197,6 +198,7 @@ model ManualTransaction {
   date        DateTime
   type        String   // IN, OUT
   amount      Decimal  @db.Decimal(14, 2)
+  taxes       Decimal? @db.Decimal(14, 2) // налоги (по умолчанию 0)
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
