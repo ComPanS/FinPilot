@@ -167,7 +167,24 @@ export function HistoryModal({
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                       <XAxis dataKey="date" stroke="var(--foreground)" fontSize={11} />
                       <YAxis stroke="var(--foreground)" fontSize={11} tickFormatter={(v) => v.toLocaleString()} />
-                      <Tooltip formatter={(v) => [(v ?? 0).toLocaleString("ru") + " " + currency, "Сумма"]} />
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (!active || !payload?.length) return null;
+                          const p = payload[0]?.payload;
+                          return (
+                            <div
+                              className="rounded-lg border border-border px-3 py-2"
+                              style={{
+                                backgroundColor: "var(--surface)",
+                                color: "var(--foreground)",
+                              }}
+                            >
+                              <p className="font-medium text-foreground">Дата: {p?.date}</p>
+                              <p className="text-foreground">Сумма: {(p?.amount ?? 0).toLocaleString("ru")} {currency}</p>
+                            </div>
+                          );
+                        }}
+                      />
                       <Line type="monotone" dataKey="amount" stroke="var(--primary)" strokeWidth={2} dot={{ r: 4 }} />
                     </LineChart>
                   </ResponsiveContainer>
