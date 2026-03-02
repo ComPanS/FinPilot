@@ -11,6 +11,7 @@ import {
   ComposedChart,
 } from "recharts";
 import type { ForecastDay } from "@/types";
+import { formatDateDdMmYyyy } from "@/lib/date-utils";
 
 function insertZeroCrossings<T extends { balance: number; date: string; dateShort: string; positiveBalance: number; negativeBalance: number }>(
   data: T[]
@@ -29,7 +30,7 @@ function insertZeroCrossings<T extends { balance: number; date: string; dateShor
       result.push({
         ...a,
         date: midDateStr,
-        dateShort: midDateStr.slice(5),
+        dateShort: formatDateDdMmYyyy(midDateStr),
         balance: 0,
         positiveBalance: 0,
         negativeBalance: 0,
@@ -43,7 +44,7 @@ function insertZeroCrossings<T extends { balance: number; date: string; dateShor
       result.push({
         ...a,
         date: midDateStr,
-        dateShort: midDateStr.slice(5),
+        dateShort: formatDateDdMmYyyy(midDateStr),
         balance: 0,
         positiveBalance: 0,
         negativeBalance: 0,
@@ -68,7 +69,7 @@ export function ForecastChart({
       return {
         ...d,
         balance,
-        dateShort: d.date.slice(5),
+        dateShort: formatDateDdMmYyyy(d.date),
         positiveBalance: balance >= 0 ? balance : 0,
         negativeBalance: balance < 0 ? balance : 0,
       };
@@ -86,7 +87,7 @@ export function ForecastChart({
     if (!active || !payload?.length) return null;
     const point = payload[0]?.payload;
     const value = point?.balance ?? 0;
-    const fullDate = point?.date ?? point?.dateShort ?? "";
+    const fullDate = point?.date ? formatDateDdMmYyyy(point.date) : (point?.dateShort ?? "");
     const isNegative = value < 0;
     return (
       <div style={tooltipContentStyle} className="px-3 py-2">

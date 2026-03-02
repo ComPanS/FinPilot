@@ -21,7 +21,7 @@ export async function getForecastDebugAction(profileId: string) {
 
 export async function getForecastAction(
   profileId: string,
-  options?: { days?: number; changes?: WhatIfChanges; useExpectedData?: boolean }
+  options?: { days?: number; startDate?: Date; changes?: WhatIfChanges; useExpectedData?: boolean }
 ) {
   const session = await auth();
   if (!session?.user?.email) return { error: "Не авторизован" };
@@ -39,6 +39,7 @@ export async function getForecastAction(
   const days = options?.days ?? defaultDays;
   const forecast = await computeForecast(profileId, {
     days,
+    startDate: options?.startDate,
     changes: options?.changes,
     zoneGreenMin: profile.zoneGreenMin ?? 50000,
     zoneRedMax: profile.zoneRedMax ?? -50000,

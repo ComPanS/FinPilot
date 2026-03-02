@@ -63,6 +63,7 @@ export async function computeForecast(
   profileId: string,
   options: {
     days?: number;
+    startDate?: Date;
     initialBalance?: number;
     changes?: WhatIfChanges;
     zoneGreenMin?: number;
@@ -89,8 +90,15 @@ export async function computeForecast(
     }),
   ]);
 
-  const startDate = new Date();
-  startDate.setHours(0, 0, 0, 0);
+  const startDate = options.startDate ? (() => {
+    const d = new Date(options.startDate!);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  })() : (() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  })();
   const endDate = addDays(startDate, days);
 
   const dailyInflows: Record<string, number> = {};

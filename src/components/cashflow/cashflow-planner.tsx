@@ -27,6 +27,7 @@ import { EditModal } from "./edit-modal";
 import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
 import { ExpectedPeriodsModal } from "./expected-periods-modal";
 import { parseCashFlowTextAction } from "@/app/actions/ai-cashflow";
+import { formatDateDdMmYyyy, formatDateToDdMmYyyy } from "@/lib/date-utils";
 import type { Prisma } from "@prisma/client";
 
 type Profile = Prisma.CashFlowProfileGetPayload<{
@@ -480,8 +481,8 @@ export function CashFlowPlanner({
                     <td className="p-2">{e.name}</td>
                     <td className="p-2">{Number(e.amount)} {profile.currency}</td>
                     <td className="p-2">{freqLabel(e.frequency, e.customDays)}</td>
-                    <td className="p-2">{new Date(e.createdAt).toLocaleDateString("ru")}</td>
-                    <td className="p-2">{new Date(e.updatedAt).toLocaleDateString("ru")}</td>
+                    <td className="p-2">{formatDateToDdMmYyyy(new Date(e.createdAt))}</td>
+                    <td className="p-2">{formatDateToDdMmYyyy(new Date(e.updatedAt))}</td>
                     <td className="p-2">
                       <button
                         onClick={() => setEditModal({ entityType: "EXPENSE", entity: e })}
@@ -606,8 +607,8 @@ export function CashFlowPlanner({
                     <td className="p-2">{i.name}</td>
                     <td className="p-2">{Number(i.amount ?? i.avgCheck ?? 0)} {profile.currency}</td>
                     <td className="p-2">{incomeFreqLabel(i.frequency ?? "MONTHLY", i.customDays)}</td>
-                    <td className="p-2">{new Date(i.createdAt).toLocaleDateString("ru")}</td>
-                    <td className="p-2">{new Date(i.updatedAt).toLocaleDateString("ru")}</td>
+                    <td className="p-2">{formatDateToDdMmYyyy(new Date(i.createdAt))}</td>
+                    <td className="p-2">{formatDateToDdMmYyyy(new Date(i.updatedAt))}</td>
                     <td className="p-2">
                       <button onClick={() => setEditModal({ entityType: "INCOME", entity: i })} className="cursor-pointer text-primary hover:underline mr-2">Изменить</button>
                       <button onClick={() => setHistoryModal({ entityId: i.id, entityType: "INCOME" })} className="cursor-pointer text-muted-foreground hover:underline mr-2">История</button>
@@ -709,12 +710,12 @@ export function CashFlowPlanner({
               <tbody>
                 {sortManual(profile.manualTransactions).map((t) => (
                   <tr key={t.id} className="border-b border-border">
-                    <td className="p-2">{new Date(t.date).toLocaleDateString("ru")}</td>
+                    <td className="p-2">{formatDateToDdMmYyyy(new Date(t.date))}</td>
                     <td className="p-2">{t.type === "IN" ? "+" : "-"}</td>
                     <td className="p-2">{(t as { expenseCategory?: { name: string }; incomeCategory?: { name: string } }).expenseCategory?.name ?? (t as { incomeCategory?: { name: string } }).incomeCategory?.name ?? "-"}</td>
                     <td className="p-2">{Number(t.amount)} {profile.currency}</td>
                     <td className="p-2">{t.description ?? "-"}</td>
-                    <td className="p-2">{new Date(t.createdAt).toLocaleDateString("ru")}</td>
+                    <td className="p-2">{formatDateToDdMmYyyy(new Date(t.createdAt))}</td>
                     <td className="p-2">
                       <button onClick={() => setEditModal({ entityType: "MANUAL", entity: t })} className="cursor-pointer text-primary hover:underline mr-2">Изменить</button>
                       <button onClick={() => setHistoryModal({ entityId: t.id, entityType: "MANUAL" })} className="cursor-pointer text-muted-foreground hover:underline mr-2">История</button>
@@ -762,7 +763,7 @@ export function CashFlowPlanner({
                   <ul className="mt-2 space-y-1">
                     {redZones.slice(0, 10).map((d) => (
                       <li key={d.date}>
-                        {d.date} — баланс {d.balance.toLocaleString("ru")} {profile.currency}
+                        {formatDateDdMmYyyy(d.date)} — баланс {d.balance.toLocaleString("ru")} {profile.currency}
                       </li>
                     ))}
                   </ul>

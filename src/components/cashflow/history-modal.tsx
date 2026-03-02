@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getCashFlowHistory } from "@/app/actions/cashflow";
+import { formatDateToDdMmYyyy } from "@/lib/date-utils";
 import {
   LineChart,
   Line,
@@ -39,7 +40,7 @@ function formatDataReadable(d: unknown, currency: string): string {
     const f = obj.frequency as string;
     parts.push(f === "MONTHLY" ? "ежемесячно" : f === "QUARTERLY" ? "ежеквартально" : "раз в год");
   }
-  if (obj.date != null) parts.push(new Date(obj.date as string).toLocaleDateString("ru"));
+  if (obj.date != null) parts.push(formatDateToDdMmYyyy(new Date(obj.date as string)));
   if (obj.type != null) parts.push(obj.type === "IN" ? "поступление" : "расход");
   if (obj.description != null && obj.description !== "") parts.push(String(obj.description));
   if (obj.avgCheck != null) parts.push(`ср. чек ${Number(obj.avgCheck).toLocaleString("ru")} ${currency}`);
@@ -89,7 +90,7 @@ export function HistoryModal({
 
   const chartData = history
     .map((h) => {
-      const date = new Date(h.createdAt).toLocaleDateString("ru");
+      const date = formatDateToDdMmYyyy(new Date(h.createdAt));
       let amount: number | null = null;
       if (h.action === "create" || h.action === "update") amount = getAmountFromData(h.newData);
       else if (h.action === "delete") amount = getAmountFromData(h.oldData);
@@ -140,7 +141,7 @@ export function HistoryModal({
                     {history.map((h) => (
                       <tr key={h.id} className="border-b border-border">
                         <td className="p-2">
-                          {new Date(h.createdAt).toLocaleString("ru")}
+                          {formatDateToDdMmYyyy(new Date(h.createdAt))} {new Date(h.createdAt).toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" })}
                         </td>
                         <td className="p-2">{ACTION_LABELS[h.action] ?? h.action}</td>
                         <td className="max-w-48 p-2 text-xs">

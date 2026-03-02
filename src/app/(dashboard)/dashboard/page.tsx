@@ -30,12 +30,18 @@ export default async function DashboardPage() {
     redirect("/onboarding");
   }
 
-  const forecastDays = user.subscription?.plan === "FREE" ? 30 : 90;
-  const forecastRes = await getForecastAction(profile.id, { days: forecastDays });
+  const now = new Date();
+  // Нынешние: текущий календарный месяц с 1-го числа
+  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const lastOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const daysInMonth = lastOfMonth.getDate();
+  const forecastRes = await getForecastAction(profile.id, {
+    startDate: firstOfMonth,
+    days: daysInMonth,
+  });
   const forecastData = forecastRes?.forecast ?? [];
 
   // Ожидаемые: следующие 2 календарных месяца с учётом user-entered expectedData
-  const now = new Date();
   const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   const monthAfterNext = new Date(now.getFullYear(), now.getMonth() + 2, 1);
   const expectedEnd = new Date(now.getFullYear(), now.getMonth() + 3, 0); // последний день 2-го месяца

@@ -11,6 +11,7 @@ import {
   ReferenceLine,
   ReferenceArea,
 } from "recharts";
+import { formatDateDdMmYyyy } from "@/lib/date-utils";
 
 type ForecastDay = {
   date: string;
@@ -49,14 +50,14 @@ function insertZeroCrossings<T extends ChartPoint>(
       const dB = new Date(b.date).getTime();
       const midDate = new Date(dA + t * (dB - dA));
       const midDateStr = midDate.toISOString().slice(0, 10);
-      result.push(setZero({ ...a, date: midDateStr, dateShort: midDateStr.slice(5) } as T));
+      result.push(setZero({ ...a, date: midDateStr, dateShort: formatDateDdMmYyyy(midDateStr) } as T));
     } else if (vb !== undefined && va < 0 && vb > 0) {
       const t = va / (va - vb);
       const dA = new Date(a.date).getTime();
       const dB = new Date(b.date).getTime();
       const midDate = new Date(dA + t * (dB - dA));
       const midDateStr = midDate.toISOString().slice(0, 10);
-      result.push(setZero({ ...a, date: midDateStr, dateShort: midDateStr.slice(5) } as T));
+      result.push(setZero({ ...a, date: midDateStr, dateShort: formatDateDdMmYyyy(midDateStr) } as T));
     }
   }
   return result;
@@ -74,7 +75,7 @@ export function DashboardCharts({
     const balance = Math.round(d.balance);
     return {
       ...d,
-      dateShort: d.date.slice(5),
+      dateShort: formatDateDdMmYyyy(d.date),
       profit,
       profitPositive: profit >= 0 ? profit : 0,
       profitNegative: profit < 0 ? profit : 0,
@@ -175,7 +176,7 @@ export function DashboardCharts({
                   const balance = p?.balance ?? 0;
                   return (
                     <div style={tooltipStyle} className="px-3 py-2">
-                      <p className="font-medium">Дата: {p?.date}</p>
+                      <p className="font-medium">Дата: {p?.date ? formatDateDdMmYyyy(p.date) : ""}</p>
                       <p style={{ color: balance >= 0 ? "var(--success)" : "var(--danger)" }}>
                         Прибыль за месяц: {formatValue(balance)}
                       </p>
@@ -209,7 +210,7 @@ export function DashboardCharts({
                   const profit = (p?.inflows ?? 0) - (p?.outflows ?? 0);
                   return (
                     <div style={tooltipStyle} className="px-3 py-2">
-                      <p className="font-medium">Дата: {p?.date}</p>
+                      <p className="font-medium">Дата: {p?.date ? formatDateDdMmYyyy(p.date) : ""}</p>
                       <p style={{ color: profit >= 0 ? "var(--success)" : "var(--danger)" }}>
                         Прибыль за день: {formatValue(profit)}
                       </p>
@@ -240,7 +241,7 @@ export function DashboardCharts({
                   const p = payload[0]?.payload;
                   return (
                     <div style={tooltipStyle} className="px-3 py-2">
-                      <p className="font-medium">Дата: {p?.date}</p>
+                      <p className="font-medium">Дата: {p?.date ? formatDateDdMmYyyy(p.date) : ""}</p>
                       <p style={{ color: "var(--success)" }}>
                         Доход: {formatValue(p?.inflows ?? 0)}
                       </p>
@@ -275,7 +276,7 @@ export function DashboardCharts({
                   const p = payload[0]?.payload;
                   return (
                     <div style={tooltipStyle} className="px-3 py-2">
-                      <p className="font-medium">Дата: {p?.date}</p>
+                      <p className="font-medium">Дата: {p?.date ? formatDateDdMmYyyy(p.date) : ""}</p>
                       <p style={{ color: "var(--danger)" }}>
                         Расход: {formatValue(p?.outflows ?? 0)}
                       </p>
