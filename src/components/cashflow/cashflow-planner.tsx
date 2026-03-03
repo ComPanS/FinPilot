@@ -838,8 +838,12 @@ export function CashFlowPlanner({
                 </tr>
               </thead>
               <tbody>
-                {sortManual(profile.manualTransactions).map((t) => (
-                  <tr key={t.id} className="border-b border-border">
+                {sortManual(profile.manualTransactions).map((t) => {
+                  const txDate = new Date(t.date);
+                  const firstOfCurrentMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+                  const isOverdue = txDate < firstOfCurrentMonth;
+                  return (
+                  <tr key={t.id} className={`border-b border-border ${isOverdue ? "text-muted-foreground" : ""}`}>
                     <td className="p-2">{formatDateToDdMmYyyy(new Date(t.date))}</td>
                     <td className="p-2">{t.type === "IN" ? "+" : "-"}</td>
                     <td className="p-2">{(t as { expenseCategory?: { name: string }; incomeCategory?: { name: string } }).expenseCategory?.name ?? (t as { incomeCategory?: { name: string } }).incomeCategory?.name ?? "-"}</td>
@@ -865,7 +869,7 @@ export function CashFlowPlanner({
                       </button>
                     </td>
                   </tr>
-                ))}
+                );})}
               </tbody>
             </table>
           </div>
