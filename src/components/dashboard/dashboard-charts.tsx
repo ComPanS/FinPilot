@@ -30,6 +30,8 @@ type ChartPoint = ForecastDay & {
   negativeBalance: number;
   inflows: number;
   outflows: number;
+  cumulativeInflows: number;
+  cumulativeOutflows: number;
 };
 
 function insertZeroCrossings<T extends ChartPoint>(
@@ -72,10 +74,15 @@ export function DashboardCharts({
   currency: string;
   section?: string;
 }) {
-  const baseChartData: ChartPoint[] = data.map((d) => {
+  const baseChartData: ChartPoint[] = data.reduce<ChartPoint[]>((acc, d) => {
     const profit = Math.round(d.inflows - d.outflows);
     const balance = Math.round(d.balance);
-    return {
+    const inflows = Math.round(d.inflows);
+    const outflows = Math.round(d.outflows);
+    const prev = acc[acc.length - 1];
+    const cumulativeInflows = (prev?.cumulativeInflows ?? 0) + inflows;
+    const cumulativeOutflows = (prev?.cumulativeOutflows ?? 0) + outflows;
+    acc.push({
       ...d,
       dateShort: formatDateDdMmYyyy(d.date),
       profit,
@@ -84,10 +91,13 @@ export function DashboardCharts({
       balance,
       positiveBalance: balance >= 0 ? balance : 0,
       negativeBalance: balance < 0 ? balance : 0,
-      inflows: Math.round(d.inflows),
-      outflows: Math.round(d.outflows),
-    };
-  });
+      inflows,
+      outflows,
+      cumulativeInflows,
+      cumulativeOutflows,
+    });
+    return acc;
+  }, []);
 
   const chartDataWithProfitCrossings = insertZeroCrossings(
     baseChartData,
@@ -240,20 +250,21 @@ export function DashboardCharts({
               <Tooltip
                 content={({ active, payload }) => {
                   if (!active || !payload?.length) return null;
-                  const p = payload[0]?.payload;
+                  const p = payload[0]?.payload as ChartPoint;
                   return (
                     <div style={tooltipStyle} className="px-3 py-2">
                       <p className="font-medium">Дата: {p?.date ? formatDateDdMmYyyy(p.date) : ""}</p>
                       <p style={{ color: "var(--success)" }}>
-                        Доход: {formatValue(p?.inflows ?? 0)}
+                        Накопленный доход: {formatValue(p?.cumulativeInflows ?? 0)}
                       </p>
+                      <p className="text-xs text-muted-foreground">За день: {formatValue(p?.inflows ?? 0)}</p>
                     </div>
                   );
                 }}
               />
               <Area
                 type="monotone"
-                dataKey="inflows"
+                dataKey="cumulativeInflows"
                 stroke="var(--success)"
                 fill="var(--success)"
                 fillOpacity={0.2}
@@ -275,20 +286,21 @@ export function DashboardCharts({
               <Tooltip
                 content={({ active, payload }) => {
                   if (!active || !payload?.length) return null;
-                  const p = payload[0]?.payload;
+                  const p = payload[0]?.payload as ChartPoint;
                   return (
                     <div style={tooltipStyle} className="px-3 py-2">
                       <p className="font-medium">Дата: {p?.date ? formatDateDdMmYyyy(p.date) : ""}</p>
                       <p style={{ color: "var(--danger)" }}>
-                        Расход: {formatValue(p?.outflows ?? 0)}
+                        Накопленный расход: {formatValue(p?.cumulativeOutflows ?? 0)}
                       </p>
+                      <p className="text-xs text-muted-foreground">За день: {formatValue(p?.outflows ?? 0)}</p>
                     </div>
                   );
                 }}
               />
               <Area
                 type="monotone"
-                dataKey="outflows"
+                dataKey="cumulativeOutflows"
                 stroke="var(--danger)"
                 fill="var(--danger)"
                 fillOpacity={0.2}
