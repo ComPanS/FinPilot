@@ -114,7 +114,7 @@ export default async function DashboardPage() {
       <section className="space-y-4">
         <h2 className="text-lg font-semibold text-foreground">Нынешние</h2>
         {forecastData.length > 0 ? (
-          <DashboardCharts data={forecastData} currency={profile.currency} />
+          <DashboardCharts data={forecastData} currency={profile.currency} section="Нынешние" />
         ) : (
           <p className="text-sm text-muted-foreground">
             Нет данных для прогноза. Добавьте расходы и доходы в планировщике.
@@ -129,13 +129,13 @@ export default async function DashboardPage() {
             {expectedMonth1Data.length > 0 && (
               <div>
                 <h3 className="mb-4 text-base font-medium text-foreground capitalize">{month1Label}</h3>
-                <DashboardCharts data={expectedMonth1Data} currency={profile.currency} />
+                <DashboardCharts data={expectedMonth1Data} currency={profile.currency} section={month1Label} />
               </div>
             )}
             {expectedMonth2Data.length > 0 && (
               <div>
                 <h3 className="mb-4 text-base font-medium text-foreground capitalize">{month2Label}</h3>
-                <DashboardCharts data={expectedMonth2Data} currency={profile.currency} />
+                <DashboardCharts data={expectedMonth2Data} currency={profile.currency} section={month2Label} />
               </div>
             )}
           </div>

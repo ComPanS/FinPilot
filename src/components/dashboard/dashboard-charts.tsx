@@ -66,9 +66,11 @@ function insertZeroCrossings<T extends ChartPoint>(
 export function DashboardCharts({
   data,
   currency,
+  section,
 }: {
   data: ForecastDay[];
   currency: string;
+  section?: string;
 }) {
   const baseChartData: ChartPoint[] = data.map((d) => {
     const profit = Math.round(d.inflows - d.outflows);

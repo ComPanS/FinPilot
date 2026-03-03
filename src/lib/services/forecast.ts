@@ -134,17 +134,12 @@ export async function computeForecast(
 
   const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 
+  const incomeMult = 1 + (changes.incomeGrowthPercent ?? 0) / 100;
+  const expenseMult = 1 + (changes.expenseGrowthPercent ?? 0) / 100;
+
   for (const exp of expenses) {
-    let amount = Number(exp.amount);
-    if (changes.purchaseIncreasePercent && exp.category.slug === "purchases") {
-      amount *= 1 + (changes.purchaseIncreasePercent ?? 0) / 100;
-    }
-    if (changes.newEmployee && exp.category.slug === "salary") {
-      const empStart = new Date(changes.newEmployee.startDate);
-      if (empStart <= endDate) {
-        amount += changes.newEmployee.amount;
-      }
-    }
+    if (changes.expenseOverrides?.[exp.id]?.hidden) continue;
+    let amount = changes.expenseOverrides?.[exp.id]?.amount ?? Number(exp.amount);
     const freq = exp.frequency as string;
     const expectedData = exp.expectedData as Record<string, number> | null | undefined;
     const expStart = exp.startDate;
@@ -163,12 +158,25 @@ export async function computeForecast(
       const perDay = dailyAmount(freq, useAmount, exp.customDays);
       if (perDay <= 0) continue;
       const key = dateKey(d);
-      dailyOutflows[key] = (dailyOutflows[key] ?? 0) + perDay;
+      dailyOutflows[key] = (dailyOutflows[key] ?? 0) + perDay * expenseMult;
+    }
+  }
+
+  for (const addExp of changes.addExpenses ?? []) {
+    const amount = addExp.amount;
+    const freq = addExp.frequency;
+    const perDay = dailyAmount(freq, amount, undefined);
+    if (perDay <= 0) continue;
+    for (let i = 0; i < days; i++) {
+      const d = addDays(startDate, i);
+      const key = dateKey(d);
+      dailyOutflows[key] = (dailyOutflows[key] ?? 0) + perDay * expenseMult;
     }
   }
 
   for (const inc of incomes) {
-    const grossAmt = Number(inc.amount ?? inc.avgCheck ?? 0);
+    if (changes.incomeOverrides?.[inc.id]?.hidden) continue;
+    const grossAmt = changes.incomeOverrides?.[inc.id]?.amount ?? Number(inc.amount ?? inc.avgCheck ?? 0);
     const taxPct = Number(inc.taxes ?? 0) / 100;
     const amt = grossAmt * (1 - taxPct);
     const salesPlan = inc.salesPlan as Record<string, number> | null;
@@ -186,7 +194,7 @@ export async function computeForecast(
         const amount = netExpected / 30;
         if (amount > 0) {
           const key = dateKey(d);
-          dailyInflows[key] = (dailyInflows[key] ?? 0) + amount;
+          dailyInflows[key] = (dailyInflows[key] ?? 0) + amount * incomeMult;
         }
       }
     } else if (hasSalesPlan) {
@@ -197,14 +205,8 @@ export async function computeForecast(
         const grossForMonth = salesPlan![String(month)] ?? grossAmt;
         const netForMonth = grossForMonth * (1 - taxPct);
         const amount = netForMonth / 30;
-        if (changes.paymentDelayDays && amount > 0) {
-          const delayedDate = addDays(d, changes.paymentDelayDays);
-          const key = dateKey(delayedDate);
-          dailyInflows[key] = (dailyInflows[key] ?? 0) + amount;
-        } else {
-          const key = dateKey(d);
-          dailyInflows[key] = (dailyInflows[key] ?? 0) + amount;
-        }
+        const key = dateKey(d);
+        dailyInflows[key] = (dailyInflows[key] ?? 0) + amount * incomeMult;
       }
     } else if (amt > 0) {
       const incStart = inc.startDate ? new Date(inc.startDate) : new Date(startDate);
@@ -216,21 +218,67 @@ export async function computeForecast(
         const d = addDays(startDate, i);
         if (d < incStart) continue;
         const key = dateKey(d);
-        dailyInflows[key] = (dailyInflows[key] ?? 0) + perDay;
+        dailyInflows[key] = (dailyInflows[key] ?? 0) + perDay * incomeMult;
       }
     }
   }
 
+  for (const addInc of changes.addIncomes ?? []) {
+    const amt = addInc.amount;
+    const freq = addInc.frequency;
+    const perDay = dailyAmount(freq, amt, undefined);
+    if (perDay <= 0) continue;
+    for (let i = 0; i < days; i++) {
+      const d = addDays(startDate, i);
+      const key = dateKey(d);
+      dailyInflows[key] = (dailyInflows[key] ?? 0) + perDay * incomeMult;
+    }
+  }
+
+  // Разовые операции (manual transactions) — ТОЛЬКО на конкретную дату, полная сумма один раз.
+  // Не распределяем по дням — каждая разовая операция учитывается строго в свой день.
+  const forecastKeys = new Set<string>();
+  for (let i = 0; i < days; i++) {
+    forecastKeys.add(dateKey(addDays(startDate, i)));
+  }
+  const toDateKey = (d: Date | string): string => {
+    if (typeof d === "string") return d.slice(0, 10);
+    const x = new Date(d);
+    return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+  };
+  const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+  const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+
   for (const tx of transactions) {
-    const key = dateKey(tx.date);
-    const amount = Number(tx.amount);
+    if (tx.type !== "IN" && tx.type !== "OUT") continue;
+    if (changes.manualOverrides?.[tx.id]?.hidden) continue;
+    const txDate = typeof tx.date === "string" ? new Date(tx.date) : tx.date;
+    const txDateOnly = new Date(txDate.getFullYear(), txDate.getMonth(), txDate.getDate());
+    if (txDateOnly < startDateOnly || txDateOnly >= endDateOnly) continue;
+    const txKey = toDateKey(tx.date);
+    if (!forecastKeys.has(txKey)) continue;
+    const amount = changes.manualOverrides?.[tx.id]?.amount ?? Number(tx.amount);
     const taxPct = Number(tx.taxes ?? 0) / 100;
     if (tx.type === "IN") {
-      const netAmount = amount * (1 - taxPct);
-      dailyInflows[key] = (dailyInflows[key] ?? 0) + netAmount;
+      const netAmount = amount * (1 - taxPct) * incomeMult;
+      dailyInflows[txKey] = (dailyInflows[txKey] ?? 0) + netAmount;
     } else {
-      const totalAmount = amount * (1 + taxPct);
-      dailyOutflows[key] = (dailyOutflows[key] ?? 0) + totalAmount;
+      const totalAmount = amount * (1 + taxPct) * expenseMult;
+      dailyOutflows[txKey] = (dailyOutflows[txKey] ?? 0) + totalAmount;
+    }
+  }
+
+  for (const addTx of changes.addManual ?? []) {
+    const key = addTx.date.slice(0, 10);
+    if (!forecastKeys.has(key)) continue;
+    const addTxDate = new Date(addTx.date);
+    const addTxDateOnly = new Date(addTxDate.getFullYear(), addTxDate.getMonth(), addTxDate.getDate());
+    if (addTxDateOnly < startDateOnly || addTxDateOnly >= endDateOnly) continue;
+    const amount = addTx.amount;
+    if (addTx.type === "IN") {
+      dailyInflows[key] = (dailyInflows[key] ?? 0) + amount * incomeMult;
+    } else {
+      dailyOutflows[key] = (dailyOutflows[key] ?? 0) + amount * expenseMult;
     }
   }
 

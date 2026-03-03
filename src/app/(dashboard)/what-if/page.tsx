@@ -3,6 +3,55 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { WhatIfSimulator } from "@/components/what-if/what-if-simulator";
 
+type SerializedProfile = {
+  id: string;
+  regularExpenses: Array<{ id: string; name: string; amount: number; frequency: string; categoryId: string; category?: { id: string; name: string } }>;
+  regularIncomes: Array<{ id: string; name: string; amount?: number; avgCheck?: number; taxes?: number; frequency: string; categoryId?: string; category?: { id: string; name: string } }>;
+  manualTransactions: Array<{ id: string; date: string; type: "IN" | "OUT"; amount: number; description?: string; expenseCategoryId?: string; incomeCategoryId?: string }>;
+};
+
+function serializeProfile(profile: {
+  id: string;
+  regularExpenses: Array<{ id: string; name: string; amount: unknown; frequency: string; categoryId: string; category?: { id: string; name: string } | null }>;
+  regularIncomes: Array<{ id: string; name: string; amount?: unknown; avgCheck?: unknown; taxes?: unknown; frequency: string; categoryId?: string | null; category?: { id: string; name: string } | null }>;
+  manualTransactions: Array<{ id: string; date: Date | string; type: string; amount: unknown; description?: string | null; expenseCategoryId?: string | null; incomeCategoryId?: string | null; taxes?: unknown }>;
+}): SerializedProfile {
+  return {
+    id: profile.id,
+    regularExpenses: profile.regularExpenses.map((e) => ({
+      id: e.id,
+      name: e.name,
+      amount: Number(e.amount),
+      frequency: e.frequency,
+      categoryId: e.categoryId,
+      category: e.category ? { id: e.category.id, name: e.category.name } : undefined,
+    })),
+    regularIncomes: profile.regularIncomes.map((i) => ({
+      id: i.id,
+      name: i.name,
+      amount: i.amount != null ? Number(i.amount) : undefined,
+      avgCheck: i.avgCheck != null ? Number(i.avgCheck) : undefined,
+      taxes: i.taxes != null ? Number(i.taxes) : undefined,
+      frequency: i.frequency,
+      categoryId: i.categoryId ?? undefined,
+      category: i.category ? { id: i.category.id, name: i.category.name } : undefined,
+    })),
+    manualTransactions: profile.manualTransactions.map((t) => {
+      const d = t.date;
+      const dateStr = typeof d === "string" ? d.slice(0, 10) : d instanceof Date ? d.toISOString().slice(0, 10) : "";
+      return {
+        id: t.id,
+        date: dateStr,
+        type: t.type as "IN" | "OUT",
+        amount: Number(t.amount),
+        description: t.description ?? undefined,
+        expenseCategoryId: t.expenseCategoryId ?? undefined,
+        incomeCategoryId: t.incomeCategoryId ?? undefined,
+      };
+    }),
+  };
+}
+
 export default async function WhatIfPage() {
   const session = await auth();
   if (!session?.user?.email) redirect("/login");
@@ -10,7 +59,13 @@ export default async function WhatIfPage() {
   const user = await prisma.user.findUnique({
     where: { email: session.user.email },
     include: {
-      profiles: true,
+      profiles: {
+        include: {
+          regularExpenses: { include: { category: true } },
+          regularIncomes: { include: { category: true } },
+          manualTransactions: { include: { expenseCategory: true, incomeCategory: true } },
+        },
+      },
       subscription: true,
     },
   });
@@ -19,11 +74,21 @@ export default async function WhatIfPage() {
   const profile = user.profiles[0];
   if (!profile) redirect("/onboarding");
 
-  const scenarios = await prisma.whatIfScenario.findMany({
-    where: { profileId: profile.id },
-    orderBy: { createdAt: "desc" },
-    take: 10,
-  });
+  const [scenarios, expenseCategories, incomeCategories] = await Promise.all([
+    prisma.whatIfScenario.findMany({
+      where: { profileId: profile.id },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    }),
+    prisma.expenseCategory.findMany({
+      where: { OR: [{ isSystem: true }, { userId: user.id }] },
+    }),
+    prisma.incomeCategory.findMany({
+      where: { OR: [{ isSystem: true }, { userId: user.id }] },
+    }),
+  ]);
+
+  const serializedProfile = serializeProfile(profile);
 
   return (
     <div className="space-y-8">
@@ -34,9 +99,11 @@ export default async function WhatIfPage() {
         </p>
       </div>
       <WhatIfSimulator
-        profileId={profile.id}
+        profile={serializedProfile}
+        expenseCategories={expenseCategories}
+        incomeCategories={incomeCategories}
         scenarios={scenarios}
-        forecastDays={user.subscription?.plan === "FREE" ? 30 : 90}
+        currency={profile.currency}
       />
     </div>
   );
