@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { getActiveProfile } from "@/lib/active-profile";
 import { askNeuro } from "@/lib/neuroapi";
 import { checkAIQuota, createAIRequest } from "@/lib/services/ai";
 import { computeForecast, getRedZones } from "@/lib/services/forecast";
@@ -20,6 +22,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Пользователь не найден" }, { status: 401 });
     }
 
+    const cookieStore = await cookies();
+    const profile = getActiveProfile(user, cookieStore);
+
     const { prompt } = (await req.json()) as { prompt?: string };
     if (!prompt?.trim()) {
       return NextResponse.json({ error: "Пустой запрос" }, { status: 400 });
@@ -33,7 +38,6 @@ export async function POST(req: Request) {
       );
     }
 
-    const profile = user.profiles[0];
     let context: Parameters<typeof askNeuro>[1] = {};
 
     if (profile) {

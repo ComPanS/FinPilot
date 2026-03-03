@@ -1,6 +1,8 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { getActiveProfile } from "@/lib/active-profile";
 import { InsightsChat } from "@/components/insights/insights-chat";
 
 export default async function InsightsPage() {
@@ -13,7 +15,9 @@ export default async function InsightsPage() {
   });
 
   if (!user) redirect("/login");
-  const profile = user.profiles[0];
+
+  const cookieStore = await cookies();
+  const profile = getActiveProfile(user, cookieStore);
   if (!profile) redirect("/onboarding");
 
   const recentRequests = await prisma.aIRequest.findMany({

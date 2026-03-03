@@ -1,6 +1,8 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { getActiveProfile } from "@/lib/active-profile";
 import Link from "next/link";
 import { getForecastAction } from "@/app/actions/forecast";
 import { DashboardCharts } from "@/components/dashboard/dashboard-charts";
@@ -28,10 +30,9 @@ export default async function DashboardPage() {
 
   if (!user) redirect("/login");
 
-  const profile = user.profiles[0];
-  if (!profile) {
-    redirect("/onboarding");
-  }
+  const cookieStore = await cookies();
+  const profile = getActiveProfile(user, cookieStore);
+  if (!profile) redirect("/onboarding");
 
   const now = new Date();
   // Нынешние: текущий календарный месяц с 1-го числа

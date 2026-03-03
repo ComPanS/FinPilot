@@ -1,6 +1,8 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { getActiveProfile } from "@/lib/active-profile";
 import { SettingsForm } from "@/components/settings/settings-form";
 
 export default async function SettingsPage() {
@@ -13,7 +15,9 @@ export default async function SettingsPage() {
   });
 
   if (!user) redirect("/login");
-  const profile = user.profiles[0];
+
+  const cookieStore = await cookies();
+  const profile = getActiveProfile(user, cookieStore);
 
   return (
     <div className="space-y-8">
@@ -23,7 +27,11 @@ export default async function SettingsPage() {
           Профиль, уведомления и безопасность
         </p>
       </div>
-      <SettingsForm user={user} profile={profile ?? undefined} />
+      <SettingsForm
+        user={user}
+        profile={profile ?? undefined}
+        profilesCount={user.profiles.length}
+      />
     </div>
   );
 }

@@ -39,9 +39,17 @@ type ZoneData = z.infer<typeof zoneSchema>;
 type EmailData = z.infer<typeof emailSchema>;
 
 type User = { id: string; name: string | null; email: string; weeklyReport: boolean };
-type Profile = { id: string; zoneGreenMin: number | null; zoneRedMax: number | null } | null;
+type Profile = { id: string; name: string; zoneGreenMin: number | null; zoneRedMax: number | null } | null;
 
-export function SettingsForm({ user, profile }: { user: User; profile?: Profile }) {
+export function SettingsForm({
+  user,
+  profile,
+  profilesCount = 1,
+}: {
+  user: User;
+  profile?: Profile;
+  profilesCount?: number;
+}) {
   const [message, setMessage] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -173,6 +181,11 @@ export function SettingsForm({ user, profile }: { user: User; profile?: Profile 
       {profile && (
         <div className="rounded-xl border border-border bg-surface p-6">
           <h3 className="font-semibold">Диапазон зон на графике</h3>
+          {profilesCount > 1 && (
+            <p className="mt-1 text-sm text-muted-foreground">
+              Настройки для: {profile.name}
+            </p>
+          )}
           <p className="mt-2 text-sm text-muted-foreground">
             Пороги для зелёной зоны (≥) и красной зоны (&lt;)
           </p>

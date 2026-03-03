@@ -1,6 +1,8 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { getActiveProfile } from "@/lib/active-profile";
 import { CashFlowPlanner } from "@/components/cashflow/cashflow-planner";
 
 export const dynamic = "force-dynamic";
@@ -50,7 +52,9 @@ export default async function CashFlowPage() {
   });
 
   if (!user) redirect("/login");
-  const profile = user.profiles[0];
+
+  const cookieStore = await cookies();
+  const profile = getActiveProfile(user, cookieStore);
   if (!profile) redirect("/onboarding");
 
   const [expenseCategories, incomeCategories] = await Promise.all([

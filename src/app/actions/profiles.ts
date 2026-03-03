@@ -2,14 +2,71 @@
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { ACTIVE_PROFILE_COOKIE } from "@/lib/active-profile";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
-import { ACTIVE_PROFILE_COOKIE } from "@/lib/active-profile";
 import { parseCashFlowTextAction } from "./ai-cashflow";
 
-const COOKIE_MAX_AGE = 365 * 24 * 60 * 60;
+const COOKIE_MAX_AGE = 365 * 24 * 60 * 60; // 1 year
 
-export async function completeOnboarding(data: {
+export async function switchProfileAction(profileId: string) {
+  const session = await auth();
+  if (!session?.user?.email) return { error: "Не авторизован" };
+
+  const user = await prisma.user.findUnique({
+    where: { email: session.user.email },
+    include: { profiles: true },
+  });
+  if (!user || !user.profiles.some((p) => p.id === profileId)) {
+    return { error: "Профиль не найден" };
+  }
+
+  const cookieStore = await cookies();
+  cookieStore.set(ACTIVE_PROFILE_COOKIE, profileId, {
+    path: "/",
+    maxAge: COOKIE_MAX_AGE,
+    httpOnly: false,
+    sameSite: "lax",
+  });
+
+  revalidatePath("/", "layout");
+  return { success: true };
+}
+
+export async function createProfileAction(data: {
+  name: string;
+  currency?: string;
+}) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Не авторизован" };
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    include: { profiles: true },
+  });
+  if (!user) return { error: "Пользователь не найден" };
+
+  const profile = await prisma.cashFlowProfile.create({
+    data: {
+      userId: user.id,
+      name: data.name.trim() || "Новый профиль",
+      currency: data.currency ?? "RUB",
+    },
+  });
+
+  const cookieStore = await cookies();
+  cookieStore.set(ACTIVE_PROFILE_COOKIE, profile.id, {
+    path: "/",
+    maxAge: COOKIE_MAX_AGE,
+    httpOnly: false,
+    sameSite: "lax",
+  });
+
+  revalidatePath("/", "layout");
+  return { success: true, profileId: profile.id };
+}
+
+export async function addProfileWithSetupAction(data: {
   businessName: string;
   currency: string;
   items: Array<{
@@ -25,9 +82,8 @@ export async function completeOnboarding(data: {
   const session = await auth();
   if (!session?.user?.id) return { error: "Не авторизован" };
 
-  const userEmail = session.user.email!;
   const existingUser = await prisma.user.findFirst({
-    where: { email: userEmail },
+    where: { email: session.user.email! },
   });
   if (!existingUser) return { error: "Пользователь не найден" };
 
@@ -63,15 +119,10 @@ export async function completeOnboarding(data: {
   ]);
   if (!catExpenseOther || !catIncomeOther) return { error: "Категория не найдена" };
 
-  await prisma.user.update({
-    where: { id: existingUser.id },
-    data: { businessName: data.businessName },
-  });
-
   const profile = await prisma.cashFlowProfile.create({
     data: {
       userId: existingUser.id,
-      name: data.businessName,
+      name: data.businessName.trim() || "Новый профиль",
       currency: data.currency,
     },
   });
@@ -111,9 +162,9 @@ export async function completeOnboarding(data: {
         },
       });
     } else if (item.type === "income" && item.name && item.amount > 0) {
-      const startDate = new Date();
-      startDate.setDate(1);
-      startDate.setHours(0, 0, 0, 0);
+      const sd = new Date();
+      sd.setDate(1);
+      sd.setHours(0, 0, 0, 0);
       const catId =
         item.categoryId && incomeCats.some((c) => c.id === item.categoryId)
           ? item.categoryId
@@ -126,34 +177,30 @@ export async function completeOnboarding(data: {
           taxes: item.taxes ?? 0,
           frequency: (item.frequency as string) ?? "MONTHLY",
           categoryId: catId,
-          startDate,
+          startDate: sd,
         },
       });
     }
   }
 
-  const sub = await prisma.subscription.findUnique({
-    where: { userId: existingUser.id },
-  });
-  if (!sub) {
-    await prisma.subscription.create({
-      data: {
-        userId: existingUser.id,
-        plan: "FREE",
-        status: "active",
-      },
-    });
-  }
-
   if (data.aiText?.trim()) {
-const [expenseCategories, incomeCategories] = await Promise.all([
-    prisma.expenseCategory.findMany({ where: { OR: [{ isSystem: true }, { userId: existingUser.id }] } }),
-    prisma.incomeCategory.findMany({ where: { OR: [{ isSystem: true }, { userId: existingUser.id }] } }),
-  ]);
-  await parseCashFlowTextAction(profile.id, data.aiText.trim(), expenseCategories, incomeCategories);
+    const [expenseCategories, incomeCategories] = await Promise.all([
+      prisma.expenseCategory.findMany({
+        where: { OR: [{ isSystem: true }, { userId: existingUser.id }] },
+      }),
+      prisma.incomeCategory.findMany({
+        where: { OR: [{ isSystem: true }, { userId: existingUser.id }] },
+      }),
+    ]);
+    await parseCashFlowTextAction(
+      profile.id,
+      data.aiText.trim(),
+      expenseCategories,
+      incomeCategories
+    );
   }
 
-  revalidatePath("/dashboard");
-  revalidatePath("/onboarding");
+  revalidatePath("/", "layout");
+  revalidatePath("/profiles/new");
   return { success: true };
 }

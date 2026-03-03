@@ -150,3 +150,84 @@ export async function parseCashFlowTextAction(
   }
   return { success: true };
 }
+
+export type ParsedOnboardingItem = {
+  type: "expense" | "income";
+  name: string;
+  amount: number;
+  frequency: string;
+  taxes?: number;
+  categorySlug?: string;
+};
+
+async function parseTextToItem(text: string): Promise<ParsedOnboardingItem | null> {
+  const currentYear = new Date().getFullYear();
+  const prompt = `Распарсь текст о доходе или расходе. Верни ТОЛЬКО один JSON объект без markdown:
+{"type":"expense"|"income","name":"название","amount":число,"frequency":"MONTHLY"|"QUARTERLY"|"YEARLY"|"WEEKLY"|"DAILY","taxes":число|null,"categorySlug":"rent"|"salary"|"taxes"|"purchases"|"subscriptions"|"utilities"|"marketing"|"insurance"|"equipment"|"transport"|"other"|"sales"|"services"|"investments"|null}
+
+- expense: регулярный расход — name, amount, frequency (MONTHLY, QUARTERLY, YEARLY, WEEKLY, DAILY), taxes опционально 0
+- income: регулярный доход — name, amount, frequency, taxes (по умолчанию 0), categorySlug для income: sales, services, salary, investments, rent, other
+- categorySlug для expense: rent, salary, taxes, purchases, subscriptions, utilities, marketing, insurance, equipment, transport, other
+- Только expense и income, не manual
+
+Текст: "${text.trim()}"`;
+
+  const response = await askNeuro(prompt, {});
+  let jsonStr = response.trim();
+  if (jsonStr.startsWith("```")) {
+    jsonStr = jsonStr.replace(/^```\w*\n?/, "").replace(/\n?```$/, "");
+  }
+  const firstBrace = jsonStr.indexOf("{");
+  if (firstBrace >= 0) {
+    const lastBrace = jsonStr.lastIndexOf("}");
+    if (lastBrace > firstBrace) {
+      jsonStr = jsonStr.slice(firstBrace, lastBrace + 1);
+    }
+  }
+  const parsed = JSON.parse(jsonStr) as {
+    type?: "expense" | "income";
+    name?: string;
+    amount?: number;
+    frequency?: string;
+    taxes?: number | null;
+    categorySlug?: string | null;
+  };
+  if (parsed.type !== "expense" && parsed.type !== "income") return null;
+  if (parsed.amount == null || typeof parsed.amount !== "number" || parsed.amount <= 0) return null;
+  return {
+    type: parsed.type,
+    name: parsed.name ?? (parsed.type === "expense" ? "Расход" : "Доход"),
+    amount: parsed.amount,
+    frequency: parsed.frequency ?? "MONTHLY",
+    taxes: parsed.taxes ?? 0,
+    categorySlug: parsed.categorySlug ?? undefined,
+  };
+}
+
+export async function parseCashFlowTextPreviewAction(text: string) {
+  const session = await auth();
+  if (!session?.user?.email) return { error: "Не авторизован" };
+
+  const parts = text
+    .split(/[,;]\s*/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  const items: ParsedOnboardingItem[] = [];
+  const errors: string[] = [];
+
+  for (const part of parts.length > 1 ? parts : [text]) {
+    try {
+      const item = await parseTextToItem(part);
+      if (item) items.push(item);
+      else errors.push(`${part}: не удалось распарсить`);
+    } catch (e) {
+      errors.push(`${part}: ${e instanceof Error ? e.message : "Ошибка парсинга"}`);
+    }
+  }
+
+  if (items.length === 0 && errors.length > 0) {
+    return { error: errors.join(". ") };
+  }
+  return { items, partialErrors: errors.length > 0 ? errors : undefined };
+}
