@@ -29,7 +29,7 @@ import { EditModal } from "./edit-modal";
 import { EditMonthlyModal } from "./edit-monthly-modal";
 import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
 import { ExpectedPeriodsModal } from "./expected-periods-modal";
-import { parseCashFlowTextAction } from "@/app/actions/ai-cashflow";
+import { parseCashFlowTextAction, distributePastDataByAIAction } from "@/app/actions/ai-cashflow";
 import { formatDateDdMmYyyy, formatDateToDdMmYyyy } from "@/lib/date-utils";
 import type { Prisma } from "@prisma/client";
 
@@ -123,6 +123,9 @@ export function CashFlowPlanner({
   const [editMonthlyModal, setEditMonthlyModal] = useState<{ month: string; income: number; expense: number } | null>(null);
   const [aiText, setAiText] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiMonthlyText, setAiMonthlyText] = useState("");
+  const [aiMonthlyLoading, setAiMonthlyLoading] = useState(false);
+  const [showAiMonthlyInput, setShowAiMonthlyInput] = useState(false);
   const [customCategoryName, setCustomCategoryName] = useState("");
   const [customIncomeCategoryName, setCustomIncomeCategoryName] = useState("");
   const router = useRouter();
@@ -373,6 +376,21 @@ export function CashFlowPlanner({
       return;
     }
     setAiText("");
+    loadForecast();
+    router.refresh();
+  };
+
+  const onAiMonthlySubmit = async () => {
+    if (!aiMonthlyText.trim()) return;
+    setAiMonthlyLoading(true);
+    const res = await distributePastDataByAIAction(profile.id, aiMonthlyText);
+    setAiMonthlyLoading(false);
+    if (res?.error) {
+      alert(res.error);
+      return;
+    }
+    setAiMonthlyText("");
+    setShowAiMonthlyInput(false);
     loadForecast();
     router.refresh();
   };
@@ -709,7 +727,40 @@ export function CashFlowPlanner({
             <button type="submit" className="rounded bg-primary px-4 py-2 text-white hover:bg-primary-dark">
               Добавить
             </button>
+            <button
+              type="button"
+              onClick={() => setShowAiMonthlyInput((v) => !v)}
+              className="flex h-9 w-9 items-center justify-center rounded border border-border text-lg font-bold text-primary hover:bg-surface"
+              title="Добавить через ИИ"
+            >
+              +
+            </button>
           </form>
+          {showAiMonthlyInput && (
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
+              <label className="block text-sm font-medium">Добавить данные по месяцам (ИИ)</label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Например: «В январе доход 100000 расход 80000», «Февраль: поступления 120000, расходы 90000»
+              </p>
+              <div className="mt-2 flex gap-2">
+                <input
+                  value={aiMonthlyText}
+                  onChange={(e) => setAiMonthlyText(e.target.value)}
+                  placeholder="Введите текст..."
+                  className="flex-1 rounded border border-border px-3 py-2"
+                  disabled={aiMonthlyLoading}
+                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), onAiMonthlySubmit())}
+                />
+                <button
+                  onClick={onAiMonthlySubmit}
+                  disabled={aiMonthlyLoading || !aiMonthlyText.trim()}
+                  className="rounded bg-primary px-4 py-2 text-white hover:bg-primary-dark disabled:opacity-50"
+                >
+                  {aiMonthlyLoading ? "Добавление…" : "Добавить"}
+                </button>
+              </div>
+            </div>
+          )}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -966,9 +1017,11 @@ export function CashFlowPlanner({
       {expectedPeriodsModal && (
         <ExpectedPeriodsModal
           entityType={expectedPeriodsModal.entityType}
+          profileId={profile.id}
           entity={expectedPeriodsModal.entity ? {
             ...expectedPeriodsModal.entity,
             expectedData: expectedPeriodsModal.entity.expectedData as Record<string, number> | null | undefined,
+            seasonalMultiplier: expectedPeriodsModal.entity.seasonalMultiplier as Record<string, number> | null | undefined,
           } : undefined}
           currency={profile.currency}
           onClose={() => setExpectedPeriodsModal(null)}

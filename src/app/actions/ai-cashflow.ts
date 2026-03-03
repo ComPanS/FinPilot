@@ -163,6 +163,77 @@ export async function parseCashFlowTextAction(
   return { success: true };
 }
 
+/** Parse text to monthly data only (no DB save). Used in onboarding before profile exists. */
+export async function parseMonthlyDataOnlyAction(text: string) {
+  const session = await auth();
+  if (!session?.user?.email) return { error: "Не авторизован" };
+
+  const currentYear = new Date().getFullYear();
+  const prompt = `Распарсь текст о доходах и расходах по месяцам. Верни ТОЛЬКО JSON-массив без markdown.
+Формат каждого элемента: {"month":"YYYY-MM","income":число,"expense":число} ИЛИ {"month":"YYYY-MM","entityName":"название","amount":число,"type":"expense"|"income"}
+
+Предпочтительный формат — {"month","income","expense"} для итогов по месяцу.
+Примеры:
+- "В январе доход 100000 расход 80000" → [{"month":"${currentYear}-01","income":100000,"expense":80000}]
+- "Февраль: поступления 120000, расходы 90000" → [{"month":"${currentYear}-02","income":120000,"expense":90000}]
+- "В январе: аренда 50000, продажи 100000" → [{"month":"${currentYear}-01","entityName":"аренда","amount":50000,"type":"expense"},{"month":"${currentYear}-01","entityName":"продажи","amount":100000,"type":"income"}]
+
+Правила:
+- month в формате YYYY-MM (год ${currentYear} если не указан)
+- Либо income+expense (итоги), либо entityName+amount+type (агрегируем по месяцу)
+
+Текст: "${text.trim()}"`;
+
+  const response = await askNeuro(prompt, {});
+  let jsonStr = response.trim();
+  if (jsonStr.startsWith("```")) {
+    jsonStr = jsonStr.replace(/^```\w*\n?/, "").replace(/\n?```$/, "");
+  }
+  const firstBracket = jsonStr.indexOf("[");
+  if (firstBracket >= 0) {
+    const lastBracket = jsonStr.lastIndexOf("]");
+    if (lastBracket > firstBracket) {
+      jsonStr = jsonStr.slice(firstBracket, lastBracket + 1);
+    }
+  }
+  let items: Array<{ month?: string; income?: number; expense?: number; entityName?: string; amount?: number; type?: string }>;
+  try {
+    items = JSON.parse(jsonStr) as typeof items;
+  } catch {
+    return { error: "Не удалось распарсить ответ ИИ" };
+  }
+  if (!Array.isArray(items) || items.length === 0) {
+    return { error: "ИИ не извлёк данные из текста" };
+  }
+
+  const byMonth = new Map<string, { income: number; expense: number }>();
+  for (const it of items) {
+    const month = String(it.month ?? "").trim();
+    if (!month || !/^\d{4}-\d{2}$/.test(month)) continue;
+
+    if (typeof it.income === "number" || typeof it.expense === "number") {
+      const cur = byMonth.get(month) ?? { income: 0, expense: 0 };
+      cur.income += Math.max(0, Number(it.income) || 0);
+      cur.expense += Math.max(0, Number(it.expense) || 0);
+      byMonth.set(month, cur);
+    } else if (it.entityName && typeof it.amount === "number" && it.amount > 0 && (it.type === "expense" || it.type === "income")) {
+      const cur = byMonth.get(month) ?? { income: 0, expense: 0 };
+      if (it.type === "income") cur.income += it.amount;
+      else cur.expense += it.amount;
+      byMonth.set(month, cur);
+    }
+  }
+
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const data = Array.from(byMonth.entries())
+    .filter(([month]) => month < currentMonthKey)
+    .map(([month, { income, expense }]) => ({ month, income, expense }))
+    .sort((a, b) => a.month.localeCompare(b.month));
+
+  return { data };
+}
+
 /** Parse text and create ProfileMonthlyData (standalone income/expense per month). */
 export async function distributePastDataByAIAction(profileId: string, text: string) {
   const session = await auth();

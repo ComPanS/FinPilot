@@ -109,6 +109,44 @@ async function saveForecastSnapshot(profileId: string, forecastData: object[]) {
   });
 }
 
+/** Sync expectedData (JSON) to ExpectedEntry table for forecast resolution */
+async function syncExpectedDataToEntries(
+  profileId: string,
+  entityType: "EXPENSE" | "INCOME",
+  entityId: string,
+  expectedData: Record<string, number>
+) {
+  const periods = Object.keys(expectedData).filter((k) => /^\d{4}-\d{2}$/.test(k));
+  await prisma.expectedEntry.deleteMany({
+    where: { profileId, entityType, entityId },
+  });
+  for (const period of periods) {
+    const amount = expectedData[period];
+    if (amount != null && !Number.isNaN(Number(amount)) && Number(amount) > 0) {
+      await prisma.expectedEntry.upsert({
+        where: {
+          profileId_entityType_entityId_period: {
+            profileId,
+            entityType,
+            entityId,
+            period,
+          },
+        },
+        create: {
+          profileId,
+          entityType,
+          entityId,
+          period,
+          amount: Number(amount),
+          source: "MANUAL",
+          confidence: 1.0,
+        },
+        update: { amount: Number(amount) },
+      });
+    }
+  }
+}
+
 export async function createExpense(data: {
   profileId: string;
   name: string;
@@ -117,6 +155,7 @@ export async function createExpense(data: {
   categoryId: string;
   customDays?: number;
   expectedData?: Record<string, number>;
+  seasonalMultiplier?: Record<string, number>;
 }) {
   const session = await auth();
   if (!session?.user?.email) return { error: "Не авторизован" };
@@ -142,9 +181,13 @@ export async function createExpense(data: {
       categoryId: data.categoryId,
       customDays: data.customDays ?? undefined,
       expectedData: data.expectedData ?? undefined,
+      seasonalMultiplier: data.seasonalMultiplier ?? undefined,
       startDate,
     },
   });
+  if (data.expectedData && Object.keys(data.expectedData).length > 0) {
+    await syncExpectedDataToEntries(data.profileId, "EXPENSE", exp.id, data.expectedData);
+  }
   await saveHistory(data.profileId, "EXPENSE", exp.id, "create", undefined, {
     name: data.name,
     amount: data.amount,
@@ -159,7 +202,7 @@ export async function createExpense(data: {
 
 export async function updateExpense(
   id: string,
-  data: { name?: string; amount?: number; frequency?: string; categoryId?: string; customDays?: number; expectedData?: Record<string, number> }
+  data: { name?: string; amount?: number; frequency?: string; categoryId?: string; customDays?: number; expectedData?: Record<string, number>; seasonalMultiplier?: Record<string, number> }
 ) {
   const session = await auth();
   if (!session?.user?.email) return { error: "Не авторизован" };
@@ -190,8 +233,13 @@ export async function updateExpense(
       ...(data.categoryId && { categoryId: data.categoryId }),
       ...(data.customDays !== undefined && { customDays: data.customDays }),
       ...(data.expectedData !== undefined && { expectedData: data.expectedData }),
+      ...(data.seasonalMultiplier !== undefined && { seasonalMultiplier: data.seasonalMultiplier }),
     },
   });
+
+  if (data.expectedData !== undefined) {
+    await syncExpectedDataToEntries(exp.profileId, "EXPENSE", id, data.expectedData);
+  }
 
   const newData = { ...oldData, ...data };
   await saveHistory(exp.profileId, "EXPENSE", id, "update", oldData, newData);
@@ -211,6 +259,7 @@ export async function createIncome(data: {
   categoryId?: string;
   customDays?: number;
   expectedData?: Record<string, number>;
+  seasonalMultiplier?: Record<string, number>;
 }) {
   const session = await auth();
   if (!session?.user?.email) return { error: "Не авторизован" };
@@ -242,9 +291,13 @@ export async function createIncome(data: {
       customDays: data.customDays ?? undefined,
       categoryId: data.categoryId ?? undefined,
       expectedData: data.expectedData ?? undefined,
+      seasonalMultiplier: data.seasonalMultiplier ?? undefined,
       startDate,
     },
   });
+  if (data.expectedData && Object.keys(data.expectedData).length > 0) {
+    await syncExpectedDataToEntries(data.profileId, "INCOME", inc.id, data.expectedData);
+  }
   await saveHistory(data.profileId, "INCOME", inc.id, "create", undefined, {
     name: data.name,
     amount: amt,
@@ -270,6 +323,7 @@ export async function updateIncome(
     categoryId?: string;
     customDays?: number;
     expectedData?: Record<string, number>;
+    seasonalMultiplier?: Record<string, number>;
   }
 ) {
   const session = await auth();
@@ -307,8 +361,13 @@ export async function updateIncome(
       ...(data.categoryId !== undefined && { categoryId: data.categoryId }),
       ...(data.customDays !== undefined && { customDays: data.customDays }),
       ...(data.expectedData !== undefined && { expectedData: data.expectedData }),
+      ...(data.seasonalMultiplier !== undefined && { seasonalMultiplier: data.seasonalMultiplier }),
     },
   });
+
+  if (data.expectedData !== undefined) {
+    await syncExpectedDataToEntries(inc.profileId, "INCOME", id, data.expectedData);
+  }
 
   const newData = { ...oldData, ...data };
   await saveHistory(inc.profileId, "INCOME", id, "update", oldData, newData);

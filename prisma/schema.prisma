@@ -100,12 +100,32 @@ model CashFlowProfile {
   regularIncomes      RegularIncome[]
   manualTransactions  ManualTransaction[]
   monthlyData         ProfileMonthlyData[]
+  expectedEntries     ExpectedEntry[]
   scenarios           WhatIfScenario[]
   forecasts           Forecast[]
   cashFlowHistory     CashFlowHistory[]
   forecastSnapshots   ForecastSnapshot[]
 
   @@index([userId])
+}
+
+model ExpectedEntry {
+  id          String   @id @default(cuid())
+  profileId   String
+  entityType  String   // "EXPENSE" | "INCOME" | "MONTHLY_TOTAL"
+  entityId    String?  // null for MONTHLY_TOTAL
+  period      String   // "2025-03" or "2025-03-15"
+  amount      Decimal  @db.Decimal(14, 2)
+  confidence  Float?   @default(1.0) // 0.0-1.0 for AI forecasts
+  source      String   @default("MANUAL") // MANUAL | AUTO_HISTORICAL | AI | SALES_PLAN
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  profile CashFlowProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, entityType, entityId, period])
+  @@index([profileId, period])
+  @@index([entityId])
 }
 
 model ProfileMonthlyData {
@@ -187,7 +207,8 @@ model RegularExpense {
   frequency    String   // MONTHLY, QUARTERLY, YEARLY, WEEKLY, DAILY, CUSTOM
   customDays   Int?     // used when frequency is CUSTOM
   startDate    DateTime
-  expectedData Json?    // { "YYYY-MM": number } optional user-entered expected amounts per month
+  expectedData Json?    // { "YYYY-MM": number } optional user-entered expected amounts per month (deprecated, use ExpectedEntry)
+  seasonalMultiplier Json? // { "03": 1.2, "12": 0.8 } for seasonality by month
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -209,7 +230,8 @@ model RegularIncome {
   customDays      Int?      // used when frequency is CUSTOM
   categoryId      String?   // FK to IncomeCategory (kept for backward compat, maps to income category)
   startDate       DateTime? // for frequency-based distribution
-  expectedData    Json?     // { "YYYY-MM": number } optional user-entered expected amounts per month
+  expectedData    Json?     // { "YYYY-MM": number } optional user-entered expected amounts per month (deprecated, use ExpectedEntry)
+  seasonalMultiplier Json?   // { "03": 1.2, "12": 0.8 } for seasonality by month
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 

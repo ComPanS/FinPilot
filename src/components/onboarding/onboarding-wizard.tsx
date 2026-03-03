@@ -8,7 +8,7 @@ import { z } from "zod";
 import { Plus } from "lucide-react";
 import { completeOnboarding } from "@/app/actions/onboarding";
 import { addProfileWithSetupAction } from "@/app/actions/profiles";
-import { parseCashFlowTextPreviewAction } from "@/app/actions/ai-cashflow";
+import { parseCashFlowTextPreviewAction, parseMonthlyDataOnlyAction } from "@/app/actions/ai-cashflow";
 
 const step1Schema = z.object({
   businessName: z.string().min(2, "Минимум 2 символа"),
@@ -17,6 +17,8 @@ const step1Schema = z.object({
 const step2Schema = z.object({
   currency: z.enum(["RUB", "USD", "EUR"]),
 });
+
+const monthNames = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"];
 
 const FREQUENCIES = [
   { value: "MONTHLY", label: "Ежемесячно" },
@@ -56,6 +58,7 @@ export function OnboardingWizard({
   const [aiText, setAiText] = useState("");
   const [pastDataText, setPastDataText] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiMonthlyLoading, setAiMonthlyLoading] = useState(false);
   const [monthlyEntries, setMonthlyEntries] = useState<Array<{ month: string; income: number; expense: number }>>([]);
   const [manualMonth, setManualMonth] = useState(() => {
     const d = new Date();
@@ -163,6 +166,27 @@ export function OnboardingWizard({
         categoryId: expenseCategories[0]?.id,
       },
     ]);
+  }
+
+  async function handleAiMonthlyAdd() {
+    if (!pastDataText.trim()) return;
+    setAiMonthlyLoading(true);
+    const result = await parseMonthlyDataOnlyAction(pastDataText.trim());
+    setAiMonthlyLoading(false);
+    if (result?.error) {
+      alert(result.error);
+      return;
+    }
+    if (result?.data && result.data.length > 0) {
+      setMonthlyEntries((prev) => {
+        const byMonth = new Map(prev.map((e) => [e.month, e]));
+        for (const m of result.data!) {
+          byMonth.set(m.month, m);
+        }
+        return Array.from(byMonth.values()).sort((a, b) => a.month.localeCompare(b.month));
+      });
+      setPastDataText("");
+    }
   }
 
   function addManualMonthlyEntry() {
@@ -425,10 +449,20 @@ export function OnboardingWizard({
               <input
                 value={pastDataText}
                 onChange={(e) => setPastDataText(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAiMonthlyAdd())}
                 placeholder="Введите текст..."
                 className="flex-1 rounded border border-border bg-background px-3 py-2"
-                disabled={aiLoading}
+                disabled={aiMonthlyLoading}
               />
+              <button
+                type="button"
+                onClick={handleAiMonthlyAdd}
+                disabled={aiMonthlyLoading || !pastDataText.trim()}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-primary hover:bg-primary/10 disabled:opacity-50"
+                title="Добавить через ИИ"
+              >
+                <Plus className="h-5 w-5" />
+              </button>
             </div>
           </div>
           <div className="rounded-lg border border-border bg-muted/30 p-4">
@@ -483,8 +517,41 @@ export function OnboardingWizard({
               </button>
             </div>
             {monthlyEntries.length > 0 && (
-              <div className="mt-3 text-xs text-muted-foreground">
-                Добавлено: {monthlyEntries.map((e) => `${e.month}: доход ${e.income}, расход ${e.expense}`).join("; ")}
+              <div className="mt-3 overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="p-2 text-left">Месяц</th>
+                      <th className="p-2 text-right">Доход</th>
+                      <th className="p-2 text-right">Расход</th>
+                      <th className="w-10 p-2"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {monthlyEntries.map((e) => {
+                      const [y, mo] = e.month.split("-").map(Number);
+                      const label = `${monthNames[mo - 1]} ${y}`;
+                      return (
+                        <tr key={e.month} className="border-b border-border">
+                          <td className="p-2">{label}</td>
+                          <td className="p-2 text-right">{e.income.toLocaleString("ru")}</td>
+                          <td className="p-2 text-right">{e.expense.toLocaleString("ru")}</td>
+                          <td className="p-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setMonthlyEntries((prev) => prev.filter((x) => x.month !== e.month))
+                              }
+                              className="cursor-pointer text-danger hover:underline"
+                            >
+                              ✕
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
