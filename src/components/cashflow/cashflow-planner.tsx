@@ -18,12 +18,15 @@ import {
   saveForecastSnapshotAction,
   createCategory,
   createIncomeCategory,
+  createOrUpdateMonthlyDataAction,
+  deleteMonthlyDataAction,
 } from "@/app/actions/cashflow";
 import { getForecastAction } from "@/app/actions/forecast";
 import { getRedZones } from "@/lib/services/forecast";
 import { ForecastChart } from "./forecast-chart";
 import { HistoryModal } from "./history-modal";
 import { EditModal } from "./edit-modal";
+import { EditMonthlyModal } from "./edit-monthly-modal";
 import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
 import { ExpectedPeriodsModal } from "./expected-periods-modal";
 import { parseCashFlowTextAction } from "@/app/actions/ai-cashflow";
@@ -35,6 +38,7 @@ type Profile = Prisma.CashFlowProfileGetPayload<{
     regularExpenses: { include: { category: true } };
     regularIncomes: true;
     manualTransactions: true;
+    monthlyData: true;
   };
 }>;
 type Category = { id: string; name: string; slug: string };
@@ -66,7 +70,15 @@ const manualSchema = z.object({
   incomeCategoryId: z.string().optional(),
 });
 
+const monthlySchema = z.object({
+  month: z.string().regex(/^\d{4}-\d{2}$/, "Формат YYYY-MM"),
+  income: z.coerce.number().min(0),
+  expense: z.coerce.number().min(0),
+});
+
 const CUSTOM_CATEGORY_VALUE = "__custom__";
+
+const monthNames = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"];
 
 export function CashFlowPlanner({
   profile,
@@ -82,7 +94,7 @@ export function CashFlowPlanner({
   userId: string;
 }) {
   const [activeTab, setActiveTab] = useState<
-    "expenses" | "incomes" | "manual" | "chart"
+    "expenses" | "incomes" | "manual" | "months" | "chart"
   >("expenses");
   const [forecast, setForecast] = useState<{
     forecast: { date: string; balance: number; inflows: number; outflows: number }[];
@@ -108,6 +120,7 @@ export function CashFlowPlanner({
     initialData?: Record<string, number>;
   } | null>(null);
   const [addFormExpectedData, setAddFormExpectedData] = useState<{ entityType: "EXPENSE" | "INCOME"; data: Record<string, number> } | null>(null);
+  const [editMonthlyModal, setEditMonthlyModal] = useState<{ month: string; income: number; expense: number } | null>(null);
   const [aiText, setAiText] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [customCategoryName, setCustomCategoryName] = useState("");
@@ -227,6 +240,19 @@ export function CashFlowPlanner({
     },
   });
 
+  const monthlyForm = useForm<z.infer<typeof monthlySchema>>({
+    resolver: zodResolver(monthlySchema),
+    defaultValues: {
+      month: (() => {
+        const d = new Date();
+        d.setMonth(d.getMonth() - 1);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      })(),
+      income: 0,
+      expense: 0,
+    },
+  });
+
   const onAddExpense = expenseForm.handleSubmit(async (data) => {
     if (data.frequency === "CUSTOM" && (!data.customDays || data.customDays < 1)) {
       alert("Укажите количество дней для кастомной частоты");
@@ -318,6 +344,25 @@ export function CashFlowPlanner({
     loadForecast();
   });
 
+  const onAddMonthly = monthlyForm.handleSubmit(async (data) => {
+    const res = await createOrUpdateMonthlyDataAction(profile.id, data.month, data.income, data.expense);
+    if (res?.error) {
+      alert(res.error);
+      return;
+    }
+    monthlyForm.reset({
+      month: (() => {
+        const d = new Date();
+        d.setMonth(d.getMonth() - 1);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      })(),
+      income: 0,
+      expense: 0,
+    });
+    loadForecast();
+    router.refresh();
+  });
+
   const onAiTextSubmit = async () => {
     if (!aiText.trim()) return;
     setAiLoading(true);
@@ -338,6 +383,7 @@ export function CashFlowPlanner({
     { id: "expenses" as const, label: "Регулярные расходы" },
     { id: "incomes" as const, label: "Доходы" },
     { id: "manual" as const, label: "Разовые" },
+    { id: "months" as const, label: "Данные по месяцам" },
     { id: "chart" as const, label: "График" },
   ];
 
@@ -364,7 +410,7 @@ export function CashFlowPlanner({
       <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
         <label className="block text-sm font-medium">Добавить текстом (ИИ обработает)</label>
         <p className="mt-1 text-xs text-muted-foreground">
-          Например: «аренда 50000 ежемесячно», «продажи 100000 в марте», «расход 15000 15.03»
+          Например: «аренда 50000 ежемесячно», «продажи 100000 в марте», «в январе доход 100000 расход 80000»
         </p>
         <div className="mt-2 flex gap-2">
           <input
@@ -636,6 +682,90 @@ export function CashFlowPlanner({
         </div>
       )}
 
+      {activeTab === "months" && (
+        <div className="space-y-4">
+          <form onSubmit={onAddMonthly} className="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-surface p-4">
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Месяц</label>
+              <input
+                {...monthlyForm.register("month")}
+                type="month"
+                max={(() => {
+                  const d = new Date();
+                  d.setMonth(d.getMonth() - 1);
+                  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+                })()}
+                className="rounded border border-border bg-background px-2 py-1 text-foreground"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Доход ({profile.currency})</label>
+              <input {...monthlyForm.register("income")} type="number" min={0} placeholder="0" onKeyDown={(e) => { if (e.key === "-" || e.key === "e" || e.key === "E") e.preventDefault(); }} className="w-28 rounded border border-border bg-background px-2 py-1 text-foreground" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Расход ({profile.currency})</label>
+              <input {...monthlyForm.register("expense")} type="number" min={0} placeholder="0" onKeyDown={(e) => { if (e.key === "-" || e.key === "e" || e.key === "E") e.preventDefault(); }} className="w-28 rounded border border-border bg-background px-2 py-1 text-foreground" />
+            </div>
+            <button type="submit" className="rounded bg-primary px-4 py-2 text-white hover:bg-primary-dark">
+              Добавить
+            </button>
+          </form>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="p-2 text-left">Месяц</th>
+                  <th className="p-2 text-right">Доход</th>
+                  <th className="p-2 text-right">Расход</th>
+                  <th className="p-2 text-left">Действия</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(profile.monthlyData ?? []).sort((a, b) => a.month.localeCompare(b.month)).map((m) => {
+                  const [y, mo] = m.month.split("-").map(Number);
+                  const label = `${monthNames[mo - 1]} ${y}`;
+                  return (
+                    <tr key={m.month} className="border-b border-border">
+                      <td className="p-2">{label}</td>
+                      <td className="p-2 text-right">{Number(m.income).toLocaleString("ru")} {profile.currency}</td>
+                      <td className="p-2 text-right">{Number(m.expense).toLocaleString("ru")} {profile.currency}</td>
+                      <td className="p-2">
+                        <button
+                          onClick={() => setEditMonthlyModal({ month: m.month, income: Number(m.income), expense: Number(m.expense) })}
+                          className="cursor-pointer text-primary hover:underline"
+                        >
+                          Изменить
+                        </button>
+                        {" · "}
+                        <button
+                          onClick={() =>
+                            setDeleteConfirmModal({
+                              message: `Удалить данные за ${label}?`,
+                              onConfirm: async () => {
+                                await deleteMonthlyDataAction(profile.id, m.month);
+                                setEditMonthlyModal((prev) => (prev?.month === m.month ? null : prev));
+                                loadForecast();
+                                router.refresh();
+                              },
+                            })
+                          }
+                          className="cursor-pointer text-danger hover:underline"
+                        >
+                          Удалить
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {(profile.monthlyData ?? []).length === 0 && (
+            <p className="text-sm text-muted-foreground">Нет данных по месяцам. Добавьте вручную или используйте общий инпут выше.</p>
+          )}
+        </div>
+      )}
+
       {activeTab === "manual" && (
         <div className="space-y-4">
           <form onSubmit={onAddManual} className="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-surface p-4">
@@ -798,6 +928,26 @@ export function CashFlowPlanner({
             loadForecast();
             router.refresh();
           }}
+        />
+      )}
+
+      {editMonthlyModal && (
+        <EditMonthlyModal
+          month={editMonthlyModal.month}
+          income={editMonthlyModal.income}
+          expense={editMonthlyModal.expense}
+          currency={profile.currency}
+          onSave={async (income, expense) => {
+            const res = await createOrUpdateMonthlyDataAction(profile.id, editMonthlyModal.month, income, expense);
+            if (res?.error) {
+              alert(res.error);
+              return false;
+            }
+            loadForecast();
+            router.refresh();
+            return true;
+          }}
+          onClose={() => setEditMonthlyModal(null)}
         />
       )}
 

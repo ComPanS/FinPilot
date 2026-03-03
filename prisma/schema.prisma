@@ -99,12 +99,28 @@ model CashFlowProfile {
   regularExpenses     RegularExpense[]
   regularIncomes      RegularIncome[]
   manualTransactions  ManualTransaction[]
+  monthlyData         ProfileMonthlyData[]
   scenarios           WhatIfScenario[]
   forecasts           Forecast[]
   cashFlowHistory     CashFlowHistory[]
   forecastSnapshots   ForecastSnapshot[]
 
   @@index([userId])
+}
+
+model ProfileMonthlyData {
+  id        String   @id @default(cuid())
+  profileId String
+  month     String   // YYYY-MM
+  income    Decimal  @db.Decimal(14, 2)  // доход за месяц
+  expense   Decimal  @db.Decimal(14, 2)  // расход за месяц
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile CashFlowProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, month])
+  @@index([profileId])
 }
 
 model CashFlowHistory {

@@ -547,3 +547,57 @@ export async function saveForecastSnapshotAction(
   await saveForecastSnapshot(profileId, forecastData);
   return { success: true };
 }
+
+export async function createOrUpdateMonthlyDataAction(
+  profileId: string,
+  month: string,
+  income: number,
+  expense: number
+) {
+  const session = await auth();
+  if (!session?.user?.email) return { error: "Не авторизован" };
+
+  const user = await prisma.user.findUnique({
+    where: { email: session.user.email },
+    include: { profiles: true },
+  });
+  if (!user || !user.profiles.some((p) => p.id === profileId)) {
+    return { error: "Профиль не найден" };
+  }
+
+  if (!/^\d{4}-\d{2}$/.test(month)) return { error: "Неверный формат месяца (YYYY-MM)" };
+  if (income < 0 || expense < 0) return { error: "Суммы не могут быть отрицательными" };
+
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  if (month >= currentMonthKey) return { error: "Можно добавлять только данные за прошлые месяцы" };
+
+  await prisma.profileMonthlyData.upsert({
+    where: { profileId_month: { profileId, month } },
+    create: { profileId, month, income, expense },
+    update: { income, expense },
+  });
+  revalidatePath("/cashflow");
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+export async function deleteMonthlyDataAction(profileId: string, month: string) {
+  const session = await auth();
+  if (!session?.user?.email) return { error: "Не авторизован" };
+
+  const user = await prisma.user.findUnique({
+    where: { email: session.user.email },
+    include: { profiles: true },
+  });
+  if (!user || !user.profiles.some((p) => p.id === profileId)) {
+    return { error: "Профиль не найден" };
+  }
+
+  await prisma.profileMonthlyData.deleteMany({
+    where: { profileId, month },
+  });
+  revalidatePath("/cashflow");
+  revalidatePath("/dashboard");
+  return { success: true };
+}

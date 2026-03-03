@@ -54,7 +54,16 @@ export function OnboardingWizard({
   const [step, setStep] = useState(1);
   const [items, setItems] = useState<Step3Item[]>([]);
   const [aiText, setAiText] = useState("");
+  const [pastDataText, setPastDataText] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  const [monthlyEntries, setMonthlyEntries] = useState<Array<{ month: string; income: number; expense: number }>>([]);
+  const [manualMonth, setManualMonth] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const [manualIncome, setManualIncome] = useState("");
+  const [manualExpense, setManualExpense] = useState("");
 
   const step1Form = useForm<Step1Data>({
     resolver: zodResolver(step1Schema),
@@ -74,7 +83,11 @@ export function OnboardingWizard({
     setStep(3);
   }
 
-  async function handleStep3() {
+  async function handleStep3Submit() {
+    setStep(4);
+  }
+
+  async function handleStep4() {
     setAiLoading(true);
     const data = {
       businessName: step1Form.getValues("businessName"),
@@ -89,6 +102,8 @@ export function OnboardingWizard({
           taxes: it.taxes ?? 0,
           categoryId: it.categoryId,
         })),
+      pastDataText: pastDataText.trim() || undefined,
+      monthlyData: monthlyEntries.length > 0 ? monthlyEntries : undefined,
     };
     const result =
       mode === "addProfile"
@@ -150,6 +165,26 @@ export function OnboardingWizard({
     ]);
   }
 
+  function addManualMonthlyEntry() {
+    const month = manualMonth.trim();
+    const income = parseFloat(manualIncome) || 0;
+    const expense = parseFloat(manualExpense) || 0;
+    if (!month || !/^\d{4}-\d{2}$/.test(month)) return;
+    const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    if (month >= currentMonthKey) {
+      alert("Можно добавлять только данные за прошлые месяцы");
+      return;
+    }
+    setMonthlyEntries((prev) => {
+      const filtered = prev.filter((e) => e.month !== month);
+      return [...filtered, { month, income, expense }].sort((a, b) => a.month.localeCompare(b.month));
+    });
+    setManualMonth("");
+    setManualIncome("");
+    setManualExpense("");
+  }
+
   function updateItem(i: number, field: keyof Step3Item, value: unknown) {
     const next = [...items];
     (next[i] as Record<string, unknown>)[field] = value;
@@ -163,7 +198,7 @@ export function OnboardingWizard({
   return (
     <div className="mt-8 space-y-8">
       <div className="flex gap-2">
-        {[1, 2, 3].map((s) => (
+        {[1, 2, 3, 4].map((s) => (
           <div
             key={s}
             className={`h-2 flex-1 rounded-full ${
@@ -365,7 +400,105 @@ export function OnboardingWizard({
           <div className="mt-4 flex gap-4">
             <button
               type="button"
-              onClick={handleStep3}
+              onClick={handleStep3Submit}
+              disabled={aiLoading}
+              className="rounded-lg bg-primary px-4 py-2 font-medium text-white hover:bg-primary-dark disabled:opacity-50"
+            >
+              Далее
+            </button>
+          </div>
+        </div>
+      )}
+
+      {step === 4 && (
+        <div className="space-y-4 rounded-xl border border-border bg-surface p-6">
+          <h3 className="font-semibold">Данные по месяцам</h3>
+          <p className="text-sm text-muted-foreground">
+            Укажите данные за прошлые месяцы для прогноза. Можно ввести текстом или добавить вручную.
+          </p>
+          <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
+            <label className="block text-sm font-medium">Добавить текстом (ИИ распределит)</label>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Например: «В январе доход 100000 расход 80000. В феврале доход 120000 расход 90000»
+            </p>
+            <div className="mt-2 flex gap-2">
+              <input
+                value={pastDataText}
+                onChange={(e) => setPastDataText(e.target.value)}
+                placeholder="Введите текст..."
+                className="flex-1 rounded border border-border bg-background px-3 py-2"
+                disabled={aiLoading}
+              />
+            </div>
+          </div>
+          <div className="rounded-lg border border-border bg-muted/30 p-4">
+            <label className="block text-sm font-medium">Добавить вручную</label>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Месяц, доход и расход за месяц
+            </p>
+            <div className="mt-2 flex flex-wrap items-end gap-2">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">Месяц</label>
+                <input
+                  type="month"
+                  value={manualMonth}
+                  onChange={(e) => setManualMonth(e.target.value)}
+                  max={(() => {
+                    const d = new Date();
+                    d.setMonth(d.getMonth() - 1);
+                    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+                  })()}
+                  className="rounded border border-border bg-background px-2 py-1"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">Доход</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={manualIncome}
+                  onChange={(e) => setManualIncome(e.target.value)}
+                  placeholder="0"
+                  className="w-24 rounded border border-border px-2 py-1"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">Расход</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={manualExpense}
+                  onChange={(e) => setManualExpense(e.target.value)}
+                  placeholder="0"
+                  className="w-24 rounded border border-border px-2 py-1"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={addManualMonthlyEntry}
+                disabled={!manualMonth}
+                className="rounded bg-primary px-4 py-2 text-white hover:bg-primary-dark disabled:opacity-50"
+              >
+                + Добавить
+              </button>
+            </div>
+            {monthlyEntries.length > 0 && (
+              <div className="mt-3 text-xs text-muted-foreground">
+                Добавлено: {monthlyEntries.map((e) => `${e.month}: доход ${e.income}, расход ${e.expense}`).join("; ")}
+              </div>
+            )}
+          </div>
+          <div className="mt-4 flex gap-4">
+            <button
+              type="button"
+              onClick={() => setStep(3)}
+              className="rounded-lg border px-4 py-2"
+            >
+              Назад
+            </button>
+            <button
+              type="button"
+              onClick={handleStep4}
               disabled={aiLoading}
               className="rounded-lg bg-primary px-4 py-2 font-medium text-white hover:bg-primary-dark disabled:opacity-50"
             >

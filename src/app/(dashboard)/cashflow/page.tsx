@@ -11,6 +11,7 @@ function serializeProfile<T extends {
   regularExpenses: { amount: unknown }[];
   regularIncomes: { amount?: unknown; avgCheck?: unknown; taxes?: unknown; salesPlan?: unknown }[];
   manualTransactions: { amount: unknown; taxes?: unknown }[];
+  monthlyData?: { month: string; income: unknown; expense: unknown }[];
 }>(profile: T) {
   return {
     ...profile,
@@ -30,6 +31,11 @@ function serializeProfile<T extends {
       amount: Number(t.amount),
       taxes: (t as { taxes?: unknown }).taxes != null ? Number((t as { taxes?: unknown }).taxes) : undefined,
     })),
+    monthlyData: (profile.monthlyData ?? []).map((m) => ({
+      ...m,
+      income: Number(m.income),
+      expense: Number(m.expense),
+    })),
   };
 }
 
@@ -45,6 +51,7 @@ export default async function CashFlowPage() {
           regularExpenses: { include: { category: true } },
           regularIncomes: { include: { category: true } },
           manualTransactions: { include: { expenseCategory: true, incomeCategory: true } },
+          monthlyData: true,
         },
       },
       subscription: true,

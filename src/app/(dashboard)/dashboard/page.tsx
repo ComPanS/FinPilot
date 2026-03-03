@@ -22,6 +22,7 @@ export default async function DashboardPage() {
         include: {
           regularExpenses: true,
           regularIncomes: true,
+          monthlyData: true,
         },
       },
       subscription: true,
@@ -46,33 +47,48 @@ export default async function DashboardPage() {
   });
   const forecastData = forecastRes?.forecast ?? [];
 
-  // Ожидаемые: следующие 2 календарных месяца с учётом user-entered expectedData
-  const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  const monthAfterNext = new Date(now.getFullYear(), now.getMonth() + 2, 1);
-  const expectedEnd = new Date(now.getFullYear(), now.getMonth() + 3, 0); // последний день 2-го месяца
-  const expectedDays = Math.ceil((expectedEnd.getTime() - nextMonth.getTime()) / (24 * 60 * 60 * 1000)) + 1;
-  const expectedForecastRes = await getForecastAction(profile.id, {
-    days: Math.max(90, expectedDays + 30),
-    useExpectedData: true,
+  // Проверяем, ввёл ли пользователь хотя бы одну ожидаемую сумму или данные по месяцам
+  const hasEntityExpectedData = [
+    ...profile.regularExpenses,
+    ...profile.regularIncomes,
+  ].some((e) => {
+    const ed = (e as { expectedData?: Record<string, number> | null }).expectedData;
+    return ed && typeof ed === "object" && Object.keys(ed).length > 0;
   });
-  const fullExpectedForecast = expectedForecastRes?.forecast ?? [];
-  const nextMonthStr = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, "0")}`;
-  const monthAfterStr = `${monthAfterNext.getFullYear()}-${String(monthAfterNext.getMonth() + 1).padStart(2, "0")}`;
+  const hasMonthlyData = ((profile as { monthlyData?: unknown[] }).monthlyData?.length ?? 0) > 0;
+  const hasAnyExpectedData = hasEntityExpectedData || hasMonthlyData;
 
-  const rawMonth1Data = fullExpectedForecast.filter((d) => d.date.startsWith(nextMonthStr));
-  const rawMonth2Data = fullExpectedForecast.filter((d) => d.date.startsWith(monthAfterStr));
+  let expectedMonth1Data: { date: string; balance: number; inflows: number; outflows: number }[] = [];
+  let expectedMonth2Data: { date: string; balance: number; inflows: number; outflows: number }[] = [];
+  let month1Label = "";
+  let month2Label = "";
 
-  // Нормализуем баланс: каждый месяц начинается с 0 (убираем перенос с прошлого месяца)
-  const normalizeBalanceFromZero = (data: { date: string; balance: number; inflows: number; outflows: number }[]) => {
-    if (data.length === 0) return data;
-    const balanceAtStart = data[0].balance - data[0].inflows + data[0].outflows;
-    return data.map((d) => ({ ...d, balance: d.balance - balanceAtStart }));
-  };
-  const expectedMonth1Data = normalizeBalanceFromZero(rawMonth1Data);
-  const expectedMonth2Data = normalizeBalanceFromZero(rawMonth2Data);
+  if (hasAnyExpectedData) {
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const monthAfterNext = new Date(now.getFullYear(), now.getMonth() + 2, 1);
+    const expectedEnd = new Date(now.getFullYear(), now.getMonth() + 3, 0);
+    const expectedDays = Math.ceil((expectedEnd.getTime() - nextMonth.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+    const expectedForecastRes = await getForecastAction(profile.id, {
+      days: Math.max(90, expectedDays + 30),
+      useExpectedData: true,
+    });
+    const fullExpectedForecast = expectedForecastRes?.forecast ?? [];
+    const nextMonthStr = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, "0")}`;
+    const monthAfterStr = `${monthAfterNext.getFullYear()}-${String(monthAfterNext.getMonth() + 1).padStart(2, "0")}`;
 
-  const month1Label = nextMonth.toLocaleDateString("ru", { month: "long", year: "numeric" });
-  const month2Label = monthAfterNext.toLocaleDateString("ru", { month: "long", year: "numeric" });
+    const rawMonth1Data = fullExpectedForecast.filter((d) => d.date.startsWith(nextMonthStr));
+    const rawMonth2Data = fullExpectedForecast.filter((d) => d.date.startsWith(monthAfterStr));
+
+    const normalizeBalanceFromZero = (data: { date: string; balance: number; inflows: number; outflows: number }[]) => {
+      if (data.length === 0) return data;
+      const balanceAtStart = data[0].balance - data[0].inflows + data[0].outflows;
+      return data.map((d) => ({ ...d, balance: d.balance - balanceAtStart }));
+    };
+    expectedMonth1Data = normalizeBalanceFromZero(rawMonth1Data);
+    expectedMonth2Data = normalizeBalanceFromZero(rawMonth2Data);
+    month1Label = nextMonth.toLocaleDateString("ru", { month: "long", year: "numeric" });
+    month2Label = monthAfterNext.toLocaleDateString("ru", { month: "long", year: "numeric" });
+  }
 
   return (
     <div className="space-y-8">
@@ -142,7 +158,9 @@ export default async function DashboardPage() {
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">
-            Нет данных для прогноза. Добавьте расходы и доходы в планировщике. Введите ожидаемые данные при добавлении, чтобы предвидеть будущие прибыли и убытки.
+            {hasAnyExpectedData
+              ? "Нет данных для прогноза. Добавьте расходы и доходы в планировщике."
+              : "Введите хотя бы одну ожидаемую сумму в планировщике (в расходах или доходах) для расчёта ожидаемых данных на следующие месяцы. Чем больше данных - тем точнее прогноз."}
           </p>
         )}
       </section>

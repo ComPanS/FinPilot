@@ -17,6 +17,201 @@ function addDays(date: Date, days: number): Date {
   return result;
 }
 
+function dailyAmount(freq: string, amount: number, customDays?: number | null): number {
+  switch (freq) {
+    case "DAILY":
+      return amount;
+    case "WEEKLY":
+      return amount / 7;
+    case "MONTHLY":
+      return amount / 30;
+    case "QUARTERLY":
+      return amount / 90;
+    case "YEARLY":
+      return amount / 365;
+    case "CUSTOM":
+      return customDays && customDays > 0 ? amount / customDays : 0;
+    default:
+      return amount / 30;
+  }
+}
+
+/** Compute balance at end of asOfDate from historical data (manual tx + expectedData for past months). */
+export async function computeHistoricalBalance(
+  profileId: string,
+  asOfDate: Date
+): Promise<number> {
+  const asOf = new Date(asOfDate);
+  asOf.setHours(23, 59, 59, 999);
+
+  const [expenses, incomes, transactions, monthlyData] = await Promise.all([
+    prisma.regularExpense.findMany({
+      where: { profileId },
+      include: { category: true },
+    }),
+    prisma.regularIncome.findMany({ where: { profileId } }),
+    prisma.manualTransaction.findMany({
+      where: { profileId },
+    }),
+    prisma.profileMonthlyData.findMany({ where: { profileId } }),
+  ]);
+
+  const monthlyByMonth = new Map(monthlyData.map((m) => [m.month, { income: Number(m.income), expense: Number(m.expense) }]));
+
+  const dateKey = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+  const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+
+  const earliestExpense = expenses.reduce<Date | null>((acc, e) => {
+    const d = new Date(e.startDate);
+    return !acc || d < acc ? d : acc;
+  }, null);
+  const earliestIncome = incomes.reduce<Date | null>((acc, i) => {
+    const d = i.startDate ? new Date(i.startDate) : new Date(0);
+    return !acc || d < acc ? d : acc;
+  }, null);
+  const earliestManual = transactions.reduce<Date | null>((acc, t) => {
+    const d = typeof t.date === "string" ? new Date(t.date) : t.date;
+    return !acc || d < acc ? d : acc;
+  }, null);
+  const earliestMonthly = monthlyData.length > 0
+    ? monthlyData.reduce<Date | null>((acc, m) => {
+        const [y, mo] = m.month.split("-").map(Number);
+        const d = new Date(y, mo - 1, 1);
+        return !acc || d < acc ? d : acc;
+      }, null)
+    : null;
+
+  const startCandidates = [earliestExpense, earliestIncome, earliestManual, earliestMonthly].filter(Boolean) as Date[];
+  const startDate = startCandidates.length > 0
+    ? new Date(Math.min(...startCandidates.map((d) => d.getTime())))
+    : new Date(asOf);
+  startDate.setHours(0, 0, 0, 0);
+
+  if (startDate > asOf) return 0;
+
+  const days = Math.ceil((asOf.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+  const dailyInflows: Record<string, number> = {};
+  const dailyOutflows: Record<string, number> = {};
+
+  for (let i = 0; i < days; i++) {
+    const d = addDays(startDate, i);
+    if (d > asOf) continue;
+    const mk = monthKey(d);
+    const monthly = monthlyByMonth.get(mk);
+    if (monthly) {
+      const perDayIn = monthly.income / 30;
+      const perDayOut = monthly.expense / 30;
+      const key = dateKey(d);
+      if (perDayIn > 0) dailyInflows[key] = (dailyInflows[key] ?? 0) + perDayIn;
+      if (perDayOut > 0) dailyOutflows[key] = (dailyOutflows[key] ?? 0) + perDayOut;
+    }
+  }
+
+  for (const exp of expenses) {
+    const amount = Number(exp.amount);
+    const freq = exp.frequency as string;
+    const expectedData = exp.expectedData as Record<string, number> | null | undefined;
+    const expStart = new Date(exp.startDate);
+    expStart.setHours(0, 0, 0, 0);
+
+    for (let i = 0; i < days; i++) {
+      const d = addDays(startDate, i);
+      if (d < expStart || d > asOf) continue;
+      const mk = monthKey(d);
+      if (monthlyByMonth.has(mk)) continue;
+      let useAmount = amount;
+      if (expectedData) {
+        const expected = expectedData[mk];
+        if (expected != null && !Number.isNaN(expected)) useAmount = expected;
+      }
+      const perDay = dailyAmount(freq, useAmount, exp.customDays);
+      if (perDay <= 0) continue;
+      const key = dateKey(d);
+      dailyOutflows[key] = (dailyOutflows[key] ?? 0) + perDay;
+    }
+  }
+
+  for (const inc of incomes) {
+    const grossAmt = Number(inc.amount ?? inc.avgCheck ?? 0);
+    const taxPct = Number(inc.taxes ?? 0) / 100;
+    const amt = grossAmt * (1 - taxPct);
+    const expectedData = inc.expectedData as Record<string, number> | null | undefined;
+    const incStart = inc.startDate ? new Date(inc.startDate) : startDate;
+    incStart.setHours(0, 0, 0, 0);
+
+    if (expectedData && Object.keys(expectedData).length > 0) {
+      for (let i = 0; i < days; i++) {
+        const d = addDays(startDate, i);
+        if (d < incStart || d > asOf) continue;
+        const mk = monthKey(d);
+        if (monthlyByMonth.has(mk)) continue;
+        const expected = expectedData[mk];
+        const grossExpected = expected != null && !Number.isNaN(expected) ? expected : grossAmt;
+        const netExpected = grossExpected * (1 - taxPct);
+        const perDay = netExpected / 30;
+        if (perDay > 0) {
+          const key = dateKey(d);
+          dailyInflows[key] = (dailyInflows[key] ?? 0) + perDay;
+        }
+      }
+    } else if (amt > 0) {
+      const freq = inc.frequency as string;
+      const perDay = dailyAmount(freq, amt, inc.customDays);
+      if (perDay <= 0) continue;
+      for (let i = 0; i < days; i++) {
+        const d = addDays(startDate, i);
+        if (d < incStart || d > asOf) continue;
+        const mk = monthKey(d);
+        if (monthlyByMonth.has(mk)) continue;
+        const key = dateKey(d);
+        dailyInflows[key] = (dailyInflows[key] ?? 0) + perDay;
+      }
+    }
+  }
+
+  const toDateKey = (d: Date | string): string => {
+    if (typeof d === "string") return d.slice(0, 10);
+    const x = new Date(d);
+    return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+  };
+  const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+  const asOfOnly = new Date(asOf.getFullYear(), asOf.getMonth(), asOf.getDate());
+
+  for (const tx of transactions) {
+    if (tx.type !== "IN" && tx.type !== "OUT") continue;
+    const txDate = typeof tx.date === "string" ? new Date(tx.date) : tx.date;
+    const txDateOnly = new Date(txDate.getFullYear(), txDate.getMonth(), txDate.getDate());
+    if (txDateOnly < startDateOnly || txDateOnly > asOfOnly) continue;
+    const txKey = toDateKey(tx.date);
+    const amount = Number(tx.amount);
+    const taxPct = Number(tx.taxes ?? 0) / 100;
+    if (tx.type === "IN") {
+      const netAmount = amount * (1 - taxPct);
+      dailyInflows[txKey] = (dailyInflows[txKey] ?? 0) + netAmount;
+    } else {
+      const totalAmount = amount * (1 + taxPct);
+      dailyOutflows[txKey] = (dailyOutflows[txKey] ?? 0) + totalAmount;
+    }
+  }
+
+  const asOfMidnight = new Date(asOf.getFullYear(), asOf.getMonth(), asOf.getDate());
+  let balance = 0;
+  for (let i = 0; i < days; i++) {
+    const d = addDays(startDate, i);
+    if (d > asOfMidnight) break;
+    const key = dateKey(d);
+    const inflows = dailyInflows[key] ?? 0;
+    const outflows = dailyOutflows[key] ?? 0;
+    balance = balance + inflows - outflows;
+  }
+  return balance;
+}
+
 function getDatesInRange(start: Date, days: number): Date[] {
   const dates: Date[] = [];
   for (let i = 0; i < days; i++) {
@@ -73,11 +268,28 @@ export async function computeForecast(
 ): Promise<ForecastDay[]> {
   const days = options.days ?? 90;
   const useExpectedData = options.useExpectedData ?? false;
-  const initialBalance = options.initialBalance ?? 0;
+  let initialBalance = options.initialBalance;
+  if (initialBalance == null && useExpectedData) {
+    const dayBeforeStart = options.startDate
+      ? (() => {
+          const d = new Date(options.startDate);
+          d.setHours(0, 0, 0, 0);
+          d.setDate(d.getDate() - 1);
+          return d;
+        })()
+      : (() => {
+          const d = new Date();
+          d.setHours(0, 0, 0, 0);
+          d.setDate(d.getDate() - 1);
+          return d;
+        })();
+    initialBalance = await computeHistoricalBalance(profileId, dayBeforeStart);
+  }
+  initialBalance ??= 0;
   const changes = options.changes ?? {};
 
   // Regular expenses (регулярные) + manual transactions (разовые) are both included in forecast
-  const [expenses, incomes, transactions] = await Promise.all([
+  const [expenses, incomes, transactions, monthlyData] = await Promise.all([
     prisma.regularExpense.findMany({
       where: { profileId },
       include: { category: true },
@@ -88,7 +300,12 @@ export async function computeForecast(
     prisma.manualTransaction.findMany({
       where: { profileId },
     }),
+    prisma.profileMonthlyData.findMany({ where: { profileId } }),
   ]);
+
+  const monthlyByMonth = useExpectedData
+    ? new Map(monthlyData.map((m) => [m.month, { income: Number(m.income), expense: Number(m.expense) }]))
+    : new Map<string, { income: number; expense: number }>();
 
   const startDate = options.startDate ? (() => {
     const d = new Date(options.startDate!);
@@ -112,30 +329,25 @@ export async function computeForecast(
     return `${y}-${m}-${day}`;
   };
 
-  // Равномерное распределение регулярных расходов по частоте (в день)
-  function dailyAmount(freq: string, amount: number, customDays?: number | null): number {
-    switch (freq) {
-      case "DAILY":
-        return amount;
-      case "WEEKLY":
-        return amount / 7;
-      case "MONTHLY":
-        return amount / 30;
-      case "QUARTERLY":
-        return amount / 90;
-      case "YEARLY":
-        return amount / 365;
-      case "CUSTOM":
-        return customDays && customDays > 0 ? amount / customDays : 0;
-      default:
-        return amount / 30;
-    }
-  }
-
   const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 
   const incomeMult = 1 + (changes.incomeGrowthPercent ?? 0) / 100;
   const expenseMult = 1 + (changes.expenseGrowthPercent ?? 0) / 100;
+
+  if (useExpectedData && monthlyByMonth.size > 0) {
+    for (let i = 0; i < days; i++) {
+      const d = addDays(startDate, i);
+      const mk = monthKey(d);
+      const monthly = monthlyByMonth.get(mk);
+      if (monthly) {
+        const perDayIn = (monthly.income / 30) * incomeMult;
+        const perDayOut = (monthly.expense / 30) * expenseMult;
+        const key = dateKey(d);
+        if (perDayIn > 0) dailyInflows[key] = (dailyInflows[key] ?? 0) + perDayIn;
+        if (perDayOut > 0) dailyOutflows[key] = (dailyOutflows[key] ?? 0) + perDayOut;
+      }
+    }
+  }
 
   for (const exp of expenses) {
     if (changes.expenseOverrides?.[exp.id]?.hidden) continue;
@@ -147,9 +359,10 @@ export async function computeForecast(
     for (let i = 0; i < days; i++) {
       const d = addDays(startDate, i);
       if (d < expStart) continue;
+      const mk = monthKey(d);
+      if (monthlyByMonth.has(mk)) continue;
       let useAmount = amount;
       if (useExpectedData && expectedData) {
-        const mk = monthKey(d);
         const expected = expectedData[mk];
         if (expected != null && !Number.isNaN(expected)) {
           useAmount = expected;
@@ -188,6 +401,7 @@ export async function computeForecast(
       for (let i = 0; i < days; i++) {
         const d = addDays(startDate, i);
         const mk = monthKey(d);
+        if (monthlyByMonth.has(mk)) continue;
         const expected = expectedData[mk];
         const grossExpected = expected != null && !Number.isNaN(expected) ? expected : grossAmt;
         const netExpected = grossExpected * (1 - taxPct);
@@ -217,6 +431,8 @@ export async function computeForecast(
       for (let i = 0; i < days; i++) {
         const d = addDays(startDate, i);
         if (d < incStart) continue;
+        const mk = monthKey(d);
+        if (monthlyByMonth.has(mk)) continue;
         const key = dateKey(d);
         dailyInflows[key] = (dailyInflows[key] ?? 0) + perDay * incomeMult;
       }

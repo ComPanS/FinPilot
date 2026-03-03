@@ -32,7 +32,7 @@ export function ExpectedPeriodsModal({
 
   const [selectedMonth, setSelectedMonth] = useState(currentMonthKey);
   const [amountInput, setAmountInput] = useState("");
-  const [items, setItems] = useState<{ key: string; label: string; amount: number }[]>([]);
+  const [items, setItems] = useState<{ key: string; label: string; amount: number; isPast?: boolean }[]>([]);
   const [saving, setSaving] = useState(false);
 
   const existingData = addMode ? initialData : (entity ? ((entity as ExpenseEntity).expectedData ?? (entity as IncomeEntity).expectedData) as Record<string, number> | null | undefined : undefined);
@@ -40,13 +40,15 @@ export function ExpectedPeriodsModal({
   useEffect(() => {
     const data = existingData ?? {};
     const list = Object.entries(data)
-      .filter(([key, v]) => v != null && v > 0 && key >= currentMonthKey)
+      .filter(([key, v]) => v != null && v > 0)
       .map(([key]) => {
         const [y, m] = key.split("-").map(Number);
+        const isPast = key < currentMonthKey;
         return {
           key,
-          label: `${monthNames[m - 1]} ${y}`,
+          label: `${monthNames[m - 1]} ${y}${isPast ? " (прошлый)" : ""}`,
           amount: data[key],
+          isPast,
         };
       })
       .sort((a, b) => a.key.localeCompare(b.key));
@@ -54,16 +56,14 @@ export function ExpectedPeriodsModal({
   }, [entity?.id, addMode, initialData, currentMonthKey]);
 
   const handleAdd = () => {
-    if (selectedMonth < currentMonthKey) {
-      return;
-    }
     const num = parseFloat(amountInput);
     if (Number.isNaN(num) || num <= 0) return;
     const [y, m] = selectedMonth.split("-").map(Number);
-    const label = `${monthNames[m - 1]} ${y}`;
+    const isPast = selectedMonth < currentMonthKey;
+    const label = `${monthNames[m - 1]} ${y}${isPast ? " (прошлый)" : ""}`;
     setItems((prev) => {
       const filtered = prev.filter((i) => i.key !== selectedMonth);
-      return [...filtered, { key: selectedMonth, label, amount: num }].sort((a, b) => a.key.localeCompare(b.key));
+      return [...filtered, { key: selectedMonth, label, amount: num, isPast }].sort((a, b) => a.key.localeCompare(b.key));
     });
     setAmountInput("");
   };
@@ -129,7 +129,6 @@ export function ExpectedPeriodsModal({
             <input
               type="month"
               value={selectedMonth}
-              min={currentMonthKey}
               onChange={(e) => setSelectedMonth(e.target.value)}
               className="mt-1 rounded border border-border bg-background px-2 py-1 text-foreground"
             />
@@ -163,7 +162,7 @@ export function ExpectedPeriodsModal({
               </thead>
               <tbody>
                 {items.map((it) => (
-                  <tr key={it.key} className="border-b border-border">
+                  <tr key={it.key} className={`border-b border-border ${it.isPast ? "text-muted-foreground" : ""}`}>
                     <td className="p-2">{it.label}</td>
                     <td className="p-2 text-right">{it.amount.toLocaleString("ru")} {currency}</td>
                     <td className="p-2">
