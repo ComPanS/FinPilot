@@ -57,8 +57,19 @@ export default async function DashboardPage() {
   const fullExpectedForecast = expectedForecastRes?.forecast ?? [];
   const nextMonthStr = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, "0")}`;
   const monthAfterStr = `${monthAfterNext.getFullYear()}-${String(monthAfterNext.getMonth() + 1).padStart(2, "0")}`;
-  const expectedMonth1Data = fullExpectedForecast.filter((d) => d.date.startsWith(nextMonthStr));
-  const expectedMonth2Data = fullExpectedForecast.filter((d) => d.date.startsWith(monthAfterStr));
+
+  const rawMonth1Data = fullExpectedForecast.filter((d) => d.date.startsWith(nextMonthStr));
+  const rawMonth2Data = fullExpectedForecast.filter((d) => d.date.startsWith(monthAfterStr));
+
+  // Нормализуем баланс: каждый месяц начинается с 0 (убираем перенос с прошлого месяца)
+  const normalizeBalanceFromZero = (data: { date: string; balance: number; inflows: number; outflows: number }[]) => {
+    if (data.length === 0) return data;
+    const balanceAtStart = data[0].balance - data[0].inflows + data[0].outflows;
+    return data.map((d) => ({ ...d, balance: d.balance - balanceAtStart }));
+  };
+  const expectedMonth1Data = normalizeBalanceFromZero(rawMonth1Data);
+  const expectedMonth2Data = normalizeBalanceFromZero(rawMonth2Data);
+
   const month1Label = nextMonth.toLocaleDateString("ru", { month: "long", year: "numeric" });
   const month2Label = monthAfterNext.toLocaleDateString("ru", { month: "long", year: "numeric" });
 
