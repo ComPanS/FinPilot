@@ -88,17 +88,21 @@ export function HistoryModal({
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  const chartData = history
-    .map((h) => {
-      const date = formatDateToDdMmYyyy(new Date(h.createdAt));
-      let amount: number | null = null;
-      if (h.action === "create" || h.action === "update") amount = getAmountFromData(h.newData);
-      else if (h.action === "delete") amount = getAmountFromData(h.oldData);
-      if (amount == null) return null;
-      return { date, amount };
-    })
-    .filter((x): x is { date: string; amount: number } => x != null)
-    .reverse();
+  // Группируем по дате: для каждого дня берём последнее изменение (по времени)
+  const byDate = new Map<string, { date: string; amount: number; createdAt: Date }>();
+  const sortedHistory = [...history].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  for (const h of sortedHistory) {
+    const date = formatDateToDdMmYyyy(new Date(h.createdAt));
+    let amount: number | null = null;
+    if (h.action === "create" || h.action === "update") amount = getAmountFromData(h.newData);
+    else if (h.action === "delete") amount = getAmountFromData(h.oldData);
+    if (amount != null) {
+      byDate.set(date, { date, amount, createdAt: new Date(h.createdAt) });
+    }
+  }
+  const chartData = Array.from(byDate.values())
+    .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+    .map(({ date, amount }) => ({ date, amount }));
 
   const hasChartData = chartData.length > 0;
 
