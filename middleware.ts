@@ -5,7 +5,7 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth;
 
   // Public routes
-  const publicPaths = ["/", "/login", "/register", "/forgot-password", "/verify-email", "/verify-new-email"];
+  const publicPaths = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/verify-email", "/verify-new-email"];
   const isPublic = publicPaths.some((p) => pathname === p || pathname.startsWith(p + "/"));
 
   if (isPublic) {

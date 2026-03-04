@@ -39,6 +39,26 @@ export async function sendVerificationEmail(email: string, code: string) {
   });
 }
 
+export async function sendPasswordResetEmail(email: string, resetUrl: string) {
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+  const transporter = getTransporter();
+  await transporter.sendMail({
+    from,
+    to: email,
+    subject: "Восстановление пароля — ФинПилот",
+    text: `Восстановите пароль, перейдя по ссылке:\n${resetUrl}\n\nСсылка действительна 1 час.`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 480px;">
+        <h2>Восстановление пароля</h2>
+        <p>Вы запросили восстановление пароля.</p>
+        <p><a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background: #10b981; color: white; text-decoration: none; border-radius: 8px;">Сбросить пароль</a></p>
+        <p style="color: #64748b;">Ссылка действительна 1 час.</p>
+        <p>Если вы не запрашивали восстановление пароля, проигнорируйте это письмо.</p>
+      </div>
+    `,
+  });
+}
+
 export async function sendEmailChangeVerification(
   newEmail: string,
   verifyUrl: string

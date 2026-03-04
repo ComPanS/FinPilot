@@ -5,16 +5,20 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Link from "next/link";
-import { forgotPasswordAction } from "@/app/actions/auth";
+import { resetPasswordAction } from "@/app/actions/auth";
 
 const schema = z.object({
-  email: z.string().email("Введите корректный email"),
+  password: z.string().min(6, "Минимум 6 символов"),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Пароли не совпадают",
+  path: ["confirmPassword"],
 });
 
 type FormData = z.infer<typeof schema>;
 
-export function ForgotPasswordForm() {
-  const [sent, setSent] = useState(false);
+export function ResetPasswordForm({ token }: { token: string }) {
+  const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const {
@@ -27,22 +31,25 @@ export function ForgotPasswordForm() {
 
   async function onSubmit(data: FormData) {
     setError(null);
-    const result = await forgotPasswordAction(data.email);
+    const result = await resetPasswordAction(token, data.password);
     if (result.error) {
       setError(result.error);
       return;
     }
-    setSent(true);
+    setSuccess(true);
   }
 
-  if (sent) {
+  if (success) {
     return (
       <div className="rounded-xl border border-border bg-surface p-6 shadow-md text-center">
         <p className="text-foreground">
-          Если аккаунт с таким email существует, вы получите письмо с инструкциями.
+          Пароль успешно изменён. Войдите с новым паролем.
         </p>
-        <Link href="/login" className="mt-4 inline-block text-primary hover:underline">
-          Вернуться к входу
+        <Link
+          href="/login"
+          className="mt-4 inline-block text-primary hover:underline"
+        >
+          Войти
         </Link>
       </div>
     );
@@ -58,16 +65,34 @@ export function ForgotPasswordForm() {
         )}
         <div>
           <label className="mb-1 block text-sm font-medium text-foreground">
-            Email
+            Новый пароль
           </label>
           <input
-            {...register("email")}
-            type="email"
+            {...register("password")}
+            type="password"
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            placeholder="you@example.com"
+            placeholder="••••••••"
           />
-          {errors.email && (
-            <p className="mt-1 text-sm text-danger">{errors.email.message}</p>
+          {errors.password && (
+            <p className="mt-1 text-sm text-danger">
+              {errors.password.message}
+            </p>
+          )}
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-foreground">
+            Подтвердите пароль
+          </label>
+          <input
+            {...register("confirmPassword")}
+            type="password"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            placeholder="••••••••"
+          />
+          {errors.confirmPassword && (
+            <p className="mt-1 text-sm text-danger">
+              {errors.confirmPassword.message}
+            </p>
           )}
         </div>
         <button
@@ -75,7 +100,7 @@ export function ForgotPasswordForm() {
           disabled={isSubmitting}
           className="w-full rounded-lg bg-primary px-4 py-2 font-medium text-white transition-colors hover:bg-primary-dark disabled:opacity-50"
         >
-          {isSubmitting ? "Отправка..." : "Отправить"}
+          {isSubmitting ? "Сохранение..." : "Сохранить пароль"}
         </button>
       </form>
       <p className="mt-4 text-center text-sm text-muted-foreground">

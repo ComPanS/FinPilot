@@ -84,6 +84,16 @@ model PendingEmailChange {
   @@index([userId])
 }
 
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+
+  @@index([token])
+  @@index([email])
+}
+
 // ============ Core Business ============
 model CashFlowProfile {
   id        String   @id @default(cuid())

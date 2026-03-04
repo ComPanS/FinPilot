@@ -2,8 +2,12 @@
 
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { createSignupVerification } from "@/lib/verification";
-import { sendVerificationEmail } from "@/lib/email";
+import {
+  createSignupVerification,
+  createPasswordResetToken,
+  consumePasswordResetToken,
+} from "@/lib/verification";
+import { sendVerificationEmail, sendPasswordResetEmail } from "@/lib/email";
 
 export async function registerUser(data: {
   name: string;
@@ -75,5 +79,40 @@ export async function resendVerificationAction(email: string) {
   } catch (e) {
     console.error("Resend error:", e);
     return { error: "Ошибка отправки" };
+  }
+}
+
+export async function forgotPasswordAction(email: string) {
+  try {
+    const token = await createPasswordResetToken(email);
+    if (!token) {
+      // Don't reveal if user exists - always show success
+      return { success: true };
+    }
+
+    const baseUrl =
+      process.env.NEXTAUTH_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+      "http://localhost:3000";
+    const resetUrl = `${baseUrl}/reset-password?token=${token}`;
+    await sendPasswordResetEmail(email, resetUrl);
+    return { success: true };
+  } catch (e) {
+    console.error("Forgot password error:", e);
+    return { error: "Ошибка отправки. Проверьте SMTP." };
+  }
+}
+
+export async function resetPasswordAction(token: string, newPassword: string) {
+  try {
+    if (!newPassword || newPassword.length < 6) {
+      return { error: "Минимум 6 символов" };
+    }
+    const result = await consumePasswordResetToken(token, newPassword);
+    if (!result.success) return { error: result.error };
+    return { success: true };
+  } catch (e) {
+    console.error("Reset password error:", e);
+    return { error: "Ошибка сброса пароля" };
   }
 }
