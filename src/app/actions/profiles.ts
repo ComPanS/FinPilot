@@ -6,6 +6,7 @@ import { ACTIVE_PROFILE_COOKIE } from "@/lib/active-profile";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { parseCashFlowTextAction, distributePastDataByAIAction } from "./ai-cashflow";
+import { createManualTransaction } from "./cashflow";
 
 const COOKIE_MAX_AGE = 365 * 24 * 60 * 60; // 1 year
 
@@ -80,6 +81,7 @@ export async function addProfileWithSetupAction(data: {
   aiText?: string;
   pastDataText?: string;
   monthlyData?: Array<{ month: string; income: number; expense: number }>;
+  manual?: Array<{ date: string; amount: number; type: "IN" | "OUT"; description?: string }>;
 }) {
   const session = await auth();
   if (!session?.user?.id) return { error: "Не авторизован" };
@@ -214,6 +216,20 @@ export async function addProfileWithSetupAction(data: {
         where: { profileId_month: { profileId: profile.id, month: m.month } },
         create: { profileId: profile.id, month: m.month, income: m.income ?? 0, expense: m.expense ?? 0 },
         update: { income: m.income ?? 0, expense: m.expense ?? 0 },
+      });
+    }
+  }
+
+  for (const tx of data.manual ?? []) {
+    if (tx.date && typeof tx.amount === "number" && tx.amount > 0 && (tx.type === "IN" || tx.type === "OUT")) {
+      await createManualTransaction({
+        profileId: profile.id,
+        date: new Date(tx.date),
+        type: tx.type,
+        amount: tx.amount,
+        description: tx.description,
+        expenseCategoryId: tx.type === "OUT" ? catExpenseOther.id : undefined,
+        incomeCategoryId: tx.type === "IN" ? catIncomeOther.id : undefined,
       });
     }
   }

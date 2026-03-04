@@ -5,10 +5,14 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus } from "lucide-react";
+import { Plus, FileSpreadsheet } from "lucide-react";
+import { useRef } from "react";
 import { completeOnboarding } from "@/app/actions/onboarding";
 import { addProfileWithSetupAction } from "@/app/actions/profiles";
 import { parseCashFlowTextPreviewAction, parseMonthlyDataOnlyAction } from "@/app/actions/ai-cashflow";
+import { parseExcelWithAIAction } from "@/app/actions/excel-import";
+
+const MAX_EXCEL_SIZE = 5 * 1024 * 1024; // 5 MB
 
 const step1Schema = z.object({
   businessName: z.string().min(2, "Минимум 2 символа"),
@@ -59,7 +63,11 @@ export function OnboardingWizard({
   const [pastDataText, setPastDataText] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiMonthlyLoading, setAiMonthlyLoading] = useState(false);
+  const [excelLoading, setExcelLoading] = useState(false);
   const [monthlyEntries, setMonthlyEntries] = useState<Array<{ month: string; income: number; expense: number }>>([]);
+  const excelInputRefStep3 = useRef<HTMLInputElement>(null);
+  const excelInputRefStep4 = useRef<HTMLInputElement>(null);
+  const [manualEntries, setManualEntries] = useState<Array<{ date: string; amount: number; type: "IN" | "OUT"; description?: string }>>([]);
   const [manualMonth, setManualMonth] = useState(() => {
     const d = new Date();
     d.setMonth(d.getMonth() - 1);
@@ -107,6 +115,7 @@ export function OnboardingWizard({
         })),
       pastDataText: pastDataText.trim() || undefined,
       monthlyData: monthlyEntries.length > 0 ? monthlyEntries : undefined,
+      manual: manualEntries.length > 0 ? manualEntries : undefined,
     };
     const result =
       mode === "addProfile"
@@ -189,6 +198,89 @@ export function OnboardingWizard({
     }
   }
 
+  async function handleExcelUpload(
+    inputRef: React.RefObject<HTMLInputElement | null>,
+    mergeItems: boolean,
+    mergeMonthly: boolean
+  ) {
+    const input = inputRef.current;
+    if (!input?.files?.length) return;
+    const file = input.files[0];
+    if (file.size > MAX_EXCEL_SIZE) {
+      alert("Файл слишком большой (максимум 5 МБ)");
+      return;
+    }
+    const ext = file.name.toLowerCase().split(".").pop();
+    if (ext !== "xlsx" && ext !== "xls") {
+      alert("Поддерживаются только .xlsx и .xls");
+      return;
+    }
+    setExcelLoading(true);
+    try {
+      const buf = await file.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let binary = "";
+      const chunkSize = 8192;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+        binary += String.fromCharCode.apply(null, Array.from(chunk));
+      }
+      const base64 = btoa(binary);
+      const result = await parseExcelWithAIAction(base64);
+      console.log("[Excel Import] parseExcelWithAIAction result:", result);
+      if (result?.debugJson) {
+        console.log("[Excel Import] raw JSON (parse error):", result.debugJson);
+      }
+      setExcelLoading(false);
+      input.value = "";
+      if (result?.error) {
+        alert(result.error);
+        return;
+      }
+      if (!("items" in result)) return;
+      if (mergeItems && result.items?.length) {
+        const newItems: Step3Item[] = result.items.map((it) => {
+          const cats = it.type === "expense" ? expenseCategories : incomeCategories;
+          const slug = it.categorySlug ?? "other";
+          const cat = cats.find((c) => c.slug === slug) ?? cats.find((c) => c.slug === "other") ?? cats[0];
+          return {
+            type: it.type,
+            name: it.name,
+            amount: it.amount,
+            frequency: (it.frequency as Step3Item["frequency"]) ?? "MONTHLY",
+            taxes: it.taxes ?? 0,
+            categoryId: cat?.id ?? cats[0]?.id,
+          };
+        });
+        setItems((prev) => {
+          const next = [...prev, ...newItems];
+          return next.slice(0, 20);
+        });
+      }
+      if (mergeMonthly && result.monthlyData?.length) {
+        setMonthlyEntries((prev) => {
+          const byMonth = new Map(prev.map((e) => [e.month, e]));
+          for (const m of result.monthlyData!) {
+            byMonth.set(m.month, m);
+          }
+          return Array.from(byMonth.values()).sort((a, b) => a.month.localeCompare(b.month));
+        });
+      }
+      if (result.manual?.length) {
+        setManualEntries((prev) => {
+          const key = (m: { date: string; amount: number; type: string }) => `${m.date}-${m.amount}-${m.type}`;
+          const seen = new Set(prev.map((m) => key(m)));
+          const added = result.manual!.filter((m) => !seen.has(key(m)));
+          return [...prev, ...added].slice(0, 50);
+        });
+      }
+    } catch (e) {
+      setExcelLoading(false);
+      input.value = "";
+      alert(e instanceof Error ? e.message : "Ошибка загрузки");
+    }
+  }
+
   function addManualMonthlyEntry() {
     const month = manualMonth.trim();
     const income = parseFloat(manualIncome) || 0;
@@ -221,6 +313,20 @@ export function OnboardingWizard({
 
   return (
     <div className="mt-8 space-y-8">
+      <input
+        ref={excelInputRefStep3}
+        type="file"
+        accept=".xlsx,.xls"
+        className="hidden"
+        onChange={() => handleExcelUpload(excelInputRefStep3, true, true)}
+      />
+      <input
+        ref={excelInputRefStep4}
+        type="file"
+        accept=".xlsx,.xls"
+        className="hidden"
+        onChange={() => handleExcelUpload(excelInputRefStep4, true, true)}
+      />
       <div className="flex gap-2">
         {[1, 2, 3, 4].map((s) => (
           <div
@@ -315,10 +421,22 @@ export function OnboardingWizard({
                 <Plus className="h-5 w-5" />
               </button>
               </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">Excel</label>
+                <button
+                  type="button"
+                  onClick={() => excelInputRefStep3.current?.click()}
+                  disabled={excelLoading || aiLoading}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-primary hover:bg-primary/10 disabled:opacity-50"
+                  title="Загрузить Excel"
+                >
+                  <FileSpreadsheet className="h-5 w-5" />
+                </button>
+              </div>
             </div>
           </div>
           <p className="text-sm text-muted-foreground">
-            Или добавьте вручную до 20 регулярных расходов или доходов (можно пропустить)
+            Добавьте вручную регулярные расходы, доходы или загрузите Excel файл, чтобы ИИ сам распределил данные 
           </p>
           {items.map((item, i) => (
             <div key={i} className="flex flex-wrap gap-4 rounded-lg border border-border p-3">
@@ -425,7 +543,7 @@ export function OnboardingWizard({
             <button
               type="button"
               onClick={handleStep3Submit}
-              disabled={aiLoading}
+              disabled={aiLoading || excelLoading}
               className="rounded-lg bg-primary px-4 py-2 font-medium text-white hover:bg-primary-dark disabled:opacity-50"
             >
               Далее
@@ -462,6 +580,15 @@ export function OnboardingWizard({
                 title="Добавить через ИИ"
               >
                 <Plus className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => excelInputRefStep4.current?.click()}
+                disabled={excelLoading || aiMonthlyLoading}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-primary hover:bg-primary/10 disabled:opacity-50"
+                title="Загрузить Excel"
+              >
+                <FileSpreadsheet className="h-5 w-5" />
               </button>
             </div>
           </div>

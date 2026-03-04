@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -29,7 +29,9 @@ import { EditModal } from "./edit-modal";
 import { EditMonthlyModal } from "./edit-monthly-modal";
 import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
 import { ExpectedPeriodsModal } from "./expected-periods-modal";
-import { parseCashFlowTextAction, distributePastDataByAIAction } from "@/app/actions/ai-cashflow";
+import { parseCashFlowTextAction } from "@/app/actions/ai-cashflow";
+import { parseExcelAndImportAction } from "@/app/actions/excel-import";
+import { FileSpreadsheet } from "lucide-react";
 import { formatDateDdMmYyyy, formatDateToDdMmYyyy } from "@/lib/date-utils";
 import type { Prisma } from "@prisma/client";
 
@@ -42,6 +44,8 @@ type Profile = Prisma.CashFlowProfileGetPayload<{
   };
 }>;
 type Category = { id: string; name: string; slug: string };
+
+const MAX_EXCEL_SIZE = 5 * 1024 * 1024; // 5 MB
 
 const expenseSchema = z.object({
   name: z.string().min(1),
@@ -123,9 +127,9 @@ export function CashFlowPlanner({
   const [editMonthlyModal, setEditMonthlyModal] = useState<{ month: string; income: number; expense: number } | null>(null);
   const [aiText, setAiText] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
-  const [aiMonthlyText, setAiMonthlyText] = useState("");
-  const [aiMonthlyLoading, setAiMonthlyLoading] = useState(false);
-  const [showAiMonthlyInput, setShowAiMonthlyInput] = useState(false);
+  const [excelLoading, setExcelLoading] = useState(false);
+  const excelInputRef = useRef<HTMLInputElement>(null);
+  const excelInputRefMonths = useRef<HTMLInputElement>(null);
   const [customCategoryName, setCustomCategoryName] = useState("");
   const [customIncomeCategoryName, setCustomIncomeCategoryName] = useState("");
   const router = useRouter();
@@ -380,19 +384,53 @@ export function CashFlowPlanner({
     router.refresh();
   };
 
-  const onAiMonthlySubmit = async () => {
-    if (!aiMonthlyText.trim()) return;
-    setAiMonthlyLoading(true);
-    const res = await distributePastDataByAIAction(profile.id, aiMonthlyText);
-    setAiMonthlyLoading(false);
-    if (res?.error) {
-      alert(res.error);
+  const handleExcelImport = async (inputRef: React.RefObject<HTMLInputElement | null>) => {
+    const input = inputRef.current;
+    if (!input?.files?.length) return;
+    const file = input.files[0];
+    if (file.size > MAX_EXCEL_SIZE) {
+      alert("Файл слишком большой (максимум 5 МБ)");
       return;
     }
-    setAiMonthlyText("");
-    setShowAiMonthlyInput(false);
-    loadForecast();
-    router.refresh();
+    const ext = file.name.toLowerCase().split(".").pop();
+    if (ext !== "xlsx" && ext !== "xls") {
+      alert("Поддерживаются только .xlsx и .xls");
+      return;
+    }
+    setExcelLoading(true);
+    try {
+      const buf = await file.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let binary = "";
+      const chunkSize = 8192;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+        binary += String.fromCharCode.apply(null, Array.from(chunk));
+      }
+      const base64 = btoa(binary);
+      const result = await parseExcelAndImportAction(profile.id, base64);
+      console.log("[Excel Import] parseExcelAndImportAction result:", result);
+      if (result?.debugJson) {
+        console.log("[Excel Import] raw JSON (parse error):", result.debugJson);
+      }
+      setExcelLoading(false);
+      input.value = "";
+      if (result?.error) {
+        alert(result.error);
+        return;
+      }
+      if (result?.success) {
+        if (result.partialErrors?.length) {
+          alert(`Импортировано: ${result.created}. Ошибки: ${result.partialErrors.join("; ")}`);
+        }
+        loadForecast();
+        router.refresh();
+      }
+    } catch (e) {
+      setExcelLoading(false);
+      input.value = "";
+      alert(e instanceof Error ? e.message : "Ошибка загрузки");
+    }
   };
 
   const redZones = forecast ? getRedZones(forecast.forecast, zoneRedMax) : [];
@@ -425,6 +463,20 @@ export function CashFlowPlanner({
 
   return (
     <div className="space-y-6">
+      <input
+        ref={excelInputRef}
+        type="file"
+        accept=".xlsx,.xls"
+        className="hidden"
+        onChange={() => handleExcelImport(excelInputRef)}
+      />
+      <input
+        ref={excelInputRefMonths}
+        type="file"
+        accept=".xlsx,.xls"
+        className="hidden"
+        onChange={() => handleExcelImport(excelInputRefMonths)}
+      />
       <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
         <label className="block text-sm font-medium">Добавить текстом (ИИ обработает)</label>
         <p className="mt-1 text-xs text-muted-foreground">
@@ -444,6 +496,15 @@ export function CashFlowPlanner({
             className="rounded bg-primary px-4 py-2 text-white hover:bg-primary-dark disabled:opacity-50"
           >
             {aiLoading ? "..." : "Добавить"}
+          </button>
+          <button
+            type="button"
+            onClick={() => excelInputRef.current?.click()}
+            disabled={excelLoading || aiLoading}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-primary hover:bg-primary/10 disabled:opacity-50"
+            title="Загрузить Excel"
+          >
+            <FileSpreadsheet className="h-5 w-5" />
           </button>
         </div>
       </div>
@@ -729,38 +790,14 @@ export function CashFlowPlanner({
             </button>
             <button
               type="button"
-              onClick={() => setShowAiMonthlyInput((v) => !v)}
-              className="flex h-9 w-9 items-center justify-center rounded border border-border text-lg font-bold text-primary hover:bg-surface"
-              title="Добавить через ИИ"
+              onClick={() => excelInputRefMonths.current?.click()}
+              disabled={excelLoading}
+              className="flex h-9 w-9 items-center justify-center rounded border border-border text-primary hover:bg-surface disabled:opacity-50"
+              title="Загрузить Excel"
             >
-              +
+              <FileSpreadsheet className="h-5 w-5" />
             </button>
           </form>
-          {showAiMonthlyInput && (
-            <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
-              <label className="block text-sm font-medium">Добавить данные по месяцам (ИИ)</label>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Например: «В январе доход 100000 расход 80000», «Февраль: поступления 120000, расходы 90000»
-              </p>
-              <div className="mt-2 flex gap-2">
-                <input
-                  value={aiMonthlyText}
-                  onChange={(e) => setAiMonthlyText(e.target.value)}
-                  placeholder="Введите текст..."
-                  className="flex-1 rounded border border-border px-3 py-2"
-                  disabled={aiMonthlyLoading}
-                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), onAiMonthlySubmit())}
-                />
-                <button
-                  onClick={onAiMonthlySubmit}
-                  disabled={aiMonthlyLoading || !aiMonthlyText.trim()}
-                  className="rounded bg-primary px-4 py-2 text-white hover:bg-primary-dark disabled:opacity-50"
-                >
-                  {aiMonthlyLoading ? "Добавление…" : "Добавить"}
-                </button>
-              </div>
-            </div>
-          )}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>

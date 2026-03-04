@@ -36,12 +36,12 @@ export default async function DashboardPage() {
   if (!profile) redirect("/onboarding");
 
   const now = new Date();
-  // Нынешние: текущий календарный месяц с 1-го числа
-  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  // Нынешние: текущий календарный месяц с 1-го числа (строка YYYY-MM-DD для избежания timezone-сдвигов)
+  const firstOfMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
   const lastOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
   const daysInMonth = lastOfMonth.getDate();
   const forecastRes = await getForecastAction(profile.id, {
-    startDate: firstOfMonth,
+    startDate: firstOfMonthStr,
     days: daysInMonth,
     useExpectedData: true,
   });

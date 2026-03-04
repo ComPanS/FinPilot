@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { askNeuro } from "@/lib/neuroapi";
 import { createExpense, createIncome, createManualTransaction, createOrUpdateMonthlyDataAction } from "./cashflow";
+import { extractAndParseJson } from "@/lib/parse-ai-json";
 
 type Category = { id: string; name: string; slug: string };
 
@@ -27,18 +28,7 @@ async function parseAndCreate(
 Текст: "${text.trim()}"`;
 
   const response = await askNeuro(prompt, {});
-  let jsonStr = response.trim();
-  if (jsonStr.startsWith("```")) {
-    jsonStr = jsonStr.replace(/^```\w*\n?/, "").replace(/\n?```$/, "");
-  }
-  const firstBrace = jsonStr.indexOf("{");
-  if (firstBrace >= 0) {
-    const lastBrace = jsonStr.lastIndexOf("}");
-    if (lastBrace > firstBrace) {
-      jsonStr = jsonStr.slice(firstBrace, lastBrace + 1);
-    }
-  }
-  const parsed = JSON.parse(jsonStr) as {
+  type ParsedShape = {
     type: "expense" | "income" | "manual" | "monthly";
     name?: string;
     amount?: number;
@@ -51,6 +41,7 @@ async function parseAndCreate(
     income?: number | null;
     expense?: number | null;
   };
+  const parsed = extractAndParseJson<ParsedShape>(response);
 
   const catExpenseOther = expenseCategories.find((c) => c.slug === "other")?.id ?? expenseCategories[0]?.id;
   const catIncomeOther = incomeCategories.find((c) => c.slug === "other")?.id ?? incomeCategories[0]?.id;
@@ -185,20 +176,10 @@ export async function parseMonthlyDataOnlyAction(text: string) {
 Текст: "${text.trim()}"`;
 
   const response = await askNeuro(prompt, {});
-  let jsonStr = response.trim();
-  if (jsonStr.startsWith("```")) {
-    jsonStr = jsonStr.replace(/^```\w*\n?/, "").replace(/\n?```$/, "");
-  }
-  const firstBracket = jsonStr.indexOf("[");
-  if (firstBracket >= 0) {
-    const lastBracket = jsonStr.lastIndexOf("]");
-    if (lastBracket > firstBracket) {
-      jsonStr = jsonStr.slice(firstBracket, lastBracket + 1);
-    }
-  }
-  let items: Array<{ month?: string; income?: number; expense?: number; entityName?: string; amount?: number; type?: string }>;
+  type ItemShape = { month?: string; income?: number; expense?: number; entityName?: string; amount?: number; type?: string };
+  let items: ItemShape[];
   try {
-    items = JSON.parse(jsonStr) as typeof items;
+    items = extractAndParseJson<ItemShape[]>(response);
   } catch {
     return { error: "Не удалось распарсить ответ ИИ" };
   }
@@ -264,20 +245,10 @@ export async function distributePastDataByAIAction(profileId: string, text: stri
 Текст: "${text.trim()}"`;
 
   const response = await askNeuro(prompt, {});
-  let jsonStr = response.trim();
-  if (jsonStr.startsWith("```")) {
-    jsonStr = jsonStr.replace(/^```\w*\n?/, "").replace(/\n?```$/, "");
-  }
-  const firstBracket = jsonStr.indexOf("[");
-  if (firstBracket >= 0) {
-    const lastBracket = jsonStr.lastIndexOf("]");
-    if (lastBracket > firstBracket) {
-      jsonStr = jsonStr.slice(firstBracket, lastBracket + 1);
-    }
-  }
-  let items: Array<{ month?: string; income?: number; expense?: number; entityName?: string; amount?: number; type?: string }>;
+  type ItemShape = { month?: string; income?: number; expense?: number; entityName?: string; amount?: number; type?: string };
+  let items: ItemShape[];
   try {
-    items = JSON.parse(jsonStr) as typeof items;
+    items = extractAndParseJson<ItemShape[]>(response);
   } catch {
     return { error: "Не удалось распарсить ответ ИИ" };
   }
@@ -336,25 +307,8 @@ async function parseTextToItem(text: string): Promise<ParsedOnboardingItem | nul
 Текст: "${text.trim()}"`;
 
   const response = await askNeuro(prompt, {});
-  let jsonStr = response.trim();
-  if (jsonStr.startsWith("```")) {
-    jsonStr = jsonStr.replace(/^```\w*\n?/, "").replace(/\n?```$/, "");
-  }
-  const firstBrace = jsonStr.indexOf("{");
-  if (firstBrace >= 0) {
-    const lastBrace = jsonStr.lastIndexOf("}");
-    if (lastBrace > firstBrace) {
-      jsonStr = jsonStr.slice(firstBrace, lastBrace + 1);
-    }
-  }
-  const parsed = JSON.parse(jsonStr) as {
-    type?: "expense" | "income";
-    name?: string;
-    amount?: number;
-    frequency?: string;
-    taxes?: number | null;
-    categorySlug?: string | null;
-  };
+  type ParsedShape = { type?: "expense" | "income"; name?: string; amount?: number; frequency?: string; taxes?: number | null; categorySlug?: string | null };
+  const parsed = extractAndParseJson<ParsedShape>(response);
   if (parsed.type !== "expense" && parsed.type !== "income") return null;
   if (parsed.amount == null || typeof parsed.amount !== "number" || parsed.amount <= 0) return null;
   return {
