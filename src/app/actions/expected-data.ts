@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
-/** Get historical + expected data for chart (24 months) */
+/** Get historical + expected data for chart (12 months ahead) */
 export async function getExpectedChartData(
   profileId: string,
   entityId: string,
@@ -22,13 +22,13 @@ export async function getExpectedChartData(
   }
 
   const now = new Date();
-  const startMonth = new Date(now.getFullYear() - 2, now.getMonth(), 1);
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const monthKeys: string[] = [];
-  for (let i = 0; i < 24; i++) {
+  for (let i = 0; i < 12; i++) {
     const d = new Date(startMonth.getFullYear(), startMonth.getMonth() + i, 1);
-    monthKeys.push(
-      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
-    );
+    const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    if (mk >= currentMonthKey) monthKeys.push(mk);
   }
 
   const entries = await prisma.expectedEntry.findMany({
@@ -48,27 +48,16 @@ export async function getExpectedChartData(
   const expectedDataJson = (entity as { expectedData?: unknown })?.expectedData as Record<string, number> | null | undefined;
   if (expectedDataJson && typeof expectedDataJson === "object") {
     for (const [period, amount] of Object.entries(expectedDataJson)) {
-      if (/^\d{4}-\d{2}$/.test(period) && amount != null && !expectedByMonth.has(period)) {
+      if (/^\d{4}-\d{2}$/.test(period) && period >= currentMonthKey && amount != null && !expectedByMonth.has(period)) {
         expectedByMonth.set(period, Number(amount));
       }
     }
   }
 
-  // Actual from ProfileMonthlyData (aggregated) or ManualTransaction - simplified: use monthlyData for profile totals
-  const monthlyData = await prisma.profileMonthlyData.findMany({
-    where: { profileId, month: { in: monthKeys } },
-  });
-  const actualByMonth = new Map(
-    monthlyData.map((m) => [
-      m.month,
-      entityType === "INCOME" ? Number(m.income) : Number(m.expense),
-    ])
-  );
-
+  // Только ожидаемые по этой статье. Фактические по статье — в будущем.
   const data = monthKeys.map((mk) => ({
     month: mk,
     expected: expectedByMonth.get(mk) ?? 0,
-    actual: actualByMonth.get(mk) ?? 0,
   }));
 
   return { data };
@@ -122,6 +111,9 @@ export async function generateExpectedFromHistory(
   const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX) || 0;
   const intercept = (sumY - slope * sumX) / n;
 
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
   const lastPeriod = entries[n - 1]!.period;
   const [lastY, lastM] = lastPeriod.split("-").map(Number);
   const result: Record<string, number> = {};
@@ -134,6 +126,7 @@ export async function generateExpectedFromHistory(
       y += 1;
     }
     const period = `${y}-${String(m).padStart(2, "0")}`;
+    if (period < currentMonthKey) continue;
     const predicted = Math.max(0, Math.round(intercept + slope * (n + i - 1)));
     result[period] = predicted;
   }
@@ -161,11 +154,12 @@ export async function generateExpectedFromHistory(
     });
   }
 
-  // Sync to entity expectedData for UI
+  // Sync to entity expectedData for UI (только текущий месяц и далее)
   const existing = entityType === "EXPENSE"
     ? (await prisma.regularExpense.findUnique({ where: { id: entityId } }))?.expectedData
     : (await prisma.regularIncome.findUnique({ where: { id: entityId } }))?.expectedData;
-  const merged = { ...(typeof existing === "object" && existing ? (existing as Record<string, number>) : {}), ...result };
+  const mergedRaw = { ...(typeof existing === "object" && existing ? (existing as Record<string, number>) : {}), ...result };
+  const merged = Object.fromEntries(Object.entries(mergedRaw).filter(([k]) => k >= currentMonthKey));
   if (entityType === "EXPENSE") {
     await prisma.regularExpense.update({
       where: { id: entityId },
@@ -216,10 +210,14 @@ export async function copyExpectedFromPreviousYear(
     return { error: "Нет данных за прошлый год" };
   }
 
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
   const expectedData: Record<string, number> = {};
   for (const e of entries) {
     const [, month] = e.period.split("-");
     const period = `${year}-${month}`;
+    if (period < currentMonthKey) continue;
     let amount = Number(e.amount);
     if (seasonalMultiplier && seasonalMultiplier[month] != null) {
       amount *= seasonalMultiplier[month];
@@ -249,11 +247,12 @@ export async function copyExpectedFromPreviousYear(
     });
   }
 
-  // Sync to entity expectedData for UI
+  // Sync to entity expectedData for UI (только текущий месяц и далее)
   const existing = entityType === "EXPENSE"
     ? (await prisma.regularExpense.findUnique({ where: { id: entityId } }))?.expectedData
     : (await prisma.regularIncome.findUnique({ where: { id: entityId } }))?.expectedData;
-  const merged = { ...(typeof existing === "object" && existing ? (existing as Record<string, number>) : {}), ...expectedData };
+  const mergedRaw = { ...(typeof existing === "object" && existing ? (existing as Record<string, number>) : {}), ...expectedData };
+  const merged = Object.fromEntries(Object.entries(mergedRaw).filter(([k]) => k >= currentMonthKey));
   if (entityType === "EXPENSE") {
     await prisma.regularExpense.update({
       where: { id: entityId },
