@@ -208,7 +208,7 @@ export function EditModal({
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Категория</label>
               <select {...expenseForm.register("categoryId")} className="w-full rounded border border-border bg-background px-2 py-1 text-foreground">
-                {expenseCategories.map((c) => (
+                {expenseCategories.filter((c) => c.slug !== "custom").map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
@@ -259,10 +259,10 @@ export function EditModal({
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Категория</label>
               <select {...incomeForm.register("categoryId")} className="w-full rounded border border-border bg-background px-2 py-1 text-foreground">
-                <option value="">—</option>
-                {incomeCategories.map((c) => (
+                {incomeCategories.filter((c) => c.slug !== "custom").map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
+                <option value="">Без категории</option>
               </select>
             </div>
             <div className="flex gap-2">
@@ -293,20 +293,20 @@ export function EditModal({
               <div>
                 <label className="mb-1 block text-xs text-muted-foreground">Категория</label>
                 <select {...manualForm.register("expenseCategoryId")} className="w-full rounded border border-border bg-background px-2 py-1 text-foreground">
-                  <option value="">—</option>
-                  {expenseCategories.map((c) => (
+                  {expenseCategories.filter((c) => c.slug !== "custom").map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
+                  <option value="">Без категории</option>
                 </select>
               </div>
             ) : (
               <div>
                 <label className="mb-1 block text-xs text-muted-foreground">Категория</label>
                 <select {...manualForm.register("incomeCategoryId")} className="w-full rounded border border-border bg-background px-2 py-1 text-foreground">
-                  <option value="">—</option>
-                  {incomeCategories.map((c) => (
+                  {incomeCategories.filter((c) => c.slug !== "custom").map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
+                  <option value="">Без категории</option>
                 </select>
               </div>
             )}

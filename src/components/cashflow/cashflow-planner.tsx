@@ -219,11 +219,14 @@ export function CashFlowPlanner({
     }
   };
 
+  const firstExpenseCat = expenseCategories.find((c) => c.slug !== "custom");
+  const firstIncomeCat = incomeCategories.find((c) => c.slug !== "custom");
+
   const expenseForm = useForm<z.infer<typeof expenseSchema>>({
     resolver: zodResolver(expenseSchema),
     defaultValues: {
       frequency: "MONTHLY",
-      categoryId: expenseCategories[0]?.id ?? "",
+      categoryId: firstExpenseCat?.id ?? "",
     },
   });
 
@@ -232,7 +235,7 @@ export function CashFlowPlanner({
     defaultValues: {
       taxes: 0,
       frequency: "MONTHLY",
-      categoryId: incomeCategories[0]?.id ?? "",
+      categoryId: firstIncomeCat?.id ?? "",
     },
   });
 
@@ -242,8 +245,8 @@ export function CashFlowPlanner({
       date: new Date().toISOString().slice(0, 10),
       type: "OUT",
       taxes: 0,
-      expenseCategoryId: expenseCategories[0]?.id ?? "",
-      incomeCategoryId: incomeCategories[0]?.id ?? "",
+      expenseCategoryId: firstExpenseCat?.id ?? "",
+      incomeCategoryId: firstIncomeCat?.id ?? "",
     },
   });
 
@@ -339,14 +342,14 @@ export function CashFlowPlanner({
       amount: data.amount,
       taxes: data.taxes ?? 0,
       description: data.description,
-      expenseCategoryId: data.type === "OUT" ? data.expenseCategoryId : undefined,
-      incomeCategoryId: data.type === "IN" ? data.incomeCategoryId : undefined,
+      expenseCategoryId: data.type === "OUT" ? (data.expenseCategoryId || undefined) : undefined,
+      incomeCategoryId: data.type === "IN" ? (data.incomeCategoryId || undefined) : undefined,
     });
     manualForm.reset({
       date: new Date().toISOString().slice(0, 10),
       type: "OUT",
       taxes: 0,
-      expenseCategoryId: expenseCategories[0]?.id ?? "",
+      expenseCategoryId: firstExpenseCat?.id ?? "",
     });
     loadForecast();
   });
@@ -560,7 +563,7 @@ export function CashFlowPlanner({
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Категория</label>
               <select {...expenseForm.register("categoryId")} className="rounded border border-border bg-background px-2 py-1 text-foreground">
-                {expenseCategories.map((c) => (
+                {expenseCategories.filter((c) => c.slug !== "custom").map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
                 <option value={CUSTOM_CATEGORY_VALUE}>Своя категория</option>
@@ -685,11 +688,11 @@ export function CashFlowPlanner({
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Категория</label>
               <select {...incomeForm.register("categoryId")} className="rounded border border-border bg-background px-2 py-1 text-foreground">
-                <option value="">—</option>
-                {incomeCategories.map((c) => (
+                {incomeCategories.filter((c) => c.slug !== "custom").map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
                 <option value={CUSTOM_CATEGORY_VALUE}>Своя категория</option>
+                <option value="">Без категории</option>
               </select>
             </div>
             {incomeForm.watch("categoryId") === CUSTOM_CATEGORY_VALUE && (
@@ -865,9 +868,9 @@ export function CashFlowPlanner({
               <label className="mb-1 block text-xs text-muted-foreground">Тип</label>
               <select
                 {...manualForm.register("type", {
-                  onChange: (e) => {
-                    manualForm.setValue("expenseCategoryId", expenseCategories[0]?.id ?? "");
-                    manualForm.setValue("incomeCategoryId", incomeCategories[0]?.id ?? "");
+                  onChange: () => {
+                    manualForm.setValue("expenseCategoryId", expenseCategories.find((c) => c.slug !== "custom")?.id ?? "");
+                    manualForm.setValue("incomeCategoryId", incomeCategories.find((c) => c.slug !== "custom")?.id ?? "");
                   },
                 })}
                 className="rounded border border-border bg-background px-2 py-1 text-foreground"
@@ -880,19 +883,20 @@ export function CashFlowPlanner({
               <div>
                 <label className="mb-1 block text-xs text-muted-foreground">Категория</label>
                 <select {...manualForm.register("expenseCategoryId")} className="rounded border border-border bg-background px-2 py-1 text-foreground">
-                  {expenseCategories.map((c) => (
+                  {expenseCategories.filter((c) => c.slug !== "custom").map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
+                  <option value="">Без категории</option>
                 </select>
               </div>
             ) : (
               <div>
                 <label className="mb-1 block text-xs text-muted-foreground">Категория</label>
                 <select {...manualForm.register("incomeCategoryId")} className="rounded border border-border bg-background px-2 py-1 text-foreground">
-                  <option value="">—</option>
-                  {incomeCategories.map((c) => (
+                  {incomeCategories.filter((c) => c.slug !== "custom").map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
+                  <option value="">Без категории</option>
                 </select>
               </div>
             )}

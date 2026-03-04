@@ -355,6 +355,13 @@ export async function computeForecast(
     return `${y}-${m}-${day}`;
   };
 
+  /** Compare dates by calendar day only (ignore time) to avoid timezone/edge-case bugs */
+  const dateOnlyCompare = (a: Date, b: Date): number => {
+    const aDay = new Date(a.getFullYear(), a.getMonth(), a.getDate()).getTime();
+    const bDay = new Date(b.getFullYear(), b.getMonth(), b.getDate()).getTime();
+    return aDay - bDay;
+  };
+
   const incomeMult = 1 + (changes.incomeGrowthPercent ?? 0) / 100;
   const expenseMult = 1 + (changes.expenseGrowthPercent ?? 0) / 100;
 
@@ -386,7 +393,7 @@ export async function computeForecast(
 
     for (let i = 0; i < days; i++) {
       const d = addDays(startDate, i);
-      if (d < expStart) continue;
+      if (dateOnlyCompare(d, expStart) < 0) continue;
       const mk = monthKey(d);
       if (monthlyByMonth.has(mk)) continue;
       const cacheKey = `exp:${exp.id}:${mk}`;
@@ -487,7 +494,7 @@ export async function computeForecast(
       if (perDay <= 0) continue;
       for (let i = 0; i < days; i++) {
         const d = addDays(startDate, i);
-        if (d < incStart) continue;
+        if (dateOnlyCompare(d, incStart) < 0) continue;
         const mk = monthKey(d);
         if (monthlyByMonth.has(mk)) continue;
         const key = dateKey(d);

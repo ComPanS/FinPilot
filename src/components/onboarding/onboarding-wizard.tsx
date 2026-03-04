@@ -460,13 +460,13 @@ export function OnboardingWizard({
                   onChange={(e) => updateItem(i, "categoryId", e.target.value)}
                   className="rounded border border-border px-2 py-1"
                 >
-                  {(item.type === "expense" ? expenseCategories : incomeCategories).map(
-                    (c) => (
+                  {(item.type === "expense" ? expenseCategories : incomeCategories)
+                    .filter((c) => c.slug !== "custom")
+                    .map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
                       </option>
-                    )
-                  )}
+                    ))}
                 </select>
               </div>
               <div className="min-w-[140px] flex-1">
