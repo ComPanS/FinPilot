@@ -2,7 +2,7 @@
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { computeForecast, computeForecastDebug } from "@/lib/services/forecast";
+import { computeForecast, computeForecastActualOnly, computeForecastDebug } from "@/lib/services/forecast";
 import type { WhatIfChanges } from "@/types";
 
 export async function getForecastDebugAction(profileId: string) {
@@ -26,6 +26,8 @@ export async function getForecastAction(
     startDate?: Date | string;
     changes?: WhatIfChanges;
     useExpectedData?: boolean;
+    useActualData?: boolean;
+    returnBoth?: boolean;
   },
 ) {
   const session = await auth();
@@ -51,13 +53,33 @@ export async function getForecastAction(
         )
       : options.startDate
     : undefined;
-  const forecast = await computeForecast(profileId, {
+
+  const baseOpts = {
     days,
     startDate,
     changes: options?.changes,
     zoneGreenMin: profile.zoneGreenMin ?? 50000,
     zoneRedMax: profile.zoneRedMax ?? -50000,
     useExpectedData: options?.useExpectedData,
+  };
+
+  if (options?.returnBoth) {
+    const [forecastExpected, forecastFactOnly] = await Promise.all([
+      computeForecast(profileId, { ...baseOpts, useActualData: false }),
+      computeForecastActualOnly(profileId, { days, startDate }),
+    ]);
+    return {
+      forecast: forecastExpected,
+      forecastExpected,
+      forecastFactOnly,
+      zoneGreenMin: profile.zoneGreenMin ?? 50000,
+      zoneRedMax: profile.zoneRedMax ?? -50000,
+    };
+  }
+
+  const forecast = await computeForecast(profileId, {
+    ...baseOpts,
+    useActualData: options?.useActualData,
   });
   return {
     forecast,

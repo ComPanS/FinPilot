@@ -9,6 +9,15 @@ export interface ForecastDay {
   outflows: number;
 }
 
+/** Fact-only forecast: null for days without actual data (line breaks) */
+export interface ForecastDayFact {
+  date: string;
+  balance: number | null;
+  inflows: number | null;
+  outflows: number | null;
+  hasFactData: boolean;
+}
+
 export interface WhatIfChanges {
   incomeGrowthPercent?: number;
   expenseGrowthPercent?: number;

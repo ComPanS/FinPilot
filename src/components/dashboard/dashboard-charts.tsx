@@ -3,6 +3,7 @@
 import {
   AreaChart,
   Area,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -10,6 +11,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
   ReferenceArea,
+  Legend,
 } from "recharts";
 import { formatDateDdMmYyyy } from "@/lib/date-utils";
 
@@ -18,6 +20,14 @@ type ForecastDay = {
   balance: number;
   inflows: number;
   outflows: number;
+};
+
+type ForecastDayFact = {
+  date: string;
+  balance: number | null;
+  inflows: number | null;
+  outflows: number | null;
+  hasFactData: boolean;
 };
 
 type ChartPoint = ForecastDay & {
@@ -32,6 +42,14 @@ type ChartPoint = ForecastDay & {
   outflows: number;
   cumulativeInflows: number;
   cumulativeOutflows: number;
+  balanceExpected?: number;
+  profitExpected?: number;
+  cumulativeInflowsExpected?: number;
+  cumulativeOutflowsExpected?: number;
+  balanceFact?: number | null;
+  profitFact?: number | null;
+  cumulativeInflowsFact?: number | null;
+  cumulativeOutflowsFact?: number | null;
 };
 
 function insertZeroCrossings<T extends ChartPoint>(
@@ -66,15 +84,24 @@ function insertZeroCrossings<T extends ChartPoint>(
 }
 
 export function DashboardCharts({
-  data,
+  dataExpected,
+  dataFact,
   currency,
   section,
 }: {
-  data: ForecastDay[];
+  dataExpected: ForecastDay[];
+  dataFact?: ForecastDayFact[];
   currency: string;
   section?: string;
 }) {
-  const baseChartData: ChartPoint[] = data.reduce<ChartPoint[]>((acc, d) => {
+  const factByDate = dataFact
+    ? new Map(dataFact.map((d) => [d.date, d]))
+    : null;
+
+  let lastCumInFact = 0;
+  let lastCumOutFact = 0;
+  let runningBalance: number | null = null;
+  const baseChartData: ChartPoint[] = dataExpected.reduce<ChartPoint[]>((acc, d) => {
     const profit = Math.round(d.inflows - d.outflows);
     const balance = Math.round(d.balance);
     const inflows = Math.round(d.inflows);
@@ -82,7 +109,7 @@ export function DashboardCharts({
     const prev = acc[acc.length - 1];
     const cumulativeInflows = (prev?.cumulativeInflows ?? 0) + inflows;
     const cumulativeOutflows = (prev?.cumulativeOutflows ?? 0) + outflows;
-    acc.push({
+    const point: ChartPoint = {
       ...d,
       dateShort: formatDateDdMmYyyy(d.date),
       profit,
@@ -95,20 +122,44 @@ export function DashboardCharts({
       outflows,
       cumulativeInflows,
       cumulativeOutflows,
-    });
+      balanceExpected: Math.round(d.balance),
+      profitExpected: Math.round(d.inflows - d.outflows),
+      cumulativeInflowsExpected: cumulativeInflows,
+      cumulativeOutflowsExpected: cumulativeOutflows,
+    };
+    const fact = factByDate?.get(d.date);
+    const mergedInflows = fact?.hasFactData && fact.inflows != null ? fact.inflows : d.inflows;
+    const mergedOutflows = fact?.hasFactData && fact.outflows != null ? fact.outflows : d.outflows;
+    if (fact?.hasFactData) {
+      const profitFactVal = Math.round(mergedInflows - mergedOutflows);
+      point.profitFact = profitFactVal;
+      lastCumInFact += mergedInflows;
+      lastCumOutFact += mergedOutflows;
+      point.cumulativeInflowsFact = lastCumInFact;
+      point.cumulativeOutflowsFact = lastCumOutFact;
+      const balanceAtStartOfDay = runningBalance ?? (d.balance - d.inflows + d.outflows);
+      runningBalance = balanceAtStartOfDay + mergedInflows - mergedOutflows;
+      point.balanceFact = Math.round(runningBalance);
+    } else {
+      point.cumulativeInflowsFact = null;
+      point.cumulativeOutflowsFact = null;
+      const balanceAtStartOfDay = runningBalance ?? (d.balance - d.inflows + d.outflows);
+      runningBalance = balanceAtStartOfDay + d.inflows - d.outflows;
+    }
+    acc.push(point);
     return acc;
   }, []);
 
   const chartDataWithProfitCrossings = insertZeroCrossings(
     baseChartData,
     (p) => p.profit,
-    (p) => ({ ...p, profit: 0, profitPositive: 0, profitNegative: 0 })
+    (p) => ({ ...p, profit: 0, profitPositive: 0, profitNegative: 0, profitFact: null })
   );
 
   const chartDataWithBalanceCrossings = insertZeroCrossings(
     baseChartData,
     (p) => p.balance,
-    (p) => ({ ...p, balance: 0, positiveBalance: 0, negativeBalance: 0 })
+    (p) => ({ ...p, balance: 0, positiveBalance: 0, negativeBalance: 0, balanceFact: null })
   );
 
   const chartData = baseChartData;
@@ -123,8 +174,17 @@ export function DashboardCharts({
   const formatValue = (v: number) =>
     Math.round(v).toLocaleString("ru") + " " + currency;
 
-  const totalIncome = chartData.reduce((s, d) => s + d.inflows, 0);
-  const totalExpense = chartData.reduce((s, d) => s + d.outflows, 0);
+  const factByDateForTotals = dataFact ? new Map(dataFact.map((d) => [d.date, d])) : null;
+  const totalIncome = chartData.reduce((s, d) => {
+    const fact = factByDateForTotals?.get(d.date);
+    const inflows = fact?.hasFactData && fact.inflows != null ? fact.inflows : d.inflows;
+    return s + inflows;
+  }, 0);
+  const totalExpense = chartData.reduce((s, d) => {
+    const fact = factByDateForTotals?.get(d.date);
+    const outflows = fact?.hasFactData && fact.outflows != null ? fact.outflows : d.outflows;
+    return s + outflows;
+  }, 0);
   const totalProfit = totalIncome - totalExpense;
 
   // Период восстановления: дни с отрицательным балансом (расход ещё надо покрывать)
@@ -184,14 +244,20 @@ export function DashboardCharts({
               <Tooltip
                 content={({ active, payload }) => {
                   if (!active || !payload?.length) return null;
-                  const p = payload[0]?.payload;
-                  const balance = p?.balance ?? 0;
+                  const p = payload[0]?.payload as ChartPoint;
+                  const balanceFact = p?.balanceFact;
+                  const balanceExp = p?.balanceExpected ?? 0;
                   return (
                     <div style={tooltipStyle} className="px-3 py-2">
                       <p className="font-medium">Дата: {p?.date ? formatDateDdMmYyyy(p.date) : ""}</p>
-                      <p style={{ color: balance >= 0 ? "var(--success)" : "var(--danger)" }}>
-                        Прибыль за месяц: {formatValue(balance)}
+                      <p className="text-muted-foreground">
+                        Ожидаемый: {formatValue(balanceExp)}
                       </p>
+                      {dataFact && (
+                        <p style={{ color: (balanceFact ?? 0) >= 0 ? "var(--success)" : "var(--danger)" }}>
+                          Факт: {balanceFact != null ? formatValue(balanceFact) : "—"}
+                        </p>
+                      )}
                     </div>
                   );
                 }}
@@ -200,8 +266,13 @@ export function DashboardCharts({
                 <ReferenceArea key={i} x1={p.start} x2={p.end} fill="var(--danger)" fillOpacity={0.08} />
               ))}
               <ReferenceLine y={0} stroke="var(--muted)" strokeDasharray="3 3" />
-              <Area type="monotone" dataKey="positiveBalance" stroke="var(--success)" fill="var(--success)" fillOpacity={0.2} strokeWidth={2} baseValue={0} />
-              <Area type="monotone" dataKey="negativeBalance" stroke="var(--danger)" fill="var(--danger)" fillOpacity={0.2} strokeWidth={2} baseValue={0} />
+              <Line type="monotone" dataKey="balanceExpected" name="Ожидаемый" stroke="var(--muted)" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+              {dataFact && (
+                <Line type="monotone" dataKey="balanceFact" name="Факт" stroke="var(--success)" strokeWidth={2} dot={false} connectNulls={false} />
+              )}
+              <Area type="monotone" dataKey="positiveBalance" name="" stroke="none" fill="var(--success)" fillOpacity={0.15} baseValue={0} legendType="none" />
+              <Area type="monotone" dataKey="negativeBalance" stroke="none" fill="var(--danger)" fillOpacity={0.15} baseValue={0} legendType="none" />
+              <Legend formatter={(value) => value ? <span style={{ color: "var(--foreground)" }}>{value}</span> : null} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -218,21 +289,31 @@ export function DashboardCharts({
               <Tooltip
                 content={({ active, payload }) => {
                   if (!active || !payload?.length) return null;
-                  const p = payload[0]?.payload;
-                  const profit = (p?.inflows ?? 0) - (p?.outflows ?? 0);
+                  const p = payload[0]?.payload as ChartPoint;
+                  const profitFact = p?.profitFact;
+                  const profitExp = p?.profitExpected ?? 0;
                   return (
                     <div style={tooltipStyle} className="px-3 py-2">
                       <p className="font-medium">Дата: {p?.date ? formatDateDdMmYyyy(p.date) : ""}</p>
-                      <p style={{ color: profit >= 0 ? "var(--success)" : "var(--danger)" }}>
-                        Прибыль за день: {formatValue(profit)}
+                      <p className="text-muted-foreground">
+                        Ожидаемый: {formatValue(profitExp)}
                       </p>
+                      {dataFact && (
+                        <p style={{ color: (profitFact ?? 0) >= 0 ? "var(--success)" : "var(--danger)" }}>
+                          Факт: {profitFact != null ? formatValue(profitFact) : "—"}
+                        </p>
+                      )}
                     </div>
                   );
                 }}
               />
               <ReferenceLine y={0} stroke="var(--muted)" strokeDasharray="3 3" />
-              <Area type="monotone" dataKey="profitPositive" stroke="var(--success)" fill="var(--success)" fillOpacity={0.25} strokeWidth={2} baseValue={0} />
-              <Area type="monotone" dataKey="profitNegative" stroke="var(--danger)" fill="var(--danger)" fillOpacity={0.25} strokeWidth={2} baseValue={0} />
+              <Line type="monotone" dataKey="profitExpected" name="Ожидаемый" stroke="var(--muted)" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+              {dataFact && (
+                <Line type="monotone" dataKey="profitFact" name="Факт" stroke="var(--success)" strokeWidth={2} dot={false} connectNulls={false} />
+              )}
+              <Area type="monotone" dataKey="profitPositive" name="" stroke="none" fill="var(--success)" fillOpacity={0.2} baseValue={0} legendType="none" />
+              <Area type="monotone" dataKey="profitNegative" stroke="none" fill="var(--danger)" fillOpacity={0.2} baseValue={0} legendType="none" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -251,24 +332,37 @@ export function DashboardCharts({
                 content={({ active, payload }) => {
                   if (!active || !payload?.length) return null;
                   const p = payload[0]?.payload as ChartPoint;
+                  const cumInExp = p?.cumulativeInflowsExpected ?? 0;
+                  const cumInFact = p?.cumulativeInflowsFact;
                   return (
                     <div style={tooltipStyle} className="px-3 py-2">
                       <p className="font-medium">Дата: {p?.date ? formatDateDdMmYyyy(p.date) : ""}</p>
-                      <p style={{ color: "var(--success)" }}>
-                        Накопленный доход: {formatValue(p?.cumulativeInflows ?? 0)}
+                      <p className="text-muted-foreground">
+                        Ожидаемый: {formatValue(cumInExp)}
                       </p>
+                      {dataFact && (
+                        <p style={{ color: "var(--success)" }}>
+                          Факт: {cumInFact != null ? formatValue(cumInFact) : "—"}
+                        </p>
+                      )}
                       <p className="text-xs text-muted-foreground">За день: {formatValue(p?.inflows ?? 0)}</p>
                     </div>
                   );
                 }}
               />
+              <Line type="monotone" dataKey="cumulativeInflowsExpected" name="Ожидаемый" stroke="var(--muted)" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+              {dataFact && (
+                <Line type="monotone" dataKey="cumulativeInflowsFact" name="Факт" stroke="var(--success)" strokeWidth={2} dot={false} connectNulls={false} />
+              )}
               <Area
                 type="monotone"
                 dataKey="cumulativeInflows"
+                name=""
                 stroke="var(--success)"
                 fill="var(--success)"
-                fillOpacity={0.2}
-                strokeWidth={2}
+                fillOpacity={0.15}
+                strokeWidth={0}
+                legendType="none"
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -287,24 +381,37 @@ export function DashboardCharts({
                 content={({ active, payload }) => {
                   if (!active || !payload?.length) return null;
                   const p = payload[0]?.payload as ChartPoint;
+                  const cumOutExp = p?.cumulativeOutflowsExpected ?? 0;
+                  const cumOutFact = p?.cumulativeOutflowsFact;
                   return (
                     <div style={tooltipStyle} className="px-3 py-2">
                       <p className="font-medium">Дата: {p?.date ? formatDateDdMmYyyy(p.date) : ""}</p>
-                      <p style={{ color: "var(--danger)" }}>
-                        Накопленный расход: {formatValue(p?.cumulativeOutflows ?? 0)}
+                      <p className="text-muted-foreground">
+                        Ожидаемый: {formatValue(cumOutExp)}
                       </p>
+                      {dataFact && (
+                        <p style={{ color: "var(--danger)" }}>
+                          Факт: {cumOutFact != null ? formatValue(cumOutFact) : "—"}
+                        </p>
+                      )}
                       <p className="text-xs text-muted-foreground">За день: {formatValue(p?.outflows ?? 0)}</p>
                     </div>
                   );
                 }}
               />
+              <Line type="monotone" dataKey="cumulativeOutflowsExpected" name="Ожидаемый" stroke="var(--muted)" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+              {dataFact && (
+                <Line type="monotone" dataKey="cumulativeOutflowsFact" name="Факт" stroke="var(--danger)" strokeWidth={2} dot={false} connectNulls={false} />
+              )}
               <Area
                 type="monotone"
                 dataKey="cumulativeOutflows"
+                name=""
                 stroke="var(--danger)"
                 fill="var(--danger)"
-                fillOpacity={0.2}
-                strokeWidth={2}
+                fillOpacity={0.15}
+                strokeWidth={0}
+                legendType="none"
               />
             </AreaChart>
           </ResponsiveContainer>

@@ -101,6 +101,7 @@ model CashFlowProfile {
   manualTransactions  ManualTransaction[]
   monthlyData         ProfileMonthlyData[]
   expectedEntries     ExpectedEntry[]
+  actualEntries       ActualEntry[]
   scenarios           WhatIfScenario[]
   forecasts           Forecast[]
   cashFlowHistory     CashFlowHistory[]
@@ -125,6 +126,22 @@ model ExpectedEntry {
 
   @@unique([profileId, entityType, entityId, period])
   @@index([profileId, period])
+  @@index([entityId])
+}
+
+model ActualEntry {
+  id         String   @id @default(cuid())
+  profileId  String
+  entityType String   // "EXPENSE" | "INCOME"
+  entityId   String   // RegularExpense.id | RegularIncome.id
+  period     String   // YYYY-MM | YYYY-MM-DD | "YYYY-MM-DD:YYYY-MM-DD"
+  amount     Decimal  @db.Decimal(14, 2)
+  createdAt  DateTime @default(now())
+
+  profile CashFlowProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, entityType, entityId, period])
+  @@index([profileId])
   @@index([entityId])
 }
 

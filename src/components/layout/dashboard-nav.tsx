@@ -9,6 +9,7 @@ import { ProfileSwitcher } from "./profile-switcher";
 const navItems = [
   { href: "/dashboard", label: "Дашборд" },
   { href: "/cashflow", label: "Планировщик" },
+  { href: "/fact", label: "Факт" },
   { href: "/what-if", label: "Что если" },
   { href: "/insights", label: "ИИ-ассистент" },
   { href: "/reports", label: "Отчёты" },
