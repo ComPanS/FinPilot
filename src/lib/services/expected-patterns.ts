@@ -9,10 +9,109 @@ import { prisma } from "@/lib/prisma";
 import {
   fetchActualEntriesBatch,
   getActualAmountForDay,
+  type ActualByEntity,
 } from "./actual-data";
 import { daysInMonth, monthKey } from "./expected-data";
 
 const MIN_DAYS_WITH_DATA = 30;
+
+/**
+ * Sum actual amounts for a month from monthStart through throughDate.
+ * Used for "remaining pattern allocation" — fact from 1st to yesterday.
+ */
+export function calculateMonthFact(
+  actualByEntity: ActualByEntity | null,
+  expenseIds: string[],
+  incomeIds: string[],
+  incomeTaxRates: Map<string, number>,
+  mk: string,
+  type: "INCOME" | "EXPENSE",
+  monthStart: Date,
+  throughDate: Date,
+): number {
+  if (!actualByEntity) return 0;
+  const entityIds = type === "INCOME" ? incomeIds : expenseIds;
+  let sum = 0;
+  const throughKey = `${throughDate.getFullYear()}-${String(throughDate.getMonth() + 1).padStart(2, "0")}-${String(throughDate.getDate()).padStart(2, "0")}`;
+  let current = new Date(monthStart);
+  current.setHours(0, 0, 0, 0);
+
+  while (current <= throughDate) {
+    const key = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, "0")}-${String(current.getDate()).padStart(2, "0")}`;
+    if (key > throughKey) break;
+    for (const eid of entityIds) {
+      const amt = getActualAmountForDay(
+        eid,
+        type,
+        key,
+        mk,
+        actualByEntity,
+      );
+      if (amt != null) {
+        if (type === "INCOME") {
+          const taxPct = (incomeTaxRates.get(eid) ?? 0) / 100;
+          sum += amt * (1 - taxPct);
+        } else {
+          sum += amt;
+        }
+      }
+    }
+    current.setDate(current.getDate() + 1);
+  }
+  return sum;
+}
+
+/**
+ * Get pattern factors for future days only (from today to month end).
+ * Returns map dateKey -> factor. Factors are raw (weekday * monthDay * month).
+ */
+function getFutureDayPatternFactors(
+  patternMap: Map<string, PatternMapEntry> | null,
+  mk: string,
+  today: Date,
+  monthStart: Date,
+  dateKeyFn: (d: Date) => string,
+  addDaysFn: (d: Date, n: number) => Date,
+  flowType: "inflow" | "outflow",
+): Record<string, number> {
+  const factors: Record<string, number> = {};
+  if (!patternMap || patternMap.size === 0) return factors;
+
+  const [y, m] = mk.split("-").map(Number);
+  const monthEnd = new Date(y, m, 0); // last day of month
+  let current = new Date(today);
+  current.setHours(0, 0, 0, 0);
+
+  while (current <= monthEnd) {
+    const key = dateKeyFn(current);
+    const entry = patternMap.get(key);
+    if (entry) {
+      const f = flowType === "inflow" ? entry.inflow : entry.outflow;
+      factors[key] =
+        f.weekdayFactor * f.monthDayFactor * f.monthFactor;
+    } else {
+      factors[key] = 1;
+    }
+    current = addDaysFn(current, 1);
+  }
+  return factors;
+}
+
+/**
+ * Normalize factors so they sum to 1.0. If sum is 0, returns uniform.
+ */
+function normalizePatternFactors(
+  factors: Record<string, number>,
+): Record<string, number> {
+  const sum = Object.values(factors).reduce((a, b) => a + b, 0);
+  const keys = Object.keys(factors);
+  if (sum <= 0 || keys.length === 0) return factors;
+  const result: Record<string, number> = {};
+  for (const k of keys) {
+    result[k] = factors[k] / sum;
+  }
+  return result;
+}
 
 /**
  * Apply pattern-based scaling to monthly totals.
@@ -98,6 +197,203 @@ export function applyMonthlyScaling(
       if (scaleOut > 0) {
         outflows[key] = (outflows[key] ?? 0) + shapeOut * scaleOut;
       }
+    }
+  }
+
+  return { inflows, outflows };
+}
+
+/**
+ * Apply monthly scaling with "remaining pattern allocation" for the current month.
+ * For current month: uses actual data for past days, distributes remainder across future days by patterns.
+ * For future months: uses standard applyMonthlyScaling (full distribution).
+ */
+export function applyMonthlyScalingWithRemaining(
+  patternMap: Map<string, PatternMapEntry> | null,
+  monthlyByMonth: Map<string, { income: number; expense: number }>,
+  actualByEntity: ActualByEntity | null,
+  expenseIds: string[],
+  incomeIds: string[],
+  incomeTaxRates: Map<string, number>,
+  dateKeyFn: (d: Date) => string,
+  addDaysFn: (d: Date, n: number) => Date,
+  monthKeyFn: (d: Date) => string,
+  startDate: Date,
+  days: number,
+  incomeMult: number,
+  expenseMult: number,
+): { inflows: Record<string, number>; outflows: Record<string, number> } {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayMk = monthKeyFn(today);
+
+  const monthsInRange = new Set(
+    Array.from({ length: days }, (_, i) =>
+      monthKeyFn(addDaysFn(startDate, i)),
+    ),
+  );
+
+  const inflows: Record<string, number> = {};
+  const outflows: Record<string, number> = {};
+
+  for (const mk of monthsInRange) {
+    const monthly = monthlyByMonth.get(mk);
+    if (!monthly || (monthly.income <= 0 && monthly.expense <= 0)) continue;
+
+    const [y, m] = mk.split("-").map(Number);
+    const monthStart = new Date(y, (m ?? 1) - 1, 1);
+    const isCurrentMonth = todayMk === mk && today >= monthStart;
+
+    if (!isCurrentMonth || !patternMap) {
+      // Future months or no patterns: use standard scaling for this month only
+      const targetIn = monthly.income > 0 ? monthly.income * incomeMult : 0;
+      const targetOut = monthly.expense > 0 ? monthly.expense * expenseMult : 0;
+      if (targetIn <= 0 && targetOut <= 0) continue;
+
+      const hasPatterns = patternMap != null && patternMap.size > 0;
+      const daysInThisMonth: { key: string; shapeIn: number; shapeOut: number }[] = [];
+      let patternSumIn = 0;
+      let patternSumOut = 0;
+
+      for (let i = 0; i < days; i++) {
+        const d = addDaysFn(startDate, i);
+        if (monthKeyFn(d) !== mk) continue;
+        const key = dateKeyFn(d);
+        let shapeIn = 1;
+        let shapeOut = 1;
+        if (hasPatterns) {
+          const entry = patternMap!.get(key);
+          if (entry) {
+            shapeIn =
+              entry.inflow.weekdayFactor *
+              entry.inflow.monthDayFactor *
+              entry.inflow.monthFactor;
+            shapeOut =
+              entry.outflow.weekdayFactor *
+              entry.outflow.monthDayFactor *
+              entry.outflow.monthFactor;
+          }
+        }
+        daysInThisMonth.push({ key, shapeIn, shapeOut });
+        patternSumIn += shapeIn;
+        patternSumOut += shapeOut;
+      }
+
+      const scaleIn = targetIn > 0 && patternSumIn > 0 ? targetIn / patternSumIn : 0;
+      const scaleOut = targetOut > 0 && patternSumOut > 0 ? targetOut / patternSumOut : 0;
+      for (const { key, shapeIn, shapeOut } of daysInThisMonth) {
+        if (scaleIn > 0) inflows[key] = (inflows[key] ?? 0) + shapeIn * scaleIn;
+        if (scaleOut > 0) outflows[key] = (outflows[key] ?? 0) + shapeOut * scaleOut;
+      }
+      continue;
+    }
+
+    // === Current month: remaining pattern allocation ===
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const factIncome = calculateMonthFact(
+      actualByEntity,
+      expenseIds,
+      incomeIds,
+      incomeTaxRates,
+      mk,
+      "INCOME",
+      monthStart,
+      yesterday,
+    );
+    const factExpense = calculateMonthFact(
+      actualByEntity,
+      expenseIds,
+      incomeIds,
+      incomeTaxRates,
+      mk,
+      "EXPENSE",
+      monthStart,
+      yesterday,
+    );
+
+    // Add actual data for past days (1st through yesterday)
+    let pastCurrent = new Date(monthStart);
+    pastCurrent.setHours(0, 0, 0, 0);
+    while (pastCurrent <= yesterday) {
+      const key = dateKeyFn(pastCurrent);
+      let dayIn = 0;
+      let dayOut = 0;
+      for (const eid of incomeIds) {
+        const amt = getActualAmountForDay(
+          eid,
+          "INCOME",
+          key,
+          mk,
+          actualByEntity!,
+        );
+        if (amt != null) {
+          const taxPct = (incomeTaxRates.get(eid) ?? 0) / 100;
+          dayIn += amt * (1 - taxPct);
+        }
+      }
+      for (const eid of expenseIds) {
+        const amt = getActualAmountForDay(
+          eid,
+          "EXPENSE",
+          key,
+          mk,
+          actualByEntity!,
+        );
+        if (amt != null) dayOut += amt;
+      }
+      if (dayIn > 0) inflows[key] = (inflows[key] ?? 0) + dayIn;
+      if (dayOut > 0) outflows[key] = (outflows[key] ?? 0) + dayOut;
+      pastCurrent = addDaysFn(pastCurrent, 1);
+    }
+
+    const remainingIncome = Math.max(
+      0,
+      monthly.income * incomeMult - factIncome,
+    );
+    const remainingExpense = Math.max(
+      0,
+      monthly.expense * expenseMult - factExpense,
+    );
+
+    const futureFactorsIn = getFutureDayPatternFactors(
+      patternMap,
+      mk,
+      today,
+      monthStart,
+      dateKeyFn,
+      addDaysFn,
+      "inflow",
+    );
+    const futureFactorsOut = getFutureDayPatternFactors(
+      patternMap,
+      mk,
+      today,
+      monthStart,
+      dateKeyFn,
+      addDaysFn,
+      "outflow",
+    );
+
+    const normalizedIn = normalizePatternFactors(futureFactorsIn);
+    const normalizedOut = normalizePatternFactors(futureFactorsOut);
+
+    const monthEnd = new Date(y, m ?? 1, 0);
+    let current = new Date(Math.max(today.getTime(), monthStart.getTime()));
+    current.setHours(0, 0, 0, 0);
+
+    while (current <= monthEnd) {
+      const key = dateKeyFn(current);
+      const factorIn = normalizedIn[key] ?? 0;
+      const factorOut = normalizedOut[key] ?? 0;
+      if (remainingIncome > 0 && factorIn > 0) {
+        inflows[key] = (inflows[key] ?? 0) + remainingIncome * factorIn;
+      }
+      if (remainingExpense > 0 && factorOut > 0) {
+        outflows[key] = (outflows[key] ?? 0) + remainingExpense * factorOut;
+      }
+      current = addDaysFn(current, 1);
     }
   }
 

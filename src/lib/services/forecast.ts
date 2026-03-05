@@ -20,7 +20,7 @@ import {
   setCachedPatternMap,
 } from "@/lib/pattern-cache";
 import {
-  applyMonthlyScaling,
+  applyMonthlyScalingWithRemaining,
   buildDailyPatternMap,
 } from "./expected-patterns";
 
@@ -673,6 +673,27 @@ export async function computeForecast(
         monthlyByMonth.set(mk, existing);
       }
     }
+    // Если monthlyByMonth пуст (нет ProfileMonthlyData и MONTHLY_TOTAL), агрегируем из ExpectedEntry по сущностям
+    if (monthlyByMonth.size === 0 && expectedByEntity) {
+      for (const mk of monthKeys) {
+        let income = 0;
+        let expense = 0;
+        for (const inc of incomes) {
+          const amt = expectedByEntity.get(inc.id)?.get(mk);
+          if (amt != null && !Number.isNaN(amt)) {
+            const taxPct = Number(inc.taxes ?? 0) / 100;
+            income += amt * (1 - taxPct);
+          }
+        }
+        for (const exp of expenses) {
+          const amt = expectedByEntity.get(exp.id)?.get(mk);
+          if (amt != null && !Number.isNaN(amt)) expense += amt;
+        }
+        if (income > 0 || expense > 0) {
+          monthlyByMonth.set(mk, { income, expense });
+        }
+      }
+    }
   }
 
   // Use local date to avoid timezone mismatch between expense occurrences and forecast result
@@ -746,9 +767,18 @@ export async function computeForecast(
   }
 
   if (useExpectedData && monthlyByMonth.size > 0) {
-    const scaled = applyMonthlyScaling(
+    const expenseIds = expenses.map((e) => e.id);
+    const incomeIds = incomes.map((i) => i.id);
+    const incomeTaxRates = new Map(
+      incomes.map((i) => [i.id, Number(i.taxes ?? 0)]),
+    );
+    const scaled = applyMonthlyScalingWithRemaining(
       patternMap,
       monthlyByMonth,
+      actualByEntity,
+      expenseIds,
+      incomeIds,
+      incomeTaxRates,
       dateKey,
       addDays,
       monthKey,

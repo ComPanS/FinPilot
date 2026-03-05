@@ -70,60 +70,111 @@ export function DashboardCharts({
   usedPatterns?: boolean;
   hasEnoughPatternData?: boolean;
 }) {
-  const factByDate = dataFact
-    ? new Map(dataFact.map((d) => [d.date, d]))
-    : null;
-
   const baseChartData = useMemo(() => {
+    const factByDate = dataFact
+      ? new Map(dataFact.map((d) => [d.date, d]))
+      : null;
+    const hasFactData = factByDate != null && factByDate.size > 0;
+    const initialBalance =
+      dataExpected.length > 0
+        ? dataExpected[0].balance - dataExpected[0].inflows + dataExpected[0].outflows
+        : 0;
+
+    let runningBalance = initialBalance;
+    let cumIn = 0;
+    let cumOut = 0;
     let lastCumInFact = 0;
     let lastCumOutFact = 0;
+
     return dataExpected.reduce<ChartPoint[]>((acc, d) => {
-      const profit = Math.round(d.inflows - d.outflows);
-      const balance = Math.round(d.balance);
       const inflows = Math.round(d.inflows);
       const outflows = Math.round(d.outflows);
+      const profit = Math.round(d.inflows - d.outflows);
       const prev = acc[acc.length - 1];
       const cumulativeInflows = (prev?.cumulativeInflows ?? 0) + inflows;
       const cumulativeOutflows = (prev?.cumulativeOutflows ?? 0) + outflows;
+
+      const fact = factByDate?.get(d.date);
+
+      // Гибрид: на днях с фактом — факт, на остальных — ожидаемое
+      let balanceExpected: number;
+      let profitExpected: number;
+      let cumulativeInflowsExpected: number;
+      let cumulativeOutflowsExpected: number;
+
+      if (hasFactData && fact?.hasFactData) {
+        // День с фактом — гибрид: факт где есть, иначе ожидаемое
+        const inVal = fact.inflows ?? inflows;
+        const outVal = fact.outflows ?? outflows;
+        cumIn += inVal;
+        cumOut += outVal;
+        if (fact.inflows != null) lastCumInFact += fact.inflows;
+        if (fact.outflows != null) lastCumOutFact += fact.outflows;
+        if (fact.balance != null) {
+          runningBalance = Math.round(fact.balance);
+        } else {
+          runningBalance = runningBalance + inVal - outVal;
+        }
+        balanceExpected = Math.round(runningBalance);
+        profitExpected = Math.round(inVal - outVal);
+        // На днях с фактом — совпадаем с линией факта; иначе продолжаем от предыдущего
+        cumulativeInflowsExpected =
+          fact.inflows != null
+            ? lastCumInFact
+            : (prev?.cumulativeInflowsExpected ?? 0) + inflows;
+        cumulativeOutflowsExpected =
+          fact.outflows != null
+            ? lastCumOutFact
+            : (prev?.cumulativeOutflowsExpected ?? 0) + outflows;
+      } else {
+        // День без факта — ожидаемое
+        cumIn += inflows;
+        cumOut += outflows;
+        runningBalance += inflows - outflows;
+        balanceExpected = Math.round(runningBalance);
+        profitExpected = profit;
+        cumulativeInflowsExpected =
+          (prev?.cumulativeInflowsExpected ?? 0) + inflows;
+        cumulativeOutflowsExpected =
+          (prev?.cumulativeOutflowsExpected ?? 0) + outflows;
+      }
+
+      // Для Area используем гибридные значения при наличии dataFact
+      const balanceForArea = hasFactData ? balanceExpected : Math.round(d.balance);
+      const positiveBalance = balanceForArea >= 0 ? balanceForArea : 0;
+      const negativeBalance = balanceForArea < 0 ? balanceForArea : 0;
+      const cumulativeInflowsForArea = hasFactData ? cumulativeInflowsExpected : cumulativeInflows;
+      const cumulativeOutflowsForArea = hasFactData ? cumulativeOutflowsExpected : cumulativeOutflows;
+
       const point: ChartPoint = {
         ...d,
         dateShort: formatDateDdMmYyyy(d.date),
         profit,
         profitPositive: profit >= 0 ? profit : 0,
         profitNegative: profit < 0 ? profit : 0,
-        balance,
-        positiveBalance: balance >= 0 ? balance : 0,
-        negativeBalance: balance < 0 ? balance : 0,
+        balance: balanceForArea,
+        positiveBalance,
+        negativeBalance,
         inflows,
         outflows,
-        cumulativeInflows,
-        cumulativeOutflows,
-        balanceExpected: Math.round(d.balance),
-        profitExpected: Math.round(d.inflows - d.outflows),
-        cumulativeInflowsExpected: cumulativeInflows,
-        cumulativeOutflowsExpected: cumulativeOutflows,
+        cumulativeInflows: cumulativeInflowsForArea,
+        cumulativeOutflows: cumulativeOutflowsForArea,
+        balanceExpected,
+        profitExpected,
+        cumulativeInflowsExpected,
+        cumulativeOutflowsExpected,
       };
-      const fact = factByDate?.get(d.date);
-      // Факт показываем только когда значение явно прописано. При отсутствии — null, в расчётах используем ожидаемое.
+
+      // profitFact, cumulativeInflowsFact, cumulativeOutflowsFact, balanceFact
       if (fact?.hasFactData) {
-        // profitFact — только когда оба (доход и расход) заданы; иначе null
         point.profitFact =
           fact.inflows != null && fact.outflows != null
             ? Math.round(fact.inflows - fact.outflows)
             : null;
-        // cumulative — добавляем только при наличии факта по соответствующему полю
-        if (fact.inflows != null) {
-          lastCumInFact += fact.inflows;
-          point.cumulativeInflowsFact = lastCumInFact;
-        } else {
-          point.cumulativeInflowsFact = null;
-        }
-        if (fact.outflows != null) {
-          lastCumOutFact += fact.outflows;
-          point.cumulativeOutflowsFact = lastCumOutFact;
-        } else {
-          point.cumulativeOutflowsFact = null;
-        }
+        point.cumulativeInflowsFact =
+          fact.inflows != null ? lastCumInFact : null;
+        point.cumulativeOutflowsFact =
+          fact.outflows != null ? lastCumOutFact : null;
         point.balanceFact =
           fact.balance != null ? Math.round(fact.balance) : null;
       } else {
@@ -132,6 +183,7 @@ export function DashboardCharts({
         point.cumulativeOutflowsFact = null;
         point.balanceFact = null;
       }
+
       acc.push(point);
       return acc;
     }, []);
@@ -242,8 +294,8 @@ export function DashboardCharts({
               </span>
             </p>
           )}
-          <div className="h-80 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-80 min-h-[320px] min-w-0 w-full">
+            <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={300}>
               <AreaChart data={chartDataWithBalanceCrossings}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis
@@ -288,7 +340,11 @@ export function DashboardCharts({
                       </div>
                     );
                   }}
-                  cursor={{ stroke: "var(--muted)", strokeWidth: 1, strokeDasharray: "3 3" }}
+                  cursor={{
+                    stroke: "var(--muted)",
+                    strokeWidth: 1,
+                    strokeDasharray: "3 3",
+                  }}
                 />
                 {negativePeriods.map((p, i) => (
                   <ReferenceArea
@@ -323,7 +379,11 @@ export function DashboardCharts({
                     strokeWidth={2}
                     dot={false}
                     connectNulls={false}
-                    activeDot={{ r: 5, stroke: "var(--surface)", strokeWidth: 2 }}
+                    activeDot={{
+                      r: 5,
+                      stroke: "var(--surface)",
+                      strokeWidth: 2,
+                    }}
                   />
                 )}
                 <Area
@@ -365,8 +425,8 @@ export function DashboardCharts({
           <h3 className="mb-2 text-sm font-medium text-muted-foreground">
             Прибыль за день
           </h3>
-          <div className="h-80 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-80 min-h-[320px] min-w-0 w-full">
+            <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={300}>
               <AreaChart data={chartDataWithProfitCrossings}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis
@@ -409,7 +469,11 @@ export function DashboardCharts({
                       </div>
                     );
                   }}
-                  cursor={{ stroke: "var(--muted)", strokeWidth: 1, strokeDasharray: "3 3" }}
+                  cursor={{
+                    stroke: "var(--muted)",
+                    strokeWidth: 1,
+                    strokeDasharray: "3 3",
+                  }}
                 />
                 <ReferenceLine
                   y={0}
@@ -435,7 +499,11 @@ export function DashboardCharts({
                     strokeWidth={2}
                     dot={false}
                     connectNulls={false}
-                    activeDot={{ r: 5, stroke: "var(--surface)", strokeWidth: 2 }}
+                    activeDot={{
+                      r: 5,
+                      stroke: "var(--surface)",
+                      strokeWidth: 2,
+                    }}
                   />
                 )}
                 <Area
@@ -469,8 +537,8 @@ export function DashboardCharts({
             <h3 className="mb-2 text-sm font-medium text-muted-foreground">
               Доход
             </h3>
-            <div className="h-80 w-full">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-80 min-h-[320px] min-w-0 w-full">
+              <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={300}>
                 <AreaChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis
@@ -509,7 +577,11 @@ export function DashboardCharts({
                         </div>
                       );
                     }}
-                    cursor={{ stroke: "var(--muted)", strokeWidth: 1, strokeDasharray: "3 3" }}
+                    cursor={{
+                      stroke: "var(--muted)",
+                      strokeWidth: 1,
+                      strokeDasharray: "3 3",
+                    }}
                   />
                   <Line
                     type="monotoneX"
@@ -519,7 +591,11 @@ export function DashboardCharts({
                     strokeWidth={2}
                     strokeDasharray="5 5"
                     dot={false}
-                    activeDot={{ r: 5, stroke: "var(--surface)", strokeWidth: 2 }}
+                    activeDot={{
+                      r: 5,
+                      stroke: "var(--surface)",
+                      strokeWidth: 2,
+                    }}
                   />
                   {dataFact && (
                     <Line
@@ -530,7 +606,11 @@ export function DashboardCharts({
                       strokeWidth={2}
                       dot={false}
                       connectNulls={false}
-                      activeDot={{ r: 5, stroke: "var(--surface)", strokeWidth: 2 }}
+                      activeDot={{
+                        r: 5,
+                        stroke: "var(--surface)",
+                        strokeWidth: 2,
+                      }}
                     />
                   )}
                   <Area
@@ -553,8 +633,8 @@ export function DashboardCharts({
             <h3 className="mb-2 text-sm font-medium text-muted-foreground">
               Расход
             </h3>
-            <div className="h-80 w-full">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-80 min-h-[320px] min-w-0 w-full">
+              <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={300}>
                 <AreaChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis
@@ -595,7 +675,11 @@ export function DashboardCharts({
                         </div>
                       );
                     }}
-                    cursor={{ stroke: "var(--muted)", strokeWidth: 1, strokeDasharray: "3 3" }}
+                    cursor={{
+                      stroke: "var(--muted)",
+                      strokeWidth: 1,
+                      strokeDasharray: "3 3",
+                    }}
                   />
                   <Line
                     type="monotoneX"
@@ -605,7 +689,11 @@ export function DashboardCharts({
                     strokeWidth={2}
                     strokeDasharray="5 5"
                     dot={false}
-                    activeDot={{ r: 5, stroke: "var(--surface)", strokeWidth: 2 }}
+                    activeDot={{
+                      r: 5,
+                      stroke: "var(--surface)",
+                      strokeWidth: 2,
+                    }}
                   />
                   {dataFact && (
                     <Line
@@ -616,7 +704,11 @@ export function DashboardCharts({
                       strokeWidth={2}
                       dot={false}
                       connectNulls={false}
-                      activeDot={{ r: 5, stroke: "var(--surface)", strokeWidth: 2 }}
+                      activeDot={{
+                        r: 5,
+                        stroke: "var(--surface)",
+                        strokeWidth: 2,
+                      }}
                     />
                   )}
                   <Area

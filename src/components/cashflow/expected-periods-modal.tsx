@@ -407,13 +407,13 @@ export function ExpectedPeriodsModal({
                 <p className="mb-1 text-xs text-muted-foreground">
                   График отображается при вводе от 3 ожидаемых значений. Дальнейшие месяцы прогнозируются по тренду. Учитываются коэффициенты сезонности.
                 </p>
-                <div className="h-48">
+                <div className="h-48 min-h-[192px] min-w-0">
                 {items.length < 3 && chartLoading ? (
                   <div className="flex h-full items-center justify-center text-muted-foreground">
                     Загрузка графика…
                   </div>
                 ) : (
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={150}>
                     <LineChart
                       data={chartDataDisplay}
                       margin={{ top: 5, right: 5, left: 5, bottom: 5 }}

@@ -75,8 +75,8 @@ export function ForecastChart({
   };
 
   return (
-    <div className="h-80 w-full rounded-lg border border-border bg-surface p-4">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="h-80 min-h-[320px] min-w-0 w-full rounded-lg border border-border bg-surface p-4">
+      <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={300}>
         <ComposedChart data={chartData}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
           <XAxis dataKey="dateShort" stroke="var(--foreground)" fontSize={12} />

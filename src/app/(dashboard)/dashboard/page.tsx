@@ -6,7 +6,7 @@ import { getActiveProfile } from "@/lib/active-profile";
 import Link from "next/link";
 import { getForecastAction } from "@/app/actions/forecast";
 import { DashboardCharts } from "@/components/dashboard/dashboard-charts";
-import { ForecastDebug } from "@/components/dashboard/forecast-debug";
+import { DashboardCalculationLog } from "@/components/dashboard/dashboard-calculation-log";
 import { IncomeLogger } from "@/components/dashboard/income-logger";
 
 export const dynamic = "force-dynamic";
@@ -46,8 +46,25 @@ export default async function DashboardPage() {
     useExpectedData: true,
     returnBoth: true,
   });
-  const forecastExpected = forecastRes?.forecastExpected ?? [];
+  const rawForecastExpected = forecastRes?.forecastExpected ?? [];
   const forecastFactOnly = "forecastFactOnly" in (forecastRes ?? {}) ? forecastRes.forecastFactOnly ?? [] : [];
+
+  const normalizeBalanceFromZero = (data: { date: string; balance: number; inflows: number; outflows: number }[]) => {
+    if (data.length === 0) return data;
+    const balanceAtStart = data[0].balance - data[0].inflows + data[0].outflows;
+    return data.map((d) => ({ ...d, balance: d.balance - balanceAtStart }));
+  };
+  const forecastExpected = normalizeBalanceFromZero(rawForecastExpected);
+
+  const balanceAtStart =
+    rawForecastExpected.length > 0
+      ? rawForecastExpected[0].balance - rawForecastExpected[0].inflows + rawForecastExpected[0].outflows
+      : 0;
+  const forecastFactOnlyNormalized = forecastFactOnly.map((d) =>
+    d.hasFactData && d.balance != null
+      ? { ...d, balance: d.balance - balanceAtStart }
+      : d,
+  );
 
   // Проверяем, ввёл ли пользователь хотя бы одну ожидаемую сумму или данные по месяцам
   const hasEntityExpectedData = [
@@ -97,7 +114,7 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-8">
       <IncomeLogger incomes={profile.regularIncomes.map((i) => ({ id: i.id, name: i.name, amount: i.amount != null ? Number(i.amount) : undefined, avgCheck: i.avgCheck != null ? Number(i.avgCheck) : undefined, frequency: i.frequency, taxes: i.taxes != null ? Number(i.taxes) : undefined }))} />
-      <ForecastDebug profileId={profile.id} />
+      <DashboardCalculationLog profileId={profile.id} />
       <div>
         <h1 className="text-2xl font-bold text-foreground">
           Добро пожаловать, {user.name ?? user.businessName ?? "Пользователь"}!
@@ -143,7 +160,7 @@ export default async function DashboardPage() {
         {forecastExpected.length > 0 ? (
           <DashboardCharts
             dataExpected={forecastExpected}
-            dataFact={forecastFactOnly.length > 0 ? forecastFactOnly : undefined}
+            dataFact={forecastFactOnlyNormalized.length > 0 ? forecastFactOnlyNormalized : undefined}
             currency={profile.currency}
             section="Нынешние"
             showPatternHint

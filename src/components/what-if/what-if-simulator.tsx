@@ -749,8 +749,8 @@ function WhatIfComparisonChart({
   };
 
   return (
-    <div className="h-80 w-full">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="h-80 min-h-[320px] min-w-0 w-full">
+      <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={300}>
         <LineChart data={chartData}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
           <XAxis dataKey="chartKey" stroke="var(--muted)" fontSize={11} tickFormatter={xTickFormatter} />

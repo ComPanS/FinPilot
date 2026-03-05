@@ -167,8 +167,8 @@ export function HistoryModal({
                 <p className="mt-1 text-sm text-muted-foreground">
                   График изменения поля «Сумма» для этой записи
                 </p>
-                <div className="mt-2 h-48">
-                  <ResponsiveContainer width="100%" height="100%">
+                <div className="mt-2 h-48 min-h-[192px] min-w-0">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={150}>
                     <LineChart data={chartData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                       <XAxis dataKey="date" stroke="var(--foreground)" fontSize={11} />

@@ -151,8 +151,8 @@ export function PlannedIndicators({
           <div className="grid w-full grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="min-w-0 rounded-xl border border-border bg-surface p-4">
             <h3 className="mb-2 text-sm font-medium text-muted-foreground">Прибыль по месяцам</h3>
-            <div className="h-80 w-full">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-80 min-h-[320px] min-w-0 w-full">
+              <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={300}>
                 <BarChart data={monthlyData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="month" stroke="var(--muted)" fontSize={11} />
@@ -182,8 +182,8 @@ export function PlannedIndicators({
           </div>
           <div className="min-w-0 rounded-xl border border-border bg-surface p-4">
             <h3 className="mb-2 text-sm font-medium text-muted-foreground">Доход по месяцам</h3>
-            <div className="h-80 w-full">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-80 min-h-[320px] min-w-0 w-full">
+              <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={300}>
                 <BarChart data={monthlyData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="month" stroke="var(--muted)" fontSize={11} />
@@ -207,8 +207,8 @@ export function PlannedIndicators({
           </div>
           <div className="min-w-0 rounded-xl border border-border bg-surface p-4">
             <h3 className="mb-2 text-sm font-medium text-muted-foreground">Расход по месяцам</h3>
-            <div className="h-80 w-full">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-80 min-h-[320px] min-w-0 w-full">
+              <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={300}>
                 <BarChart data={monthlyData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="month" stroke="var(--muted)" fontSize={11} />
