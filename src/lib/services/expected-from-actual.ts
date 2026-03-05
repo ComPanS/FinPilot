@@ -1,9 +1,9 @@
 /**
- * ExpectedFromActual — compute expected daily flows from ActualEntry patterns.
+ * @deprecated Use expected-patterns.ts buildDailyPatternMap instead.
+ * This module is kept for backward compatibility but is no longer used in computeForecast.
  *
+ * ExpectedFromActual — compute expected daily flows from ActualEntry patterns.
  * Uses day-of-week (0–6) and day-of-month (1–31) averages from historical actual data.
- * For future days: applies pattern or fallback to base amount × frequency.
- * No goal of "catching up" to target profit — only pattern extrapolation.
  */
 
 import { prisma } from "@/lib/prisma";

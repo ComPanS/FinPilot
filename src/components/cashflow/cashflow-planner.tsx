@@ -104,6 +104,8 @@ export function CashFlowPlanner({
     forecast: { date: string; balance: number; inflows: number; outflows: number }[];
     zoneGreenMin: number;
     zoneRedMax: number;
+    usedPatterns?: boolean;
+    hasEnoughPatternData?: boolean;
   } | null>(null);
   const [editModal, setEditModal] = useState<{
     entityType: "EXPENSE" | "INCOME" | "MANUAL";
@@ -208,12 +210,14 @@ export function CashFlowPlanner({
   const zoneRedMax = profile.zoneRedMax ?? -50000;
 
   const loadForecast = async () => {
-    const res = await getForecastAction(profile.id, { days: forecastDays });
+    const res = await getForecastAction(profile.id, { days: forecastDays, useExpectedData: true });
     if (res?.forecast) {
       setForecast({
         forecast: res.forecast,
         zoneGreenMin: res.zoneGreenMin ?? zoneGreenMin,
         zoneRedMax: res.zoneRedMax ?? zoneRedMax,
+        usedPatterns: res.usedPatterns,
+        hasEnoughPatternData: res.hasEnoughPatternData,
       });
       await saveForecastSnapshotAction(profile.id, res.forecast);
     }
@@ -982,6 +986,8 @@ export function CashFlowPlanner({
                 data={forecast.forecast}
                 zoneGreenMin={forecast.zoneGreenMin}
                 zoneRedMax={forecast.zoneRedMax}
+                usedPatterns={forecast.usedPatterns}
+                hasEnoughPatternData={forecast.hasEnoughPatternData}
               />
               {redZones.length > 0 && (
                 <div className="rounded-lg border border-danger bg-danger/10 p-4">

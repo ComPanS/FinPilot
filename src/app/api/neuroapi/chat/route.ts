@@ -41,7 +41,7 @@ export async function POST(req: Request) {
     let context: Parameters<typeof askNeuro>[1] = {};
 
     if (profile) {
-      const forecast = await computeForecast(profile.id, {
+      const { forecast } = await computeForecast(profile.id, {
         days: user.subscription?.plan === "FREE" ? 30 : 90,
       });
       const redZones = getRedZones(forecast);

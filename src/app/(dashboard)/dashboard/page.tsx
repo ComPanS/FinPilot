@@ -62,30 +62,26 @@ export default async function DashboardPage() {
 
   let expectedMonth1Expected: { date: string; balance: number; inflows: number; outflows: number }[] = [];
   let expectedMonth2Expected: { date: string; balance: number; inflows: number; outflows: number }[] = [];
-  let expectedMonth1Fact: { date: string; balance: number | null; inflows: number | null; outflows: number | null; hasFactData: boolean }[] = [];
-  let expectedMonth2Fact: { date: string; balance: number | null; inflows: number | null; outflows: number | null; hasFactData: boolean }[] = [];
   let month1Label = "";
   let month2Label = "";
+  let expectedForecastRes: Awaited<ReturnType<typeof getForecastAction>> | null = null;
 
   if (hasAnyExpectedData) {
     const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
     const monthAfterNext = new Date(now.getFullYear(), now.getMonth() + 2, 1);
     const expectedEnd = new Date(now.getFullYear(), now.getMonth() + 3, 0);
     const expectedDays = Math.ceil((expectedEnd.getTime() - nextMonth.getTime()) / (24 * 60 * 60 * 1000)) + 1;
-    const expectedForecastRes = await getForecastAction(profile.id, {
+    expectedForecastRes = await getForecastAction(profile.id, {
       days: Math.max(90, expectedDays + 30),
       useExpectedData: true,
       returnBoth: true,
     });
     const fullExpectedForecastExpected = expectedForecastRes?.forecastExpected ?? [];
-    const fullExpectedForecastFactOnly = "forecastFactOnly" in (expectedForecastRes ?? {}) ? expectedForecastRes.forecastFactOnly ?? [] : [];
     const nextMonthStr = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, "0")}`;
     const monthAfterStr = `${monthAfterNext.getFullYear()}-${String(monthAfterNext.getMonth() + 1).padStart(2, "0")}`;
 
     const rawMonth1Expected = fullExpectedForecastExpected.filter((d) => d.date.startsWith(nextMonthStr));
     const rawMonth2Expected = fullExpectedForecastExpected.filter((d) => d.date.startsWith(monthAfterStr));
-    const rawMonth1Fact = fullExpectedForecastFactOnly.filter((d) => d.date.startsWith(nextMonthStr));
-    const rawMonth2Fact = fullExpectedForecastFactOnly.filter((d) => d.date.startsWith(monthAfterStr));
 
     const normalizeBalanceFromZero = (data: { date: string; balance: number; inflows: number; outflows: number }[]) => {
       if (data.length === 0) return data;
@@ -94,8 +90,6 @@ export default async function DashboardPage() {
     };
     expectedMonth1Expected = normalizeBalanceFromZero(rawMonth1Expected);
     expectedMonth2Expected = normalizeBalanceFromZero(rawMonth2Expected);
-    expectedMonth1Fact = rawMonth1Fact;
-    expectedMonth2Fact = rawMonth2Fact;
     month1Label = nextMonth.toLocaleDateString("ru", { month: "long", year: "numeric" });
     month2Label = monthAfterNext.toLocaleDateString("ru", { month: "long", year: "numeric" });
   }
@@ -152,6 +146,9 @@ export default async function DashboardPage() {
             dataFact={forecastFactOnly.length > 0 ? forecastFactOnly : undefined}
             currency={profile.currency}
             section="Нынешние"
+            showPatternHint
+            usedPatterns={forecastRes?.usedPatterns}
+            hasEnoughPatternData={forecastRes?.hasEnoughPatternData}
           />
         ) : (
           <p className="text-sm text-muted-foreground">
@@ -169,9 +166,11 @@ export default async function DashboardPage() {
                 <h3 className="mb-4 text-base font-medium text-foreground capitalize">{month1Label}</h3>
                 <DashboardCharts
                   dataExpected={expectedMonth1Expected}
-                  dataFact={expectedMonth1Fact.length > 0 ? expectedMonth1Fact : undefined}
                   currency={profile.currency}
                   section={month1Label}
+                  showPatternHint
+                  usedPatterns={expectedForecastRes?.usedPatterns}
+                  hasEnoughPatternData={expectedForecastRes?.hasEnoughPatternData}
                 />
               </div>
             )}
@@ -180,9 +179,11 @@ export default async function DashboardPage() {
                 <h3 className="mb-4 text-base font-medium text-foreground capitalize">{month2Label}</h3>
                 <DashboardCharts
                   dataExpected={expectedMonth2Expected}
-                  dataFact={expectedMonth2Fact.length > 0 ? expectedMonth2Fact : undefined}
                   currency={profile.currency}
                   section={month2Label}
+                  showPatternHint
+                  usedPatterns={expectedForecastRes?.usedPatterns}
+                  hasEnoughPatternData={expectedForecastRes?.hasEnoughPatternData}
                 />
               </div>
             )}

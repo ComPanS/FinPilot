@@ -26,7 +26,7 @@ export function monthKey(date: Date): string {
 export function dailyAmountFromFrequency(
   freq: string,
   amount: number,
-  customDays?: number | null
+  customDays?: number | null,
 ): number {
   switch (freq) {
     case "DAILY":
@@ -53,7 +53,7 @@ export function dailyAmountFromFrequency(
 export function dailyAmountFromMonthlyTotal(
   monthlyAmount: number,
   date: Date,
-  freq?: string
+  freq?: string,
 ): number {
   const days = daysInMonth(date);
   if (days <= 0) return 0;
@@ -63,7 +63,7 @@ export function dailyAmountFromMonthlyTotal(
 
 export function getSeasonalMultiplier(
   seasonalMultiplier: Record<string, number> | null | undefined,
-  date: Date
+  date: Date,
 ): number {
   if (!seasonalMultiplier || typeof seasonalMultiplier !== "object") return 1.0;
   const monthStr = String(date.getMonth() + 1).padStart(2, "0");
@@ -80,18 +80,28 @@ export type EntityWithExpected = (RegularExpense | RegularIncome) & {
  * Batch-fetch ExpectedEntry for profile and date range.
  * Returns Map<entityId, Map<period, amount>> for EXPENSE/INCOME,
  * and monthly totals for MONTHLY_TOTAL.
+ * Supports both month keys (YYYY-MM) and date keys (YYYY-MM-DD) for daily ExpectedEntry.
  */
 export async function fetchExpectedEntriesBatch(
   profileId: string,
   monthKeys: string[],
-  entityIds?: string[]
+  entityIds?: string[],
+  dateKeys?: string[],
 ) {
+  const allPeriods = [...monthKeys, ...(dateKeys ?? [])];
+  if (allPeriods.length === 0) {
+    return {
+      byEntity: new Map<string, Map<string, number>>(),
+      monthlyTotal: new Map<string, { income: number; expense: number }>(),
+    };
+  }
+
   const entries = await prisma.expectedEntry.findMany({
     where:
       entityIds && entityIds.length > 0
         ? {
             profileId,
-            period: { in: monthKeys },
+            period: { in: allPeriods },
             OR: [
               { entityId: { in: entityIds } },
               { entityType: "MONTHLY_TOTAL" },
@@ -99,7 +109,7 @@ export async function fetchExpectedEntriesBatch(
           }
         : {
             profileId,
-            period: { in: monthKeys },
+            period: { in: allPeriods },
           },
   });
 
@@ -138,7 +148,7 @@ export function getEffectiveMonthlyAmount(
   baseAmount: number,
   expectedByEntity: Map<string, number> | undefined,
   expectedDataJson: Record<string, number> | null | undefined,
-  useExpectedData: boolean
+  useExpectedData: boolean,
 ): number {
   if (!useExpectedData) return baseAmount;
 
@@ -165,7 +175,7 @@ export function getEffectiveDailyAmountForMonth(
   date: Date,
   monthlyAmount: number,
   isIncome: boolean,
-  taxPct?: number
+  taxPct?: number,
 ): number {
   const days = daysInMonth(date);
   if (days <= 0) return 0;
@@ -177,9 +187,96 @@ export function getEffectiveDailyAmountForMonth(
 
   const seasonal = getSeasonalMultiplier(
     entity.seasonalMultiplier as Record<string, number> | null | undefined,
-    date
+    date,
   );
   amount *= seasonal;
 
   return amount / days;
+}
+
+export type PatternFactors = {
+  weekdayFactor: number;
+  monthDayFactor: number;
+  monthFactor: number;
+};
+
+/**
+ * Get effective daily amount with pattern factors.
+ * Priority: 1) ExpectedEntry (day/month), 2) expectedData JSON, 3) patternMap, 4) seasonalMultiplier, 5) dailyAmountFromFrequency.
+ */
+export function getEffectiveDailyAmountWithPatterns(
+  entity: EntityWithExpected,
+  dateKey: string,
+  date: Date,
+  flowType: "IN" | "OUT",
+  patternMap: Map<
+    string,
+    { inflow: PatternFactors; outflow: PatternFactors }
+  > | null,
+  baseAmount: number,
+  expectedByEntity: Map<string, number> | undefined,
+  expectedDataJson: Record<string, number> | null | undefined,
+  usePatterns: boolean,
+  useExpectedData: boolean,
+  freq: string,
+  customDays?: number | null,
+  taxPct?: number,
+): number {
+  const mk = monthKey(date);
+  const days = daysInMonth(date);
+
+  // 1. ExpectedEntry for dateKey (exact day) — return as daily amount
+  const fromDay = expectedByEntity?.get(dateKey);
+  if (fromDay != null && !Number.isNaN(fromDay) && useExpectedData) {
+    const amt =
+      flowType === "IN" && taxPct != null && taxPct > 0
+        ? fromDay * (1 - taxPct / 100)
+        : fromDay;
+    return amt;
+  }
+
+  // 2. ExpectedEntry for monthKey or expectedData JSON — distribute by days
+  const fromMonth = expectedByEntity?.get(mk);
+  const fromJson = expectedDataJson?.[mk];
+  const monthlyAmount =
+    fromMonth != null && !Number.isNaN(fromMonth) && useExpectedData
+      ? fromMonth
+      : fromJson != null && !Number.isNaN(fromJson)
+        ? fromJson
+        : null;
+
+  if (monthlyAmount != null && days > 0) {
+    const amt =
+      flowType === "IN" && taxPct != null && taxPct > 0
+        ? monthlyAmount * (1 - taxPct / 100)
+        : monthlyAmount;
+    const seasonal = getSeasonalMultiplier(
+      entity.seasonalMultiplier as Record<string, number> | null | undefined,
+      date,
+    );
+    return (amt * seasonal) / days;
+  }
+
+  // 3. patternMap factors
+  const baseDaily = dailyAmountFromFrequency(freq, baseAmount, customDays);
+  const seasonal = getSeasonalMultiplier(
+    entity.seasonalMultiplier as Record<string, number> | null | undefined,
+    date,
+  );
+  let effectiveDaily = baseDaily * seasonal;
+
+  if (usePatterns && patternMap) {
+    const entry = patternMap.get(dateKey);
+    if (entry) {
+      const factors = flowType === "IN" ? entry.inflow : entry.outflow;
+      effectiveDaily *=
+        factors.weekdayFactor * factors.monthDayFactor * factors.monthFactor;
+    }
+  }
+
+  if (flowType === "IN" && taxPct != null && taxPct > 0) {
+    effectiveDaily *= 1 - taxPct / 100;
+  }
+
+  return effectiveDaily;
 }

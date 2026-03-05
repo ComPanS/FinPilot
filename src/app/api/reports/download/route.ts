@@ -39,7 +39,7 @@ export async function GET(req: Request) {
   }
 
   const profile = user.profiles.find((p) => p.id === profileId)!;
-  const forecast = await computeForecast(profileId, { days });
+  const { forecast } = await computeForecast(profileId, { days });
 
   const Doc = () =>
     React.createElement(

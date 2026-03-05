@@ -25,7 +25,7 @@ export async function generateReportAction(
   }
 
   const profile = user.profiles.find((p) => p.id === profileId)!;
-  const forecast = await computeForecast(profileId, { days: options.days });
+  const { forecast } = await computeForecast(profileId, { days: options.days });
 
   if (options.format === "excel") {
     const workbook = new ExcelJS.Workbook();

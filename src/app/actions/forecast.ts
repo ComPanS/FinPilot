@@ -27,6 +27,8 @@ export async function getForecastAction(
     changes?: WhatIfChanges;
     useExpectedData?: boolean;
     useActualData?: boolean;
+    usePatterns?: boolean;
+    patternLookbackMonths?: number;
     returnBoth?: boolean;
   },
 ) {
@@ -61,29 +63,35 @@ export async function getForecastAction(
     zoneGreenMin: profile.zoneGreenMin ?? 50000,
     zoneRedMax: profile.zoneRedMax ?? -50000,
     useExpectedData: options?.useExpectedData,
+    usePatterns: options?.usePatterns ?? true,
+    patternLookbackMonths: options?.patternLookbackMonths ?? 12,
   };
 
   if (options?.returnBoth) {
-    const [forecastExpected, forecastFactOnly] = await Promise.all([
-      computeForecast(profileId, { ...baseOpts, useActualData: false }),
+    const [forecastRes, forecastFactOnly] = await Promise.all([
+      computeForecast(profileId, { ...baseOpts, useActualData: true }),
       computeForecastActualOnly(profileId, { days, startDate }),
     ]);
     return {
-      forecast: forecastExpected,
-      forecastExpected,
+      forecast: forecastRes.forecast,
+      forecastExpected: forecastRes.forecast,
       forecastFactOnly,
       zoneGreenMin: profile.zoneGreenMin ?? 50000,
       zoneRedMax: profile.zoneRedMax ?? -50000,
+      usedPatterns: forecastRes.usedPatterns,
+      hasEnoughPatternData: forecastRes.hasEnoughPatternData,
     };
   }
 
-  const forecast = await computeForecast(profileId, {
+  const forecastRes = await computeForecast(profileId, {
     ...baseOpts,
     useActualData: options?.useActualData,
   });
   return {
-    forecast,
+    forecast: forecastRes.forecast,
     zoneGreenMin: profile.zoneGreenMin ?? 50000,
     zoneRedMax: profile.zoneRedMax ?? -50000,
+    usedPatterns: forecastRes.usedPatterns,
+    hasEnoughPatternData: forecastRes.hasEnoughPatternData,
   };
 }
