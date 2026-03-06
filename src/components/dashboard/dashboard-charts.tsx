@@ -382,7 +382,7 @@ export function DashboardCharts({
                     name="Факт"
                     stroke="var(--success)"
                     strokeWidth={2}
-                    dot={false}
+                    dot={{ r: 4, fill: "var(--success)", stroke: "var(--surface)", strokeWidth: 2 }}
                     connectNulls={false}
                     activeDot={{
                       r: 5,
@@ -501,7 +501,7 @@ export function DashboardCharts({
                     name="Факт"
                     stroke="var(--success)"
                     strokeWidth={2}
-                    dot={false}
+                    dot={{ r: 4, fill: "var(--success)", stroke: "var(--surface)", strokeWidth: 2 }}
                     connectNulls={false}
                     activeDot={{
                       r: 5,
@@ -609,7 +609,7 @@ export function DashboardCharts({
                       name="Факт"
                       stroke="var(--success)"
                       strokeWidth={2}
-                      dot={false}
+                      dot={{ r: 4, fill: "var(--success)", stroke: "var(--surface)", strokeWidth: 2 }}
                       connectNulls={false}
                       activeDot={{
                         r: 5,
@@ -706,7 +706,7 @@ export function DashboardCharts({
                       name="Факт"
                       stroke="var(--danger)"
                       strokeWidth={2}
-                      dot={false}
+                      dot={{ r: 4, fill: "var(--danger)", stroke: "var(--surface)", strokeWidth: 2 }}
                       connectNulls={false}
                       activeDot={{
                         r: 5,
