@@ -157,7 +157,7 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      <section className="space-y-4">
+      <section className="space-y-4" data-tour-id="section-charts">
         <h2 className="text-lg font-semibold text-foreground">Нынешние</h2>
         {forecastExpected.length > 0 ? (
           <DashboardCharts

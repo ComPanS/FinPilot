@@ -15,22 +15,24 @@ datasource db {
 
 // ============ Auth.js (NextAuth) ============
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
+  id            String    @id @default(cuid())
+  email         String    @unique
   emailVerified DateTime?
-  name         String?
-  image        String?
-  password     String?   // bcrypt hash for Credentials provider
-  consentAt    DateTime? // 152-ФЗ, GDPR consent
-  weeklyReport Boolean   @default(false)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  name          String?
+  image         String?
+  password      String? // bcrypt hash for Credentials provider
+  businessName  String? // optional, from onboarding
+  consentAt     DateTime? // 152-ФЗ, GDPR consent
+  weeklyReport  Boolean   @default(false)
+  tourCompleted Boolean  @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  accounts         Account[]
-  sessions         Session[]
-  profiles         CashFlowProfile[]
-  subscription     Subscription?
-  aiRequests       AIRequest[]
+  accounts     Account[]
+  sessions     Session[]
+  profiles     CashFlowProfile[]
+  subscription Subscription?
+  aiRequests   AIRequest[]
 }
 
 model Account {
@@ -95,41 +97,41 @@ model PasswordResetToken {
 
 // ============ Core Business ============
 model CashFlowProfile {
-  id        String   @id @default(cuid())
-  userId    String
-  name      String
-  currency  String   @default("RUB")
-  zoneGreenMin   Int @default(50000)   // баланс >= это = зелёная зона
-  zoneRedMax     Int @default(-50000)  // баланс < это = красная зона
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(cuid())
+  userId       String
+  name         String
+  currency     String   @default("RUB")
+  zoneGreenMin Int      @default(50000) // баланс >= это = зелёная зона
+  zoneRedMax   Int      @default(-50000) // баланс < это = красная зона
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  regularExpenses     RegularExpense[]
-  regularIncomes      RegularIncome[]
-  manualTransactions  ManualTransaction[]
-  monthlyData         ProfileMonthlyData[]
-  expectedEntries     ExpectedEntry[]
-  actualEntries       ActualEntry[]
-  scenarios           WhatIfScenario[]
-  forecasts           Forecast[]
-  cashFlowHistory     CashFlowHistory[]
-  forecastSnapshots   ForecastSnapshot[]
+  user               User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  regularExpenses    RegularExpense[]
+  regularIncomes     RegularIncome[]
+  manualTransactions ManualTransaction[]
+  monthlyData        ProfileMonthlyData[]
+  expectedEntries    ExpectedEntry[]
+  actualEntries      ActualEntry[]
+  scenarios          WhatIfScenario[]
+  forecasts          Forecast[]
+  cashFlowHistory    CashFlowHistory[]
+  forecastSnapshots  ForecastSnapshot[]
 
   @@index([userId])
 }
 
 model ExpectedEntry {
-  id          String   @id @default(cuid())
-  profileId   String
-  entityType  String   // "EXPENSE" | "INCOME" | "MONTHLY_TOTAL"
-  entityId    String?  // null for MONTHLY_TOTAL
-  period      String   // "2025-03" or "2025-03-15"
-  amount      Decimal  @db.Decimal(14, 2)
-  confidence  Float?   @default(1.0) // 0.0-1.0 for AI forecasts
-  source      String   @default("MANUAL") // MANUAL | AUTO_HISTORICAL | AI | SALES_PLAN
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  profileId  String
+  entityType String // "EXPENSE" | "INCOME" | "MONTHLY_TOTAL"
+  entityId   String? // null for MONTHLY_TOTAL
+  period     String // "2025-03" or "2025-03-15"
+  amount     Decimal  @db.Decimal(14, 2)
+  confidence Float?   @default(1.0) // 0.0-1.0 for AI forecasts
+  source     String   @default("MANUAL") // MANUAL | AUTO_HISTORICAL | AI | SALES_PLAN
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   profile CashFlowProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
@@ -141,9 +143,9 @@ model ExpectedEntry {
 model ActualEntry {
   id         String   @id @default(cuid())
   profileId  String
-  entityType String   // "EXPENSE" | "INCOME"
-  entityId   String   // RegularExpense.id | RegularIncome.id
-  period     String   // YYYY-MM | YYYY-MM-DD | "YYYY-MM-DD:YYYY-MM-DD"
+  entityType String // "EXPENSE" | "INCOME"
+  entityId   String // RegularExpense.id | RegularIncome.id
+  period     String // YYYY-MM | YYYY-MM-DD | "YYYY-MM-DD:YYYY-MM-DD"
   amount     Decimal  @db.Decimal(14, 2)
   createdAt  DateTime @default(now())
 
@@ -157,9 +159,9 @@ model ActualEntry {
 model ProfileMonthlyData {
   id        String   @id @default(cuid())
   profileId String
-  month     String   // YYYY-MM
-  income    Decimal  @db.Decimal(14, 2)  // доход за месяц
-  expense   Decimal  @db.Decimal(14, 2)  // расход за месяц
+  month     String // YYYY-MM
+  income    Decimal  @db.Decimal(14, 2) // доход за месяц
+  expense   Decimal  @db.Decimal(14, 2) // расход за месяц
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -172,11 +174,11 @@ model ProfileMonthlyData {
 model CashFlowHistory {
   id         String   @id @default(cuid())
   profileId  String
-  entityType String  // EXPENSE, INCOME, MANUAL
+  entityType String // EXPENSE, INCOME, MANUAL
   entityId   String
-  action     String  // create, update, delete
-  oldData    Json?   // состояние до изменения
-  newData    Json?   // состояние после
+  action     String // create, update, delete
+  oldData    Json? // состояние до изменения
+  newData    Json? // состояние после
   createdAt  DateTime @default(now())
 
   profile CashFlowProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
@@ -189,7 +191,7 @@ model ForecastSnapshot {
   id           String   @id @default(cuid())
   profileId    String
   snapshotDate DateTime
-  forecastData Json     // [{date, balance, inflows, outflows}]
+  forecastData Json // [{date, balance, inflows, outflows}]
   createdAt    DateTime @default(now())
 
   profile CashFlowProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
@@ -205,7 +207,7 @@ model ExpenseCategory {
   userId   String? // null = predefined
   isSystem Boolean @default(true)
 
-  expenses             RegularExpense[]
+  expenses              RegularExpense[]
   manualTransactionsOut ManualTransaction[] @relation("ManualTransactionExpenseCategory")
 
   @@index([userId])
@@ -225,62 +227,62 @@ model IncomeCategory {
 }
 
 model RegularExpense {
-  id           String   @id @default(cuid())
-  profileId    String
-  categoryId   String
-  name         String
-  amount       Decimal  @db.Decimal(14, 2)
-  frequency    String   // MONTHLY, QUARTERLY, YEARLY, WEEKLY, DAILY, CUSTOM
-  customDays   Int?     // used when frequency is CUSTOM
-  startDate    DateTime
-  expectedData Json?    // { "YYYY-MM": number } optional user-entered expected amounts per month (deprecated, use ExpectedEntry)
+  id                 String   @id @default(cuid())
+  profileId          String
+  categoryId         String
+  name               String
+  amount             Decimal  @db.Decimal(14, 2)
+  frequency          String // MONTHLY, QUARTERLY, YEARLY, WEEKLY, DAILY, CUSTOM
+  customDays         Int? // used when frequency is CUSTOM
+  startDate          DateTime
+  expectedData       Json? // { "YYYY-MM": number } optional user-entered expected amounts per month (deprecated, use ExpectedEntry)
   seasonalMultiplier Json? // { "03": 1.2, "12": 0.8 } for seasonality by month
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
-  profile  CashFlowProfile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  category ExpenseCategory  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  profile  CashFlowProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  category ExpenseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
 
   @@index([profileId])
 }
 
 model RegularIncome {
-  id              String    @id @default(cuid())
-  profileId       String
-  name            String
-  amount          Decimal?  @db.Decimal(14, 2)  // sum per occurrence (preferred over avgCheck)
-  avgCheck        Decimal?  @db.Decimal(14, 2)  // deprecated, use amount
-  taxes           Decimal?  @db.Decimal(14, 2) // налоги (по умолчанию 0)
-  salesPlan       Json?     // { "1": number, ... } optional monthly plan
-  frequency       String    @default("MONTHLY") // MONTHLY, QUARTERLY, YEARLY, WEEKLY, DAILY, CUSTOM
-  customDays      Int?      // used when frequency is CUSTOM
-  categoryId      String?   // FK to IncomeCategory (kept for backward compat, maps to income category)
-  startDate       DateTime? // for frequency-based distribution
-  expectedData    Json?     // { "YYYY-MM": number } optional user-entered expected amounts per month (deprecated, use ExpectedEntry)
-  seasonalMultiplier Json?   // { "03": 1.2, "12": 0.8 } for seasonality by month
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id                 String    @id @default(cuid())
+  profileId          String
+  name               String
+  amount             Decimal?  @db.Decimal(14, 2) // sum per occurrence (preferred over avgCheck)
+  avgCheck           Decimal?  @db.Decimal(14, 2) // deprecated, use amount
+  taxes              Decimal?  @db.Decimal(14, 2) // налоги (по умолчанию 0)
+  salesPlan          Json? // { "1": number, ... } optional monthly plan
+  frequency          String    @default("MONTHLY") // MONTHLY, QUARTERLY, YEARLY, WEEKLY, DAILY, CUSTOM
+  customDays         Int? // used when frequency is CUSTOM
+  categoryId         String? // FK to IncomeCategory (kept for backward compat, maps to income category)
+  startDate          DateTime? // for frequency-based distribution
+  expectedData       Json? // { "YYYY-MM": number } optional user-entered expected amounts per month (deprecated, use ExpectedEntry)
+  seasonalMultiplier Json? // { "03": 1.2, "12": 0.8 } for seasonality by month
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
-  profile  CashFlowProfile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  category IncomeCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  profile  CashFlowProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  category IncomeCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   @@index([profileId])
 }
 
 model ManualTransaction {
-  id              String   @id @default(cuid())
-  profileId       String
+  id                String   @id @default(cuid())
+  profileId         String
   expenseCategoryId String? // для type=OUT
   incomeCategoryId  String? // для type=IN
-  date            DateTime
-  type            String   // IN, OUT
-  amount          Decimal  @db.Decimal(14, 2)
-  taxes           Decimal? @db.Decimal(14, 2) // налоги (по умолчанию 0)
-  description     String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  date              DateTime
+  type              String // IN, OUT
+  amount            Decimal  @db.Decimal(14, 2)
+  taxes             Decimal? @db.Decimal(14, 2) // налоги (по умолчанию 0)
+  description       String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  profile   CashFlowProfile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profile         CashFlowProfile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
   expenseCategory ExpenseCategory? @relation("ManualTransactionExpenseCategory", fields: [expenseCategoryId], references: [id], onDelete: SetNull)
   incomeCategory  IncomeCategory?  @relation("ManualTransactionIncomeCategory", fields: [incomeCategoryId], references: [id], onDelete: SetNull)
 
@@ -289,11 +291,11 @@ model ManualTransaction {
 }
 
 model WhatIfScenario {
-  id         String   @id @default(cuid())
-  profileId  String
-  name       String
+  id          String   @id @default(cuid())
+  profileId   String
+  name        String
   changesJson Json
-  createdAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
 
   profile CashFlowProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
@@ -301,11 +303,11 @@ model WhatIfScenario {
 }
 
 model Forecast {
-  id              String   @id @default(cuid())
-  profileId       String
-  date            DateTime
-  projectedBalance Decimal @db.Decimal(14, 2)
-  actualBalance   Decimal? @db.Decimal(14, 2)
+  id               String   @id @default(cuid())
+  profileId        String
+  date             DateTime
+  projectedBalance Decimal  @db.Decimal(14, 2)
+  actualBalance    Decimal? @db.Decimal(14, 2)
 
   profile CashFlowProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
@@ -316,15 +318,15 @@ model Forecast {
 
 // ============ Billing ============
 model Subscription {
-  id                   String    @id @default(cuid())
-  userId               String    @unique
-  plan                 String    // FREE, PRO, BUSINESS
-  status               String    // active, canceled, past_due
-  yookassaPaymentId    String?
+  id                      String    @id @default(cuid())
+  userId                  String    @unique
+  plan                    String // FREE, PRO, BUSINESS
+  status                  String // active, canceled, past_due
+  yookassaPaymentId       String?
   yookassaPaymentMethodId String?
-  currentPeriodEnd     DateTime?
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime @updatedAt
+  currentPeriodEnd        DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

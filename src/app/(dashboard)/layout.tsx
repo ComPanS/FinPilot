@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getActiveProfile, getActiveProfileId } from "@/lib/active-profile";
 import { DashboardNav } from "@/components/layout/dashboard-nav";
+import { TourWrapper } from "@/components/tour/TourWrapper";
 
 export default async function DashboardLayout({
   children,
@@ -24,13 +25,15 @@ export default async function DashboardLayout({
   const activeProfileId = getActiveProfileId(cookieStore) ?? activeProfile?.id ?? null;
 
   return (
-    <div className="min-h-screen bg-background">
-      <DashboardNav
-        user={session.user}
-        profiles={user.profiles}
-        activeProfileId={activeProfileId}
-      />
-      <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
-    </div>
+    <TourWrapper tourCompleted={user.tourCompleted}>
+      <div className="min-h-screen bg-background">
+        <DashboardNav
+          user={session.user}
+          profiles={user.profiles}
+          activeProfileId={activeProfileId}
+        />
+        <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+      </div>
+    </TourWrapper>
   );
 }

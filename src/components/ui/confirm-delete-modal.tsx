@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useModalBodyClass } from "@/hooks/use-modal-body-class";
 
 export function ConfirmDeleteModal({
   title = "Подтверждение удаления",
@@ -13,6 +14,8 @@ export function ConfirmDeleteModal({
   onConfirm: () => void | Promise<void>;
   onCancel: () => void;
 }) {
+  useModalBodyClass();
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => e.key === "Escape" && onCancel();
     window.addEventListener("keydown", handler);
@@ -26,7 +29,7 @@ export function ConfirmDeleteModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="modal-overlay fixed inset-0 flex items-center justify-center bg-black/50 p-4"
       onClick={onCancel}
       role="button"
       tabIndex={0}

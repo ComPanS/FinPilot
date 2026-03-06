@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useModalBodyClass } from "@/hooks/use-modal-body-class";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -61,6 +62,8 @@ export function EditModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
+  useModalBodyClass();
+
   const expenseForm = useForm<z.infer<typeof expenseSchema>>({
     resolver: zodResolver(expenseSchema),
     defaultValues:
@@ -159,7 +162,7 @@ export function EditModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="modal-overlay fixed inset-0 flex items-center justify-center bg-black/50 p-4"
       onClick={onClose}
       role="button"
       tabIndex={0}

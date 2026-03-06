@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useModalBodyClass } from "@/hooks/use-modal-body-class";
 
 const monthNames = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
 
@@ -23,6 +24,8 @@ export function EditMonthlyModal({
   const [expenseVal, setExpenseVal] = useState(String(expense));
   const [saving, setSaving] = useState(false);
 
+  useModalBodyClass();
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", handler);
@@ -43,7 +46,7 @@ export function EditMonthlyModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="modal-overlay fixed inset-0 flex items-center justify-center bg-black/50 p-4"
       onClick={onClose}
       role="button"
       tabIndex={0}

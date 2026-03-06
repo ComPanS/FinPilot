@@ -27,7 +27,7 @@ export default async function InsightsPage() {
   });
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" data-tour-id="insights-page">
       <div>
         <h1 className="text-2xl font-bold text-foreground">ИИ-ассистент</h1>
         <p className="mt-1 text-muted-foreground">

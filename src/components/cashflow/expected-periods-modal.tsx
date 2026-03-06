@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useModalBodyClass } from "@/hooks/use-modal-body-class";
 import {
   LineChart,
   Line,
@@ -76,6 +77,8 @@ export function ExpectedPeriodsModal({
   const [seasonalMultiplier, setSeasonalMultiplier] = useState<Record<string, string>>({});
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editAmount, setEditAmount] = useState("");
+
+  useModalBodyClass();
 
   const existingData = addMode
     ? initialData
@@ -321,7 +324,7 @@ export function ExpectedPeriodsModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/50 p-4"
+      className="modal-overlay fixed inset-0 flex cursor-pointer items-center justify-center bg-black/50 p-4"
       onClick={onClose}
       role="button"
       tabIndex={0}

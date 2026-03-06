@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ActualDataModal } from "./actual-data-modal";
+import { emitTourAction } from "@/components/tour/useTourAction";
 import type { Prisma } from "@prisma/client";
 
 type Profile = Prisma.CashFlowProfileGetPayload<{
@@ -47,6 +48,7 @@ export function FactPage({
     : "Кастомный";
 
   const onSuccess = () => {
+    emitTourAction("add_fact_data");
     router.refresh();
   };
 
@@ -85,13 +87,14 @@ export function FactPage({
               </tr>
             </thead>
             <tbody>
-              {profile.regularExpenses.map((e) => (
+              {profile.regularExpenses.map((e, i) => (
                 <tr key={e.id} className="border-b border-border">
                   <td className="p-2">{e.name}</td>
                   <td className="p-2">{Number(e.amount)} {currency}</td>
                   <td className="p-2">{freqLabel(e.frequency, e.customDays)}</td>
                   <td className="p-2">
                     <button
+                      data-tour-id={i === 0 ? "btn-actual-data" : undefined}
                       onClick={() => setActualModal({ entityType: "EXPENSE", entity: e })}
                       className="cursor-pointer text-primary hover:underline"
                     >
@@ -122,13 +125,14 @@ export function FactPage({
               </tr>
             </thead>
             <tbody>
-              {profile.regularIncomes.map((i) => (
+              {profile.regularIncomes.map((i, idx) => (
                 <tr key={i.id} className="border-b border-border">
                   <td className="p-2">{i.name}</td>
                   <td className="p-2">{Number(i.amount ?? i.avgCheck ?? 0)} {currency}</td>
                   <td className="p-2">{incomeFreqLabel(i.frequency ?? "MONTHLY", i.customDays)}</td>
                   <td className="p-2">
                     <button
+                      data-tour-id={profile.regularExpenses.length === 0 && idx === 0 ? "btn-actual-data" : undefined}
                       onClick={() => setActualModal({ entityType: "INCOME", entity: i })}
                       className="cursor-pointer text-primary hover:underline"
                     >

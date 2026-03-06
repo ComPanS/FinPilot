@@ -95,7 +95,7 @@ export default async function WhatIfPage() {
   const serializedProfile = serializeProfile(profile);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" data-tour-id="what-if-page">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Режим «Что если»</h1>
         <p className="mt-1 text-muted-foreground">

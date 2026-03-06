@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useModalBodyClass } from "@/hooks/use-modal-body-class";
 import { Pencil } from "lucide-react";
 import { saveActualEntry, deleteActualEntry, getActualEntriesForEntity } from "@/app/actions/actual-data";
 import { formatDateDdMmYyyy } from "@/lib/date-utils";
@@ -121,6 +122,8 @@ export function ActualDataModal({
   const [saving, setSaving] = useState(false);
   const [editingItem, setEditingItem] = useState<{ period: string; amount: number } | null>(null);
   const router = useRouter();
+
+  useModalBodyClass();
 
   useEffect(() => {
     let cancelled = false;
@@ -297,7 +300,7 @@ export function ActualDataModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/50 p-4"
+      className="modal-overlay fixed inset-0 flex cursor-pointer items-center justify-center bg-black/50 p-4"
       onClick={onClose}
       role="button"
       tabIndex={0}

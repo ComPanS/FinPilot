@@ -23,7 +23,7 @@ export default async function ReportsPage() {
   const canExportPDF = user.subscription?.plan !== "FREE";
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" data-tour-id="reports-page">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Отчёты</h1>
         <p className="mt-1 text-muted-foreground">

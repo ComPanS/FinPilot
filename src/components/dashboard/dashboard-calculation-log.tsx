@@ -64,7 +64,7 @@ export function DashboardCalculationLog({ profileId }: Props) {
           )}
           {fullData && !loading && (
             <div className="space-y-4">
-              {"debugState" in fullData && fullData.debugState && (
+              {"debugState" in fullData && Boolean(fullData.debugState) && (
                 <div className="rounded border border-border bg-muted/30 p-3">
                   <h4 className="mb-2 text-xs font-semibold text-foreground">
                     Диагностика: monthlyByMonth, источник, первые 3 дня

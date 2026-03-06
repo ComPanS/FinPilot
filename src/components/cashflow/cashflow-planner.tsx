@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -31,6 +31,8 @@ import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
 import { ExpectedPeriodsModal } from "./expected-periods-modal";
 import { parseCashFlowTextAction } from "@/app/actions/ai-cashflow";
 import { parseExcelAndImportAction } from "@/app/actions/excel-import";
+import { emitTourAction } from "@/components/tour/useTourAction";
+import { TOUR_SWITCH_TAB_EVENT } from "@/lib/tour/steps";
 import { FileSpreadsheet, Loader2 } from "lucide-react";
 import { formatDateDdMmYyyy, formatDateToDdMmYyyy } from "@/lib/date-utils";
 import type { Prisma } from "@prisma/client";
@@ -142,6 +144,17 @@ export function CashFlowPlanner({
   const [expenseSort, setExpenseSort] = useState<{ key: ExpenseSortKey; dir: "asc" | "desc" }>({ key: "updatedAt", dir: "desc" });
   const [incomeSort, setIncomeSort] = useState<{ key: IncomeSortKey; dir: "asc" | "desc" }>({ key: "updatedAt", dir: "desc" });
   const [manualSort, setManualSort] = useState<{ key: ManualSortKey; dir: "asc" | "desc" }>({ key: "updatedAt", dir: "desc" });
+
+  useEffect(() => {
+    const handler = (e: CustomEvent<{ tab: string }>) => {
+      const tab = e.detail?.tab;
+      if (tab === "expenses" || tab === "incomes" || tab === "manual" || tab === "months") {
+        setActiveTab(tab);
+      }
+    };
+    window.addEventListener(TOUR_SWITCH_TAB_EVENT, handler as EventListener);
+    return () => window.removeEventListener(TOUR_SWITCH_TAB_EVENT, handler as EventListener);
+  }, []);
 
   const toggleExpenseSort = (key: ExpenseSortKey) =>
     setExpenseSort((prev) => ({ key, dir: prev.key === key && prev.dir === "desc" ? "asc" : "desc" }));
@@ -286,7 +299,7 @@ export function CashFlowPlanner({
       categoryId = res.category!.id;
     }
     const expectedData = addFormExpectedData?.entityType === "EXPENSE" ? addFormExpectedData.data : undefined;
-    await createExpense({
+    const expRes = await createExpense({
       profileId: profile.id,
       name: data.name,
       amount: data.amount,
@@ -295,6 +308,7 @@ export function CashFlowPlanner({
       customDays: data.frequency === "CUSTOM" ? data.customDays : undefined,
       expectedData: expectedData && Object.keys(expectedData).length > 0 ? expectedData : undefined,
     });
+    if (!expRes?.error) emitTourAction("add_regular_expense");
     expenseForm.reset();
     setCustomCategoryName("");
     setAddFormExpectedData(null);
@@ -321,7 +335,7 @@ export function CashFlowPlanner({
       categoryId = res.category!.id;
     }
     const expectedData = addFormExpectedData?.entityType === "INCOME" ? addFormExpectedData.data : undefined;
-    await createIncome({
+    const incRes = await createIncome({
       profileId: profile.id,
       name: data.name,
       amount: data.amount,
@@ -331,6 +345,7 @@ export function CashFlowPlanner({
       customDays: data.frequency === "CUSTOM" ? data.customDays : undefined,
       expectedData: expectedData && Object.keys(expectedData).length > 0 ? expectedData : undefined,
     });
+    if (!incRes?.error) emitTourAction("add_regular_income");
     incomeForm.reset();
     setCustomIncomeCategoryName("");
     setAddFormExpectedData(null);
@@ -339,7 +354,7 @@ export function CashFlowPlanner({
   });
 
   const onAddManual = manualForm.handleSubmit(async (data) => {
-    await createManualTransaction({
+    const manualRes = await createManualTransaction({
       profileId: profile.id,
       date: new Date(data.date),
       type: data.type as "IN" | "OUT",
@@ -349,6 +364,7 @@ export function CashFlowPlanner({
       expenseCategoryId: data.type === "OUT" ? (data.expenseCategoryId || undefined) : undefined,
       incomeCategoryId: data.type === "IN" ? (data.incomeCategoryId || undefined) : undefined,
     });
+    if (!manualRes?.error) emitTourAction("add_manual");
     manualForm.reset({
       date: new Date().toISOString().slice(0, 10),
       type: "OUT",
@@ -364,6 +380,7 @@ export function CashFlowPlanner({
       alert(res.error);
       return;
     }
+    emitTourAction("add_monthly");
     monthlyForm.reset({
       month: (() => {
         const d = new Date();
@@ -520,6 +537,7 @@ export function CashFlowPlanner({
         {tabs.map((t) => (
           <button
             key={t.id}
+            data-tour-id={t.id === "expenses" ? "tab-expenses" : t.id === "incomes" ? "tab-incomes" : t.id === "manual" ? "tab-manual" : t.id === "months" ? "tab-months" : undefined}
             onClick={() => {
               setActiveTab(t.id);
               setEditModal(null);
@@ -538,7 +556,7 @@ export function CashFlowPlanner({
 
       {activeTab === "expenses" && (
         <div className="space-y-4">
-          <form onSubmit={onAddExpense} className="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-surface p-4">
+          <form onSubmit={onAddExpense} data-tour-id="form-add-expense" className="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-surface p-4">
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Название</label>
               <input {...expenseForm.register("name")} placeholder="Например: Аренда" className="rounded border border-border bg-background px-2 py-1 text-foreground" />
@@ -659,7 +677,7 @@ export function CashFlowPlanner({
 
       {activeTab === "incomes" && (
         <div className="space-y-4">
-          <form onSubmit={onAddIncome} className="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-surface p-4">
+          <form onSubmit={onAddIncome} data-tour-id="form-add-income" className="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-surface p-4">
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Название</label>
               <input {...incomeForm.register("name")} placeholder="Например: Продажи" className="rounded border border-border bg-background px-2 py-1 text-foreground" />
@@ -770,7 +788,7 @@ export function CashFlowPlanner({
 
       {activeTab === "months" && (
         <div className="space-y-4">
-          <form onSubmit={onAddMonthly} className="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-surface p-4">
+          <form onSubmit={onAddMonthly} data-tour-id="form-add-monthly" className="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-surface p-4">
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Месяц</label>
               <input
@@ -863,7 +881,7 @@ export function CashFlowPlanner({
 
       {activeTab === "manual" && (
         <div className="space-y-4">
-          <form onSubmit={onAddManual} className="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-surface p-4">
+          <form onSubmit={onAddManual} data-tour-id="form-add-manual" className="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-surface p-4">
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Дата</label>
               <input {...manualForm.register("date")} type="date" className="rounded border border-border bg-background px-2 py-1 text-foreground" />

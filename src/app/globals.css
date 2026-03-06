@@ -69,6 +69,28 @@ a[href] {
   cursor: pointer;
 }
 
+/* When modal is open:
+   1. Driver.js sets .driver-active * { pointer-events: none } - we must override for modal
+   2. Disable driver overlay/popover so they don't block clicks
+   3. Tour stays visible behind modal (no visibility:hidden) so it reappears when modal closes */
+body.modal-open .driver-overlay,
+body.modal-open .driver-popover,
+body.modal-open .driver-overlay *,
+body.modal-open .driver-popover * {
+  pointer-events: none !important;
+}
+
+/* Override Driver.js .driver-active * - modal must receive clicks */
+body.modal-open .modal-overlay,
+body.modal-open .modal-overlay * {
+  pointer-events: auto !important;
+}
+
+/* Modal above Driver.js (z-index 1e9) */
+.modal-overlay {
+  z-index: 2147483647 !important;
+}
+
 /* Recharts tooltip — match site theme */
 .recharts-tooltip-wrapper,
 .recharts-default-tooltip {

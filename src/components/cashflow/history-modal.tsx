@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useModalBodyClass } from "@/hooks/use-modal-body-class";
 import { getCashFlowHistory } from "@/app/actions/cashflow";
 import { formatDateToDdMmYyyy } from "@/lib/date-utils";
 import {
@@ -73,6 +74,8 @@ export function HistoryModal({
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
 
+  useModalBodyClass();
+
   useEffect(() => {
     async function load() {
       const hRes = await getCashFlowHistory(profileId, entityId);
@@ -108,7 +111,7 @@ export function HistoryModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="modal-overlay fixed inset-0 flex items-center justify-center bg-black/50 p-4"
       onClick={onClose}
       role="button"
       tabIndex={0}

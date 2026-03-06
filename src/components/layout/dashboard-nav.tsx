@@ -17,6 +17,15 @@ const navItems = [
   { href: "/settings", label: "Настройки" },
 ];
 
+const navTourIds: Record<string, string> = {
+  "/dashboard": "nav-dashboard",
+  "/cashflow": "nav-cashflow",
+  "/fact": "nav-fact",
+  "/what-if": "nav-what-if",
+  "/insights": "nav-insights",
+  "/reports": "nav-reports",
+};
+
 type Profile = { id: string; name: string; currency: string };
 
 export function DashboardNav({
@@ -49,6 +58,7 @@ export function DashboardNav({
             <Link
               key={item.href}
               href={item.href}
+              data-tour-id={navTourIds[item.href]}
               className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                 pathname === item.href
                   ? "bg-primary/10 text-primary"
