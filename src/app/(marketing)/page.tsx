@@ -1,6 +1,11 @@
 import Link from "next/link";
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const session = await auth();
+  if (session?.user) redirect("/dashboard");
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border">
