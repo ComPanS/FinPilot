@@ -7,7 +7,7 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-const PROFILE_ID = "cmmdvk5dz000jjghgkvlotqbx";
+const PROFILE_ID = process.env.PROFILE_ID ?? "cmmeqhe390002jgboln9sca2d";
 const START_DATE = new Date("2026-01-01");
 
 /** Generate date keys from start to end inclusive */

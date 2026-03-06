@@ -53,6 +53,13 @@ type ChartPoint = ForecastDay & {
   cumulativeOutflowsFact?: number | null;
 };
 
+export type VisibleCharts = {
+  balance?: boolean;
+  profit?: boolean;
+  income?: boolean;
+  expense?: boolean;
+};
+
 export function DashboardCharts({
   dataExpected,
   dataFact,
@@ -61,6 +68,7 @@ export function DashboardCharts({
   showPatternHint,
   usedPatterns,
   hasEnoughPatternData,
+  visibleCharts,
 }: {
   dataExpected: ForecastDay[];
   dataFact?: ForecastDayFact[];
@@ -69,7 +77,12 @@ export function DashboardCharts({
   showPatternHint?: boolean;
   usedPatterns?: boolean;
   hasEnoughPatternData?: boolean;
+  visibleCharts?: VisibleCharts;
 }) {
+  const showBalance = visibleCharts?.balance ?? true;
+  const showProfit = visibleCharts?.profit ?? true;
+  const showIncome = visibleCharts?.income ?? true;
+  const showExpense = visibleCharts?.expense ?? true;
   const baseChartData = useMemo(() => {
     const factByDate = dataFact
       ? new Map(dataFact.map((d) => [d.date, d]))
@@ -286,6 +299,7 @@ export function DashboardCharts({
         </div>
       </div>
       <div className="grid w-full grid-cols-1 gap-6">
+        {showBalance && (
         <div className="min-w-0 rounded-xl border border-border bg-surface p-4">
           <h3 className="mb-2 text-sm font-medium text-muted-foreground">
             Прибыль за месяц
@@ -328,7 +342,7 @@ export function DashboardCharts({
                     const balanceFact = p?.balanceFact;
                     const balanceExp = p?.balanceExpected ?? 0;
                     const val = balanceFact != null ? balanceFact : balanceExp;
-                    const label = balanceFact != null ? "Факт" : "Ожидаемый";
+                    const label = balanceFact != null ? "Баланс" : "Ожидаемый баланс";
                     return (
                       <div style={tooltipStyle} className="px-3 py-2">
                         <p className="font-medium">
@@ -425,7 +439,9 @@ export function DashboardCharts({
             </ResponsiveContainer>
           </div>
         </div>
+        )}
 
+        {showProfit && (
         <div className="min-w-0 rounded-xl border border-border bg-surface p-4">
           <h3 className="mb-2 text-sm font-medium text-muted-foreground">
             Прибыль за день
@@ -456,7 +472,7 @@ export function DashboardCharts({
                     const profitFact = p?.profitFact;
                     const profitExp = p?.profitExpected ?? 0;
                     const val = profitFact != null ? profitFact : profitExp;
-                    const label = profitFact != null ? "Факт" : "Ожидаемый";
+                    const label = profitFact != null ? "Прибыль" : "Ожидаемая прибыль";
                     return (
                       <div style={tooltipStyle} className="px-3 py-2">
                         <p className="font-medium">
@@ -535,8 +551,10 @@ export function DashboardCharts({
             </ResponsiveContainer>
           </div>
         </div>
+        )}
 
         <div className="grid w-full grid-cols-1 gap-6 lg:grid-cols-2">
+          {showIncome && (
           <div className="min-w-0 rounded-xl border border-border bg-surface p-4">
             <h3 className="mb-2 text-sm font-medium text-muted-foreground">
               Доход
@@ -567,7 +585,7 @@ export function DashboardCharts({
                       const cumInExp = p?.cumulativeInflowsExpected ?? 0;
                       const cumInFact = p?.cumulativeInflowsFact;
                       const val = cumInFact != null ? cumInFact : cumInExp;
-                      const label = cumInFact != null ? "Факт" : "Ожидаемый";
+                      const label = cumInFact != null ? "Доход" : "Ожидаемый доход";
                       return (
                         <div style={tooltipStyle} className="px-3 py-2">
                           <p className="font-medium">
@@ -633,7 +651,9 @@ export function DashboardCharts({
               </ResponsiveContainer>
             </div>
           </div>
+          )}
 
+          {showExpense && (
           <div className="min-w-0 rounded-xl border border-border bg-surface p-4">
             <h3 className="mb-2 text-sm font-medium text-muted-foreground">
               Расход
@@ -664,7 +684,7 @@ export function DashboardCharts({
                       const cumOutExp = p?.cumulativeOutflowsExpected ?? 0;
                       const cumOutFact = p?.cumulativeOutflowsFact;
                       const val = cumOutFact != null ? cumOutFact : cumOutExp;
-                      const label = cumOutFact != null ? "Факт" : "Ожидаемый";
+                      const label = cumOutFact != null ? "Расход" : "Ожидаемый расход";
                       return (
                         <div style={tooltipStyle} className="px-3 py-2">
                           <p className="font-medium">
@@ -730,6 +750,7 @@ export function DashboardCharts({
               </ResponsiveContainer>
             </div>
           </div>
+          )}
         </div>
         {showPatternHint && usedPatterns && hasEnoughPatternData && (
           <p className="text-xs text-muted-foreground">

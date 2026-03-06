@@ -5,8 +5,10 @@ import { prisma } from "@/lib/prisma";
 import { getActiveProfile } from "@/lib/active-profile";
 import Link from "next/link";
 import { getForecastAction } from "@/app/actions/forecast";
-import { countDaysWithFactData } from "@/lib/services/fact-stats";
+import { countDaysWithFactData, hasLast3MonthsFactData } from "@/lib/services/fact-stats";
 import { DashboardCharts } from "@/components/dashboard/dashboard-charts";
+import { ExpectedChartsSection } from "@/components/dashboard/expected-charts-section";
+import { HalfYearChart } from "@/components/dashboard/half-year-chart";
 import { DashboardCalculationLog } from "@/components/dashboard/dashboard-calculation-log";
 import { IncomeLogger } from "@/components/dashboard/income-logger";
 
@@ -78,6 +80,7 @@ export default async function DashboardPage() {
   const hasMonthlyData = ((profile as { monthlyData?: unknown[] }).monthlyData?.length ?? 0) > 0;
   const hasAtLeast10DaysOfFact = (await countDaysWithFactData(profile.id)) >= 10;
   const hasAnyExpectedData = hasEntityExpectedData || hasMonthlyData || hasAtLeast10DaysOfFact;
+  const hasLast3MonthsFact = await hasLast3MonthsFactData(profile.id);
 
   let expectedMonth1Expected: { date: string; balance: number; inflows: number; outflows: number }[] = [];
   let expectedMonth2Expected: { date: string; balance: number; inflows: number; outflows: number }[] = [];
@@ -179,39 +182,31 @@ export default async function DashboardPage() {
       <section className="space-y-6">
         <h2 className="text-lg font-semibold text-foreground">Ожидаемые (следующие 2 месяца)</h2>
         {expectedMonth1Expected.length > 0 || expectedMonth2Expected.length > 0 ? (
-          <div className="space-y-8">
-            {expectedMonth1Expected.length > 0 && (
-              <div>
-                <h3 className="mb-4 text-base font-medium text-foreground capitalize">{month1Label}</h3>
-                <DashboardCharts
-                  dataExpected={expectedMonth1Expected}
-                  currency={profile.currency}
-                  section={month1Label}
-                  showPatternHint
-                  usedPatterns={expectedForecastRes?.usedPatterns}
-                  hasEnoughPatternData={expectedForecastRes?.hasEnoughPatternData}
-                />
-              </div>
-            )}
-            {expectedMonth2Expected.length > 0 && (
-              <div>
-                <h3 className="mb-4 text-base font-medium text-foreground capitalize">{month2Label}</h3>
-                <DashboardCharts
-                  dataExpected={expectedMonth2Expected}
-                  currency={profile.currency}
-                  section={month2Label}
-                  showPatternHint
-                  usedPatterns={expectedForecastRes?.usedPatterns}
-                  hasEnoughPatternData={expectedForecastRes?.hasEnoughPatternData}
-                />
-              </div>
-            )}
-          </div>
+          <ExpectedChartsSection
+            expectedMonth1Expected={expectedMonth1Expected}
+            expectedMonth2Expected={expectedMonth2Expected}
+            month1Label={month1Label}
+            month2Label={month2Label}
+            currency={profile.currency}
+            usedPatterns={expectedForecastRes?.usedPatterns}
+            hasEnoughPatternData={expectedForecastRes?.hasEnoughPatternData}
+          />
         ) : (
           <p className="text-sm text-muted-foreground">
             {hasAnyExpectedData
               ? "Нет данных для прогноза. Добавьте расходы и доходы в планировщике."
               : "Введите хотя бы одну ожидаемую сумму в планировщике (в расходах или доходах) или заполните фактические данные минимум за 10 дней — тогда появятся ожидаемые данные на следующие месяцы. Чем больше данных — тем точнее прогноз."}
+          </p>
+        )}
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold text-foreground">Факт и ожидаемые за 12 месяцев</h2>
+        {hasLast3MonthsFact ? (
+          <HalfYearChart profileId={profile.id} currency={profile.currency} />
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Заполните фактические данные за последние 3 месяца, чтобы увидеть график.
           </p>
         )}
       </section>

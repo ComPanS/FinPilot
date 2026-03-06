@@ -21,7 +21,6 @@ model User {
   name          String?
   image         String?
   password      String? // bcrypt hash for Credentials provider
-  businessName  String? // optional, from onboarding
   consentAt     DateTime? // 152-ФЗ, GDPR consent
   weeklyReport  Boolean   @default(false)
   tourCompleted Boolean  @default(false)

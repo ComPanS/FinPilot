@@ -113,14 +113,14 @@ export function FactPage({
   const firstIncomeCat = incomeCategories.find((c) => c.slug !== "custom");
 
   useEffect(() => {
-    const handler = (e: CustomEvent<{ tab: string }>) => {
-      const tab = e.detail?.tab;
+    const handler = (e: Event) => {
+      const tab = (e as CustomEvent<{ tab: string }>).detail?.tab;
       if (tab === "expenses" || tab === "incomes" || tab === "manual" || tab === "months") {
         setActiveTab(tab);
       }
     };
-    window.addEventListener(TOUR_SWITCH_TAB_EVENT, handler as EventListener);
-    return () => window.removeEventListener(TOUR_SWITCH_TAB_EVENT, handler as EventListener);
+    document.addEventListener(TOUR_SWITCH_TAB_EVENT, handler, true);
+    return () => document.removeEventListener(TOUR_SWITCH_TAB_EVENT, handler, true);
   }, []);
 
   const toggleManualSort = (key: ManualSortKey) =>
@@ -558,6 +558,11 @@ export function FactPage({
 
       {activeTab === "months" && (
         <div className="space-y-4">
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
+            <p className="text-sm text-foreground">
+              Не рекомендуется использовать такое заполнение, так как оно имеет слишком мало данных для предсказуемых результатов. Стоит использовать лишь когда нет возможности заполнения по дням.
+            </p>
+          </div>
           <form onSubmit={onAddMonthly} data-tour-id="form-add-monthly" className="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-surface p-4">
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Месяц</label>

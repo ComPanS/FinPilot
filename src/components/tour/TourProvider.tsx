@@ -70,6 +70,8 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const driverRef = useRef<Driver | null>(null);
+  const currentTourRouteRef = useRef<string | null>(null);
+  const prevPathnameRef = useRef<string>(pathname);
   const [isTourActive, setIsTourActive] = useState(false);
 
   const markCompleted = useCallback(() => {
@@ -84,6 +86,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     if (driverRef.current) {
       driverRef.current.destroy();
       driverRef.current = null;
+      currentTourRouteRef.current = null;
       setIsTourActive(false);
     }
   }, []);
@@ -114,6 +117,10 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
         const globalIdx = TOUR_STEPS.findIndex((s) => s.id === step.id);
         const nextStep = stepsForRoute[localIdx + 1];
         const isLastStep = globalIdx === TOUR_STEPS.length - 1;
+        const prevStep = globalIdx > 0 ? TOUR_STEPS[globalIdx - 1] : null;
+        const prevStepRoute = prevStep?.route;
+        const needNavigateBack = prevStep && prevStepRoute && prevStepRoute !== route;
+
         return tourStepToDriveStep(step, globalIdx, TOUR_STEPS.length, {
           isLastStep,
           onNextClick: () => {
@@ -132,14 +139,37 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
               setIsTourActive(false);
               router.push(step.navigateTo);
             } else if (nextStep?.tab) {
-              window.dispatchEvent(new CustomEvent(TOUR_SWITCH_TAB_EVENT, { detail: { tab: nextStep.tab } }));
+              document.dispatchEvent(new CustomEvent(TOUR_SWITCH_TAB_EVENT, { detail: { tab: nextStep.tab }, bubbles: true }));
               setTimeout(() => d.moveNext(), 150);
             } else {
               d.moveNext();
             }
           },
           onPrevClick: () => {
-            driverRef.current?.movePrevious();
+            const d = driverRef.current;
+            if (!d) return;
+            if (needNavigateBack && prevStepRoute) {
+              sessionStorage.setItem(TOUR_PENDING_STEP_KEY, String(globalIdx - 1));
+              sessionStorage.setItem(TOUR_PENDING_ROUTE_KEY, prevStepRoute);
+              d.destroy();
+              driverRef.current = null;
+              setIsTourActive(false);
+              router.push(prevStepRoute);
+            } else {
+              if (prevStep?.tab) {
+                const tabToSwitch = prevStep.tab;
+                document.dispatchEvent(new CustomEvent(TOUR_SWITCH_TAB_EVENT, { detail: { tab: tabToSwitch }, bubbles: true }));
+                setTimeout(() => {
+                  requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                      d.movePrevious();
+                    });
+                  });
+                }, 150);
+              } else {
+                d.movePrevious();
+              }
+            }
           },
           onCloseClick: () => {
             markCompleted();
@@ -163,12 +193,17 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       });
 
       driverRef.current = driverObj;
+      currentTourRouteRef.current = route;
       setIsTourActive(true);
 
       const startStep = stepsForRoute[startIndex];
       if (startStep?.tab) {
-        window.dispatchEvent(new CustomEvent(TOUR_SWITCH_TAB_EVENT, { detail: { tab: startStep.tab } }));
-        setTimeout(() => driverObj.drive(startIndex), 150);
+        document.dispatchEvent(new CustomEvent(TOUR_SWITCH_TAB_EVENT, { detail: { tab: startStep.tab }, bubbles: true }));
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            setTimeout(() => driverObj.drive(startIndex), 350);
+          });
+        });
       } else {
         driverObj.drive(startIndex);
       }
@@ -188,7 +223,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       if (currentStep?.type === "action" && currentStep.requiredAction === actionId) {
         const nextStep = stepsForRoute[activeIndex + 1];
         if (nextStep?.tab) {
-          window.dispatchEvent(new CustomEvent(TOUR_SWITCH_TAB_EVENT, { detail: { tab: nextStep.tab } }));
+          document.dispatchEvent(new CustomEvent(TOUR_SWITCH_TAB_EVENT, { detail: { tab: nextStep.tab }, bubbles: true }));
           setTimeout(() => driverRef.current?.moveNext(), 150);
         } else {
           driverRef.current.moveNext();
@@ -200,7 +235,36 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener(TOUR_ACTION_EVENT, handler as EventListener);
   }, [pathname]);
 
-  // Restore tour after navigation (when we navigated via navigateTo)
+  // Detect manual navigation: user clicked a nav link instead of "Далее"
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const prevPath = prevPathnameRef.current;
+    prevPathnameRef.current = pathname;
+
+    if (prevPath === pathname) return;
+    if (!driverRef.current) return;
+
+    const route = currentTourRouteRef.current ?? prevPath;
+    const stepsForRoute = TOUR_STEPS.filter((s) => s.route === route);
+    const activeIndex = driverRef.current.getActiveIndex?.() ?? 0;
+    const currentStep = stepsForRoute[activeIndex];
+    const nextStep = stepsForRoute[activeIndex + 1];
+
+    if (currentStep?.navigateTo === pathname || nextStep?.navigateTo === pathname) {
+      const targetStep = currentStep?.navigateTo === pathname ? currentStep : nextStep;
+      const globalIdx = TOUR_STEPS.findIndex((s) => s.id === targetStep.id);
+      const nextGlobalIdx = targetStep.navigateTo === pathname ? globalIdx + 1 : globalIdx;
+      sessionStorage.setItem(TOUR_PENDING_STEP_KEY, String(nextGlobalIdx));
+      sessionStorage.setItem(TOUR_PENDING_ROUTE_KEY, pathname);
+      driverRef.current.destroy();
+      driverRef.current = null;
+      currentTourRouteRef.current = null;
+      setIsTourActive(false);
+    }
+  }, [pathname]);
+
+  // Restore tour after navigation (when we navigated via navigateTo or manually)
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -209,13 +273,13 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     if (pending) {
       const stepIndex = parseInt(pending, 10);
       const targetRoute = pendingRoute ?? pathname;
-      // Small delay to let the page render. Don't remove pending until we start —
+      // Delay to let the page render (longer when navigating from another route).
       // TourLauncher checks pending and must not start from 0 while we're restoring.
       const t = setTimeout(() => {
         sessionStorage.removeItem(TOUR_PENDING_STEP_KEY);
         sessionStorage.removeItem(TOUR_PENDING_ROUTE_KEY);
         startTour(stepIndex, targetRoute);
-      }, 300);
+      }, 450);
       return () => clearTimeout(t);
     }
   }, [pathname, startTour]);
