@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getActiveProfile } from "@/lib/active-profile";
 import Link from "next/link";
 import { getForecastAction } from "@/app/actions/forecast";
+import { countDaysWithFactData } from "@/lib/services/fact-stats";
 import { DashboardCharts } from "@/components/dashboard/dashboard-charts";
 import { DashboardCalculationLog } from "@/components/dashboard/dashboard-calculation-log";
 import { IncomeLogger } from "@/components/dashboard/income-logger";
@@ -66,7 +67,7 @@ export default async function DashboardPage() {
       : d,
   );
 
-  // Проверяем, ввёл ли пользователь хотя бы одну ожидаемую сумму или данные по месяцам
+  // Проверяем, ввёл ли пользователь хотя бы одну ожидаемую сумму, данные по месяцам или 10+ дней факта
   const hasEntityExpectedData = [
     ...profile.regularExpenses,
     ...profile.regularIncomes,
@@ -75,7 +76,8 @@ export default async function DashboardPage() {
     return ed && typeof ed === "object" && Object.keys(ed).length > 0;
   });
   const hasMonthlyData = ((profile as { monthlyData?: unknown[] }).monthlyData?.length ?? 0) > 0;
-  const hasAnyExpectedData = hasEntityExpectedData || hasMonthlyData;
+  const hasAtLeast10DaysOfFact = (await countDaysWithFactData(profile.id)) >= 10;
+  const hasAnyExpectedData = hasEntityExpectedData || hasMonthlyData || hasAtLeast10DaysOfFact;
 
   let expectedMonth1Expected: { date: string; balance: number; inflows: number; outflows: number }[] = [];
   let expectedMonth2Expected: { date: string; balance: number; inflows: number; outflows: number }[] = [];
@@ -117,7 +119,7 @@ export default async function DashboardPage() {
       <DashboardCalculationLog profileId={profile.id} />
       <div>
         <h1 className="text-2xl font-bold text-foreground">
-          Добро пожаловать, {user.name ?? user.businessName ?? "Пользователь"}!
+          Добро пожаловать, {user.name ?? profile.name ?? "Пользователь"}!
         </h1>
         <p className="mt-1 text-muted-foreground">
           Профиль: {profile.name}
@@ -209,7 +211,7 @@ export default async function DashboardPage() {
           <p className="text-sm text-muted-foreground">
             {hasAnyExpectedData
               ? "Нет данных для прогноза. Добавьте расходы и доходы в планировщике."
-              : "Введите хотя бы одну ожидаемую сумму в планировщике (в расходах или доходах) для расчёта ожидаемых данных на следующие месяцы. Чем больше данных - тем точнее прогноз."}
+              : "Введите хотя бы одну ожидаемую сумму в планировщике (в расходах или доходах) или заполните фактические данные минимум за 10 дней — тогда появятся ожидаемые данные на следующие месяцы. Чем больше данных — тем точнее прогноз."}
           </p>
         )}
       </section>

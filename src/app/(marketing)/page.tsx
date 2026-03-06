@@ -49,7 +49,9 @@ export default function LandingPage() {
         </div>
         <div className="mt-24 grid gap-8 md:grid-cols-3">
           <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
-            <h3 className="font-semibold text-foreground">Прогноз на 90 дней</h3>
+            <h3 className="font-semibold text-foreground">
+              Прогноз на 90 дней
+            </h3>
             <p className="mt-2 text-sm text-muted-foreground">
               Автоматический расчёт ежедневного баланса. Видите красные зоны
               заранее.

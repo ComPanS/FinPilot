@@ -67,11 +67,6 @@ export async function completeOnboarding(data: {
   ]);
   if (!catExpenseOther || !catIncomeOther) return { error: "Категория не найдена" };
 
-  await prisma.user.update({
-    where: { id: existingUser.id },
-    data: { businessName: data.businessName },
-  });
-
   const profile = await prisma.cashFlowProfile.create({
     data: {
       userId: existingUser.id,

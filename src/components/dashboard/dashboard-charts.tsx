@@ -77,7 +77,9 @@ export function DashboardCharts({
     const hasFactData = factByDate != null && factByDate.size > 0;
     const initialBalance =
       dataExpected.length > 0
-        ? dataExpected[0].balance - dataExpected[0].inflows + dataExpected[0].outflows
+        ? dataExpected[0].balance -
+          dataExpected[0].inflows +
+          dataExpected[0].outflows
         : 0;
 
     let runningBalance = initialBalance;
@@ -140,11 +142,17 @@ export function DashboardCharts({
       }
 
       // Для Area используем гибридные значения при наличии dataFact
-      const balanceForArea = hasFactData ? balanceExpected : Math.round(d.balance);
+      const balanceForArea = hasFactData
+        ? balanceExpected
+        : Math.round(d.balance);
       const positiveBalance = balanceForArea >= 0 ? balanceForArea : 0;
       const negativeBalance = balanceForArea < 0 ? balanceForArea : 0;
-      const cumulativeInflowsForArea = hasFactData ? cumulativeInflowsExpected : cumulativeInflows;
-      const cumulativeOutflowsForArea = hasFactData ? cumulativeOutflowsExpected : cumulativeOutflows;
+      const cumulativeInflowsForArea = hasFactData
+        ? cumulativeInflowsExpected
+        : cumulativeInflows;
+      const cumulativeOutflowsForArea = hasFactData
+        ? cumulativeOutflowsExpected
+        : cumulativeOutflows;
 
       const point: ChartPoint = {
         ...d,
@@ -295,7 +303,12 @@ export function DashboardCharts({
             </p>
           )}
           <div className="h-80 min-h-[320px] min-w-0 w-full">
-            <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={300}>
+            <ResponsiveContainer
+              width="100%"
+              height="100%"
+              minWidth={200}
+              minHeight={300}
+            >
               <AreaChart data={chartDataWithBalanceCrossings}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis
@@ -314,29 +327,21 @@ export function DashboardCharts({
                     const p = payload[0]?.payload as ChartPoint;
                     const balanceFact = p?.balanceFact;
                     const balanceExp = p?.balanceExpected ?? 0;
+                    const val = balanceFact != null ? balanceFact : balanceExp;
+                    const label = balanceFact != null ? "Факт" : "Ожидаемый";
                     return (
                       <div style={tooltipStyle} className="px-3 py-2">
                         <p className="font-medium">
                           Дата: {p?.date ? formatDateDdMmYyyy(p.date) : ""}
                         </p>
-                        <p className="text-muted-foreground">
-                          Ожидаемый: {formatValue(balanceExp)}
+                        <p
+                          style={{
+                            color:
+                              val >= 0 ? "var(--success)" : "var(--danger)",
+                          }}
+                        >
+                          {label}: {formatValue(val)}
                         </p>
-                        {dataFact && (
-                          <p
-                            style={{
-                              color:
-                                (balanceFact ?? 0) >= 0
-                                  ? "var(--success)"
-                                  : "var(--danger)",
-                            }}
-                          >
-                            Факт:{" "}
-                            {balanceFact != null
-                              ? formatValue(balanceFact)
-                              : "—"}
-                          </p>
-                        )}
                       </div>
                     );
                   }}
@@ -426,7 +431,12 @@ export function DashboardCharts({
             Прибыль за день
           </h3>
           <div className="h-80 min-h-[320px] min-w-0 w-full">
-            <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={300}>
+            <ResponsiveContainer
+              width="100%"
+              height="100%"
+              minWidth={200}
+              minHeight={300}
+            >
               <AreaChart data={chartDataWithProfitCrossings}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis
@@ -445,27 +455,21 @@ export function DashboardCharts({
                     const p = payload[0]?.payload as ChartPoint;
                     const profitFact = p?.profitFact;
                     const profitExp = p?.profitExpected ?? 0;
+                    const val = profitFact != null ? profitFact : profitExp;
+                    const label = profitFact != null ? "Факт" : "Ожидаемый";
                     return (
                       <div style={tooltipStyle} className="px-3 py-2">
                         <p className="font-medium">
                           Дата: {p?.date ? formatDateDdMmYyyy(p.date) : ""}
                         </p>
-                        <p className="text-muted-foreground">
-                          Ожидаемый: {formatValue(profitExp)}
+                        <p
+                          style={{
+                            color:
+                              val >= 0 ? "var(--success)" : "var(--danger)",
+                          }}
+                        >
+                          {label}: {formatValue(val)}
                         </p>
-                        {dataFact && (
-                          <p
-                            style={{
-                              color:
-                                (profitFact ?? 0) >= 0
-                                  ? "var(--success)"
-                                  : "var(--danger)",
-                            }}
-                          >
-                            Факт:{" "}
-                            {profitFact != null ? formatValue(profitFact) : "—"}
-                          </p>
-                        )}
                       </div>
                     );
                   }}
@@ -538,7 +542,12 @@ export function DashboardCharts({
               Доход
             </h3>
             <div className="h-80 min-h-[320px] min-w-0 w-full">
-              <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={300}>
+              <ResponsiveContainer
+                width="100%"
+                height="100%"
+                minWidth={200}
+                minHeight={300}
+              >
                 <AreaChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis
@@ -557,20 +566,16 @@ export function DashboardCharts({
                       const p = payload[0]?.payload as ChartPoint;
                       const cumInExp = p?.cumulativeInflowsExpected ?? 0;
                       const cumInFact = p?.cumulativeInflowsFact;
+                      const val = cumInFact != null ? cumInFact : cumInExp;
+                      const label = cumInFact != null ? "Факт" : "Ожидаемый";
                       return (
                         <div style={tooltipStyle} className="px-3 py-2">
                           <p className="font-medium">
                             Дата: {p?.date ? formatDateDdMmYyyy(p.date) : ""}
                           </p>
-                          <p className="text-muted-foreground">
-                            Ожидаемый: {formatValue(cumInExp)}
+                          <p style={{ color: "var(--success)" }}>
+                            {label}: {formatValue(val)}
                           </p>
-                          {dataFact && (
-                            <p style={{ color: "var(--success)" }}>
-                              Факт:{" "}
-                              {cumInFact != null ? formatValue(cumInFact) : "—"}
-                            </p>
-                          )}
                           <p className="text-xs text-muted-foreground">
                             За день: {formatValue(p?.inflows ?? 0)}
                           </p>
@@ -634,7 +639,12 @@ export function DashboardCharts({
               Расход
             </h3>
             <div className="h-80 min-h-[320px] min-w-0 w-full">
-              <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={300}>
+              <ResponsiveContainer
+                width="100%"
+                height="100%"
+                minWidth={200}
+                minHeight={300}
+              >
                 <AreaChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis
@@ -653,22 +663,16 @@ export function DashboardCharts({
                       const p = payload[0]?.payload as ChartPoint;
                       const cumOutExp = p?.cumulativeOutflowsExpected ?? 0;
                       const cumOutFact = p?.cumulativeOutflowsFact;
+                      const val = cumOutFact != null ? cumOutFact : cumOutExp;
+                      const label = cumOutFact != null ? "Факт" : "Ожидаемый";
                       return (
                         <div style={tooltipStyle} className="px-3 py-2">
                           <p className="font-medium">
                             Дата: {p?.date ? formatDateDdMmYyyy(p.date) : ""}
                           </p>
-                          <p className="text-muted-foreground">
-                            Ожидаемый: {formatValue(cumOutExp)}
+                          <p style={{ color: "var(--danger)" }}>
+                            {label}: {formatValue(val)}
                           </p>
-                          {dataFact && (
-                            <p style={{ color: "var(--danger)" }}>
-                              Факт:{" "}
-                              {cumOutFact != null
-                                ? formatValue(cumOutFact)
-                                : "—"}
-                            </p>
-                          )}
                           <p className="text-xs text-muted-foreground">
                             За день: {formatValue(p?.outflows ?? 0)}
                           </p>

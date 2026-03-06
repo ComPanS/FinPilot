@@ -226,12 +226,17 @@ export function getEffectiveDailyAmountWithPatterns(
   const days = daysInMonth(date);
 
   // 1. ExpectedEntry for dateKey (exact day) — return as daily amount
+  // Защита: если amount выглядит как месячная сумма (>10× baseDaily), распределяем по дням
   const fromDay = expectedByEntity?.get(dateKey);
   if (fromDay != null && !Number.isNaN(fromDay) && useExpectedData) {
+    const baseDaily = dailyAmountFromFrequency(freq, baseAmount, customDays);
+    const looksLikeMonthly =
+      baseDaily > 0 && days > 0 && fromDay > baseDaily * 10;
+    const dailyValue = looksLikeMonthly ? fromDay / days : fromDay;
     const amt =
       flowType === "IN" && taxPct != null && taxPct > 0
-        ? fromDay * (1 - taxPct / 100)
-        : fromDay;
+        ? dailyValue * (1 - taxPct / 100)
+        : dailyValue;
     return amt;
   }
 

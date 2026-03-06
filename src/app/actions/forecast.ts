@@ -2,7 +2,8 @@
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { computeForecast, computeForecastActualOnly, computeForecastDebug } from "@/lib/services/forecast";
+import { computeForecast, computeForecastActualOnly, computeForecastDebug, computeForecastDebugState } from "@/lib/services/forecast";
+import { countDaysWithFactData } from "@/lib/services/fact-stats";
 import type { WhatIfChanges } from "@/types";
 
 /** Возвращает ВСЕ данные с сервера для отладки дашборда */
@@ -33,7 +34,7 @@ export async function getDashboardFullDebugAction(profileId: string) {
   const lastOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
   const daysInMonth = lastOfMonth.getDate();
 
-  const [forecastRes, forecastFactOnly, actualEntries, expectedEntries, manualTransactions, forecastDebug] =
+  const [forecastRes, forecastFactOnly, actualEntries, expectedEntries, manualTransactions, forecastDebug, debugState] =
     await Promise.all([
       computeForecast(profileId, {
         days: daysInMonth,
@@ -52,6 +53,10 @@ export async function getDashboardFullDebugAction(profileId: string) {
       prisma.expectedEntry.findMany({ where: { profileId }, orderBy: { period: "asc" } }),
       prisma.manualTransaction.findMany({ where: { profileId }, orderBy: { date: "asc" } }),
       computeForecastDebug(profileId, { days: 90 }),
+      computeForecastDebugState(profileId, {
+        startDate: new Date(firstOfMonthStr + "T12:00:00"),
+        days: daysInMonth,
+      }),
     ]);
 
   const hasEntityExpectedData = [
@@ -62,7 +67,8 @@ export async function getDashboardFullDebugAction(profileId: string) {
     return ed && typeof ed === "object" && Object.keys(ed).length > 0;
   });
   const hasMonthlyData = profile.monthlyData.length > 0;
-  const hasAnyExpectedData = hasEntityExpectedData || hasMonthlyData;
+  const hasAtLeast10DaysOfFact = (await countDaysWithFactData(profileId)) >= 10;
+  const hasAnyExpectedData = hasEntityExpectedData || hasMonthlyData || hasAtLeast10DaysOfFact;
 
   let expectedForecastRes: Awaited<ReturnType<typeof getForecastAction>> | null = null;
   if (hasAnyExpectedData) {
@@ -179,6 +185,15 @@ export async function getDashboardFullDebugAction(profileId: string) {
       description: t.description,
     })),
     forecastDebug,
+    debugState: {
+      monthlyByMonth: debugState.monthlyByMonth,
+      monthlyByMonthSource: debugState.source,
+      dailySampleFirst3: forecastRes.forecast.slice(0, 3).map((d) => ({
+        date: d.date,
+        inflows: d.inflows,
+        outflows: d.outflows,
+      })),
+    },
   };
 }
 

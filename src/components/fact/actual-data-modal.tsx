@@ -28,6 +28,46 @@ type IncomeEntity = {
 
 type InputMode = "month" | "day" | "range";
 
+function periodToDateKeys(period: string): Set<string> {
+  const keys = new Set<string>();
+  if (/^\d{4}-\d{2}$/.test(period)) {
+    const [y, m] = period.split("-").map(Number);
+    const daysInMonth = new Date(y!, m!, 0).getDate();
+    for (let d = 1; d <= daysInMonth; d++) {
+      keys.add(`${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
+    }
+  } else if (/^\d{4}-\d{2}-\d{2}$/.test(period)) {
+    keys.add(period);
+  } else {
+    const m = period.match(/^(\d{4}-\d{2}-\d{2}):(\d{4}-\d{2}-\d{2})$/);
+    if (m) {
+      const start = new Date(m[1]! + "T12:00:00");
+      const end = new Date(m[2]! + "T12:00:00");
+      let current = new Date(start);
+      while (current <= end) {
+        keys.add(
+          `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, "0")}-${String(current.getDate()).padStart(2, "0")}`,
+        );
+        current.setDate(current.getDate() + 1);
+      }
+    }
+  }
+  return keys;
+}
+
+function periodsOverlap(newPeriod: string, existingPeriods: string[], excludePeriod?: string): boolean {
+  const newKeys = periodToDateKeys(newPeriod);
+  if (newKeys.size === 0) return false;
+  for (const p of existingPeriods) {
+    if (p === excludePeriod) continue;
+    const existingKeys = periodToDateKeys(p);
+    for (const k of newKeys) {
+      if (existingKeys.has(k)) return true;
+    }
+  }
+  return false;
+}
+
 function formatPeriodLabel(period: string): string {
   if (/^\d{4}-\d{2}$/.test(period)) {
     const [y, m] = period.split("-").map(Number);
@@ -76,7 +116,7 @@ export function ActualDataModal({
     return d.toISOString().slice(0, 10);
   });
   const [amountInput, setAmountInput] = useState("");
-  const [items, setItems] = useState<{ period: string; label: string; amount: number }[]>([]);
+  const [items, setItems] = useState<{ period: string; label: string; amount: number; createdAt?: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingItem, setEditingItem] = useState<{ period: string; amount: number } | null>(null);
@@ -94,6 +134,7 @@ export function ActualDataModal({
             period: e.period,
             label: formatPeriodLabel(e.period),
             amount: e.amount,
+            createdAt: e.createdAt,
           }))
         );
       }
@@ -139,11 +180,31 @@ export function ActualDataModal({
 
   const handleSave = async () => {
     const num = parseFloat(amountInput);
-    if (Number.isNaN(num) || num <= 0) return;
-    const period = editingItem ? editingItem.period : getPeriodFromInput();
+    if (Number.isNaN(num) || num < 0) return;
+    const period = getPeriodFromInput();
     if (!period) return;
 
+    if (inputMode === "month" && selectedMonth > currentMonthKey) {
+      alert("Нельзя добавлять будущие даты");
+      return;
+    }
+    if (inputMode === "day" && selectedDay > todayKey) {
+      alert("Нельзя добавлять будущие даты");
+      return;
+    }
+    if (inputMode === "range" && (rangeStart > todayKey || rangeEnd > todayKey)) {
+      alert("Нельзя добавлять будущие даты");
+      return;
+    }
+    if (periodsOverlap(period, items.map((i) => i.period), editingItem?.period)) {
+      alert("Эта дата или диапазон уже введён");
+      return;
+    }
+
     setSaving(true);
+    if (editingItem && editingItem.period !== period) {
+      await deleteActualEntry(profileId, entityType, entity.id, editingItem.period);
+    }
     const res = await saveActualEntry(profileId, entityType, entity.id, period, num);
     setSaving(false);
     if (res?.error) {
@@ -154,9 +215,9 @@ export function ActualDataModal({
     setEditingItem(null);
     const label = formatPeriodLabel(period);
     setItems((prev) => {
-      const filtered = prev.filter((i) => i.period !== period);
-      return [...filtered, { period, label, amount: num }].sort((a, b) =>
-        a.period.localeCompare(b.period)
+      const filtered = prev.filter((i) => i.period !== (editingItem?.period ?? period));
+      return [...filtered, { period, label, amount: num, createdAt: new Date().toISOString() }].sort(
+        (a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? "")
       );
     });
     onSuccess?.();
@@ -169,9 +230,26 @@ export function ActualDataModal({
       return;
     }
     const num = parseFloat(amountInput);
-    if (Number.isNaN(num) || num <= 0) return;
+    if (Number.isNaN(num) || num < 0) return;
     const period = getPeriodFromInput();
     if (!period) return;
+
+    if (inputMode === "month" && selectedMonth > currentMonthKey) {
+      alert("Нельзя добавлять будущие даты");
+      return;
+    }
+    if (inputMode === "day" && selectedDay > todayKey) {
+      alert("Нельзя добавлять будущие даты");
+      return;
+    }
+    if (inputMode === "range" && (rangeStart > todayKey || rangeEnd > todayKey)) {
+      alert("Нельзя добавлять будущие даты");
+      return;
+    }
+    if (periodsOverlap(period, items.map((i) => i.period))) {
+      alert("Эта дата или диапазон уже введён");
+      return;
+    }
 
     setSaving(true);
     const res = await saveActualEntry(profileId, entityType, entity.id, period, num);
@@ -184,8 +262,8 @@ export function ActualDataModal({
     const label = formatPeriodLabel(period);
     setItems((prev) => {
       const filtered = prev.filter((i) => i.period !== period);
-      return [...filtered, { period, label, amount: num }].sort((a, b) =>
-        a.period.localeCompare(b.period)
+      return [...filtered, { period, label, amount: num, createdAt: new Date().toISOString() }].sort(
+        (a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? "")
       );
     });
     onSuccess?.();
@@ -206,6 +284,9 @@ export function ActualDataModal({
     onSuccess?.();
     router.refresh();
   };
+
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const currentMonthKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
 
   const handleCancelEdit = () => {
     setEditingItem(null);
@@ -239,8 +320,7 @@ export function ActualDataModal({
             <select
               value={inputMode}
               onChange={(e) => setInputMode(e.target.value as InputMode)}
-              disabled={!!editingItem}
-              className="mt-1 cursor-pointer rounded border border-border bg-background px-2 py-1 text-foreground disabled:opacity-60"
+              className="mt-1 cursor-pointer rounded border border-border bg-background px-2 py-1 text-foreground"
             >
               <option value="month">За месяц</option>
               <option value="day">За день</option>
@@ -255,8 +335,8 @@ export function ActualDataModal({
                 type="month"
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
-                disabled={!!editingItem}
-                className="mt-1 cursor-pointer rounded border border-border bg-background px-2 py-1 text-foreground disabled:opacity-60"
+                max={currentMonthKey}
+                className="mt-1 cursor-pointer rounded border border-border bg-background px-2 py-1 text-foreground"
               />
             </div>
           )}
@@ -268,8 +348,8 @@ export function ActualDataModal({
                 type="date"
                 value={selectedDay}
                 onChange={(e) => setSelectedDay(e.target.value)}
-                disabled={!!editingItem}
-                className="mt-1 cursor-pointer rounded border border-border bg-background px-2 py-1 text-foreground disabled:opacity-60"
+                max={todayKey}
+                className="mt-1 cursor-pointer rounded border border-border bg-background px-2 py-1 text-foreground"
               />
             </div>
           )}
@@ -282,8 +362,8 @@ export function ActualDataModal({
                   type="date"
                   value={rangeStart}
                   onChange={(e) => setRangeStart(e.target.value)}
-                  disabled={!!editingItem}
-                  className="mt-1 cursor-pointer rounded border border-border bg-background px-2 py-1 text-foreground disabled:opacity-60"
+                  max={todayKey}
+                  className="mt-1 cursor-pointer rounded border border-border bg-background px-2 py-1 text-foreground"
                 />
               </div>
               <div>
@@ -292,8 +372,8 @@ export function ActualDataModal({
                   type="date"
                   value={rangeEnd}
                   onChange={(e) => setRangeEnd(e.target.value)}
-                  disabled={!!editingItem}
-                  className="mt-1 cursor-pointer rounded border border-border bg-background px-2 py-1 text-foreground disabled:opacity-60"
+                  max={todayKey}
+                  className="mt-1 cursor-pointer rounded border border-border bg-background px-2 py-1 text-foreground"
                 />
               </div>
             </>

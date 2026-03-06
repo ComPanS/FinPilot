@@ -5,11 +5,24 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth;
 
   // Public routes
-  const publicPaths = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/verify-email", "/verify-new-email"];
-  const isPublic = publicPaths.some((p) => pathname === p || pathname.startsWith(p + "/"));
+  const publicPaths = [
+    "/",
+    "/login",
+    "/register",
+    "/forgot-password",
+    "/reset-password",
+    "/verify-email",
+    "/verify-new-email",
+  ];
+  const isPublic = publicPaths.some(
+    (p) => pathname === p || pathname.startsWith(p + "/"),
+  );
 
   if (isPublic) {
-    if (isLoggedIn && (pathname === "/login" || pathname === "/register")) {
+    if (
+      isLoggedIn &&
+      (pathname === "/" || pathname === "/login" || pathname === "/register")
+    ) {
       return Response.redirect(new URL("/dashboard", req.url));
     }
     return;

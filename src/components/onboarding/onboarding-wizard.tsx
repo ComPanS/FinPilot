@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, FileSpreadsheet } from "lucide-react";
+import { Plus, FileSpreadsheet, Loader2 } from "lucide-react";
 import { useRef } from "react";
 import { completeOnboarding } from "@/app/actions/onboarding";
 import { addProfileWithSetupAction } from "@/app/actions/profiles";
@@ -430,7 +430,7 @@ export function OnboardingWizard({
                   className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-primary hover:bg-primary/10 disabled:opacity-50"
                   title="Загрузить Excel"
                 >
-                  <FileSpreadsheet className="h-5 w-5" />
+                  {excelLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileSpreadsheet className="h-5 w-5" />}
                 </button>
               </div>
             </div>
@@ -588,7 +588,7 @@ export function OnboardingWizard({
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-primary hover:bg-primary/10 disabled:opacity-50"
                 title="Загрузить Excel"
               >
-                <FileSpreadsheet className="h-5 w-5" />
+                {excelLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileSpreadsheet className="h-5 w-5" />}
               </button>
             </div>
           </div>

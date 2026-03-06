@@ -160,7 +160,6 @@ model User {
   id             String   @id @default(cuid())
   email          String   @unique
   name           String?
-  businessName   String?
   subscription   Subscription?
   profiles       CashFlowProfile[]
   createdAt      DateTime @default(now())

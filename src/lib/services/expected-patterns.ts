@@ -468,16 +468,8 @@ async function buildHistoricalDailyFlows(
     let dayOut = 0;
 
     const mk = monthKey(d);
-    const monthly = monthlyByMonth.get(mk);
-    if (monthly) {
-      const dInMonth = daysInMonth(d);
-      if (dInMonth > 0) {
-        dayIn += monthly.income / dInMonth;
-        dayOut += monthly.expense / dInMonth;
-        daysWithData.add(key);
-      }
-    }
 
+    // Сначала собираем фактические данные
     for (const eid of expenseIds) {
       const amt = getActualAmountForDay(
         eid,
@@ -498,6 +490,20 @@ async function buildHistoricalDailyFlows(
         const taxPct = incomeTaxRates.get(iid) ?? 0;
         dayIn += amt * (1 - taxPct / 100);
         daysWithData.add(key);
+      }
+    }
+
+    // ProfileMonthlyData — только для дней БЕЗ фактических данных (избегаем двойного учёта)
+    const hasActualForDay = dayIn > 0 || dayOut > 0;
+    if (!hasActualForDay) {
+      const monthly = monthlyByMonth.get(mk);
+      if (monthly) {
+        const dInMonth = daysInMonth(d);
+        if (dInMonth > 0) {
+          dayIn += monthly.income / dInMonth;
+          dayOut += monthly.expense / dInMonth;
+          daysWithData.add(key);
+        }
       }
     }
 

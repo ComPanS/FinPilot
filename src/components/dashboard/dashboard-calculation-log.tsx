@@ -64,9 +64,19 @@ export function DashboardCalculationLog({ profileId }: Props) {
           )}
           {fullData && !loading && (
             <div className="space-y-4">
+              {"debugState" in fullData && fullData.debugState && (
+                <div className="rounded border border-border bg-muted/30 p-3">
+                  <h4 className="mb-2 text-xs font-semibold text-foreground">
+                    Диагностика: monthlyByMonth, источник, первые 3 дня
+                  </h4>
+                  <pre className="max-h-48 overflow-auto text-xs text-muted-foreground whitespace-pre-wrap break-all">
+                    {JSON.stringify(fullData.debugState, null, 2)}
+                  </pre>
+                </div>
+              )}
               <div className="flex items-center justify-between gap-2">
                 <p className="text-muted-foreground">
-                  Полный сырой JSON: inputParams, profile, forecastRes, forecastFactOnly, expectedForecastRes, actualEntries, expectedEntries, manualTransactions, forecastDebug.
+                  Полный сырой JSON: inputParams, profile, forecastRes, forecastFactOnly, expectedForecastRes, actualEntries, expectedEntries, manualTransactions, forecastDebug, debugState.
                 </p>
                 <button
                   type="button"

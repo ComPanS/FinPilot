@@ -673,9 +673,10 @@ export async function computeForecast(
         monthlyByMonth.set(mk, existing);
       }
     }
-    // Если monthlyByMonth пуст (нет ProfileMonthlyData и MONTHLY_TOTAL), агрегируем из ExpectedEntry по сущностям
-    if (monthlyByMonth.size === 0 && expectedByEntity) {
+    // Агрегируем из ExpectedEntry по сущностям для месяцев, отсутствующих в monthlyByMonth
+    if (expectedByEntity) {
       for (const mk of monthKeys) {
+        if (monthlyByMonth.has(mk)) continue; // уже есть из ProfileMonthlyData или MONTHLY_TOTAL
         let income = 0;
         let expense = 0;
         for (const inc of incomes) {
@@ -1081,6 +1082,116 @@ export function getRedZones(
   zoneRedMax = -50000,
 ): ForecastDay[] {
   return forecast.filter((d) => d.balance < zoneRedMax);
+}
+
+/** Debug: returns monthlyByMonth and sample for dashboard diagnostics */
+export async function computeForecastDebugState(
+  profileId: string,
+  options: { startDate?: Date; days?: number } = {},
+) {
+  const days = options.days ?? 90;
+  const startDate = options.startDate
+    ? (() => {
+        const d = new Date(options.startDate);
+        d.setHours(0, 0, 0, 0);
+        return d;
+      })()
+    : (() => {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        return d;
+      })();
+
+  const [expenses, incomes, monthlyData, expectedEntries] = await Promise.all([
+    prisma.regularExpense.findMany({ where: { profileId } }),
+    prisma.regularIncome.findMany({ where: { profileId } }),
+    prisma.profileMonthlyData.findMany({ where: { profileId } }),
+    prisma.expectedEntry.findMany({
+      where: { profileId },
+      select: { entityType: true, entityId: true, period: true, amount: true },
+    }),
+  ]);
+
+  const monthKeys = Array.from(
+    new Set(
+      Array.from({ length: days }, (_, i) => monthKey(addDays(startDate, i))),
+    ),
+  );
+
+  const monthlyByMonth = new Map(
+    monthlyData.map((m) => [
+      m.month,
+      { income: Number(m.income), expense: Number(m.expense) },
+    ]),
+  );
+
+  const monthlyTotal = new Map<string, { income: number; expense: number }>();
+  const byEntity = new Map<string, Map<string, number>>();
+  for (const e of expectedEntries) {
+    if (e.entityType === "MONTHLY_TOTAL") {
+      const existing = monthlyTotal.get(e.period) ?? { income: 0, expense: 0 };
+      if (e.entityId === "income") existing.income = Number(e.amount);
+      else if (e.entityId === "expense") existing.expense = Number(e.amount);
+      monthlyTotal.set(e.period, existing);
+    } else if (e.entityId) {
+      let perEntity = byEntity.get(e.entityId);
+      if (!perEntity) {
+        perEntity = new Map();
+        byEntity.set(e.entityId, perEntity);
+      }
+      perEntity.set(e.period, Number(e.amount));
+    }
+  }
+
+  for (const [mk, tot] of monthlyTotal) {
+    if (tot.income > 0 || tot.expense > 0) {
+      const existing = monthlyByMonth.get(mk) ?? { income: 0, expense: 0 };
+      if (tot.income > 0) existing.income = tot.income;
+      if (tot.expense > 0) existing.expense = tot.expense;
+      monthlyByMonth.set(mk, existing);
+    }
+  }
+
+  for (const mk of monthKeys) {
+    if (monthlyByMonth.has(mk)) continue;
+    let income = 0;
+    let expense = 0;
+    for (const inc of incomes) {
+      const amt = byEntity.get(inc.id)?.get(mk);
+      if (amt != null && !Number.isNaN(amt)) {
+        income += amt * (1 - Number(inc.taxes ?? 0) / 100);
+      }
+    }
+    for (const exp of expenses) {
+      const amt = byEntity.get(exp.id)?.get(mk);
+      if (amt != null && !Number.isNaN(amt)) expense += amt;
+    }
+    if (income > 0 || expense > 0) {
+      monthlyByMonth.set(mk, { income, expense });
+    }
+  }
+
+  const monthlyByMonthObj = Object.fromEntries(
+    Array.from(monthlyByMonth.entries()).map(([k, v]) => [
+      k,
+      { income: v.income, expense: v.expense },
+    ]),
+  );
+
+  const profileMonths = new Set(monthlyData.map((m) => m.month));
+  const totalMonths = new Set(monthlyTotal.keys());
+  const aggregateMonths = monthKeys.filter(
+    (mk) => !profileMonths.has(mk) && !totalMonths.has(mk) && monthlyByMonth.has(mk),
+  );
+
+  return {
+    monthlyByMonth: monthlyByMonthObj,
+    source: {
+      profileMonthlyData: Array.from(profileMonths),
+      expectedEntryMonthlyTotal: Array.from(totalMonths),
+      expectedEntryAggregate: aggregateMonths,
+    },
+  };
 }
 
 /** Debug: returns raw data for browser console logging */

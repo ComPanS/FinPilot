@@ -31,7 +31,7 @@ import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
 import { ExpectedPeriodsModal } from "./expected-periods-modal";
 import { parseCashFlowTextAction } from "@/app/actions/ai-cashflow";
 import { parseExcelAndImportAction } from "@/app/actions/excel-import";
-import { FileSpreadsheet } from "lucide-react";
+import { FileSpreadsheet, Loader2 } from "lucide-react";
 import { formatDateDdMmYyyy, formatDateToDdMmYyyy } from "@/lib/date-utils";
 import type { Prisma } from "@prisma/client";
 
@@ -511,7 +511,7 @@ export function CashFlowPlanner({
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-primary hover:bg-primary/10 disabled:opacity-50"
             title="Загрузить Excel"
           >
-            <FileSpreadsheet className="h-5 w-5" />
+            {excelLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileSpreadsheet className="h-5 w-5" />}
           </button>
         </div>
       </div>
@@ -802,7 +802,7 @@ export function CashFlowPlanner({
               className="flex h-9 w-9 items-center justify-center rounded border border-border text-primary hover:bg-surface disabled:opacity-50"
               title="Загрузить Excel"
             >
-              <FileSpreadsheet className="h-5 w-5" />
+              {excelLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileSpreadsheet className="h-5 w-5" />}
             </button>
           </form>
           <div className="overflow-x-auto">

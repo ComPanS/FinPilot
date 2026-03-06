@@ -14,6 +14,20 @@ function isValidPeriod(period: string): boolean {
   return false;
 }
 
+function periodContainsFutureDate(period: string): boolean {
+  const today = new Date().toISOString().slice(0, 10);
+  if (/^\d{4}-\d{2}$/.test(period)) {
+    const [y, m] = period.split("-").map(Number);
+    const lastDay = new Date(y!, m!, 0).getDate();
+    const monthEnd = `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+    return monthEnd > today;
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(period)) return period > today;
+  const m = period.match(/^(\d{4}-\d{2}-\d{2}):(\d{4}-\d{2}-\d{2})$/);
+  if (m) return m[2]! > today;
+  return false;
+}
+
 export async function saveActualEntry(
   profileId: string,
   entityType: "EXPENSE" | "INCOME",
@@ -35,8 +49,11 @@ export async function saveActualEntry(
   if (!isValidPeriod(period)) {
     return { error: "Некорректный формат периода" };
   }
-  if (amount <= 0 || !Number.isFinite(amount)) {
-    return { error: "Сумма должна быть положительным числом" };
+  if (periodContainsFutureDate(period)) {
+    return { error: "Нельзя добавлять будущие даты" };
+  }
+  if (amount < 0 || !Number.isFinite(amount)) {
+    return { error: "Сумма не может быть отрицательной" };
   }
 
   await prisma.actualEntry.upsert({
@@ -116,14 +133,14 @@ export async function getActualEntriesForEntity(
       entityType,
       entityId,
     },
-    orderBy: { period: "asc" },
+    orderBy: { createdAt: "desc" },
   });
 
   return {
     entries: entries.map((e) => ({
       period: e.period,
       amount: Number(e.amount),
-      createdAt: e.createdAt,
+      createdAt: e.createdAt.toISOString(),
     })),
   };
 }
