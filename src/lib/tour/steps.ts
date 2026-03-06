@@ -52,6 +52,17 @@ export const TOUR_STEPS: TourStep[] = [
     tab: "incomes",
   },
   {
+    id: "nav-fact",
+    target: "[data-tour-id='nav-fact']",
+    content: {
+      title: "Факт",
+      body: "Перейдём к странице «Факт» — здесь разовые операции, данные по месяцам и ввод фактических значений. Нажмите «Далее».",
+    },
+    type: "info",
+    route: "/cashflow",
+    navigateTo: "/fact",
+  },
+  {
     id: "form-add-manual",
     target: "[data-tour-id='form-add-manual']",
     content: {
@@ -60,7 +71,7 @@ export const TOUR_STEPS: TourStep[] = [
     },
     type: "action",
     requiredAction: "add_manual",
-    route: "/cashflow",
+    route: "/fact",
     tab: "manual",
   },
   {
@@ -72,19 +83,8 @@ export const TOUR_STEPS: TourStep[] = [
     },
     type: "action",
     requiredAction: "add_monthly",
-    route: "/cashflow",
+    route: "/fact",
     tab: "months",
-  },
-  {
-    id: "nav-fact",
-    target: "[data-tour-id='nav-fact']",
-    content: {
-      title: "Факт",
-      body: "Перейдём к вводу фактических данных. Нажмите «Далее».",
-    },
-    type: "info",
-    route: "/cashflow",
-    navigateTo: "/fact",
   },
   {
     id: "btn-actual-data",

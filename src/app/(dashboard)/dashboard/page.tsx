@@ -151,11 +151,11 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
+      {/* <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
         <p className="text-sm font-medium text-foreground">
           Чем больше фактических данных вы введёте, тем точнее будет прогноз.
         </p>
-      </div>
+      </div> */}
 
       <section className="space-y-4" data-tour-id="section-charts">
         <h2 className="text-lg font-semibold text-foreground">Нынешние</h2>
