@@ -23,7 +23,7 @@ model User {
   password      String? // bcrypt hash for Credentials provider
   consentAt     DateTime? // 152-ФЗ, GDPR consent
   weeklyReport  Boolean   @default(false)
-  tourCompleted Boolean  @default(false)
+  tourCompleted Boolean   @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
