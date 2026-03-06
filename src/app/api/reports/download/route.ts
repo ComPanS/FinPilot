@@ -1,16 +1,50 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { computeForecast } from "@/lib/services/forecast";
-import { renderToBuffer } from "@react-pdf/renderer";
+import {
+  computeForecast,
+  computeForecastActualOnly,
+} from "@/lib/services/forecast";
+import {
+  renderToBuffer,
+  Font,
+  Document,
+  Page,
+  Text,
+  View,
+  StyleSheet,
+} from "@react-pdf/renderer";
 import React from "react";
-import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
+
+Font.register({
+  family: "Roboto",
+  src: "https://cdn.jsdelivr.net/npm/@fontsource/roboto@5.0.8/files/roboto-cyrillic-400-normal.woff",
+});
 
 const styles = StyleSheet.create({
-  page: { padding: 40, fontFamily: "Helvetica" },
+  page: { padding: 40, fontFamily: "Roboto" },
   title: { fontSize: 18, marginBottom: 20 },
-  row: { flexDirection: "row", marginBottom: 4 },
-  cell: { width: "25%", fontSize: 10 },
+  sectionTitle: { fontSize: 14, marginTop: 16, marginBottom: 8 },
+  table: { borderWidth: 1, borderColor: "#333", marginBottom: 4 },
+  headerRow: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderColor: "#333",
+    backgroundColor: "#f0f0f0",
+  },
+  row: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderColor: "#ddd",
+  },
+  cell: {
+    width: "25%",
+    fontSize: 10,
+    padding: 6,
+    borderRightWidth: 1,
+    borderColor: "#ddd",
+  },
+  cellLast: { width: "25%", fontSize: 10, padding: 6 },
 });
 
 export async function GET(req: Request) {
@@ -22,6 +56,7 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const profileId = searchParams.get("profileId");
   const days = Number(searchParams.get("days")) || 90;
+  const startDateParam = searchParams.get("startDate");
 
   if (!profileId) {
     return NextResponse.json({ error: "profileId обязателен" }, { status: 400 });
@@ -29,17 +64,77 @@ export async function GET(req: Request) {
 
   const user = await prisma.user.findUnique({
     where: { email: session.user.email },
-    include: { profiles: true, subscription: true },
+    include: { profiles: true },
   });
   if (!user || !user.profiles.some((p) => p.id === profileId)) {
     return NextResponse.json({ error: "Профиль не найден" }, { status: 403 });
   }
-  if (user.subscription?.plan === "FREE") {
-    return NextResponse.json({ error: "PDF доступен на Pro" }, { status: 403 });
-  }
 
   const profile = user.profiles.find((p) => p.id === profileId)!;
-  const { forecast } = await computeForecast(profileId, { days });
+  const startDate = startDateParam
+    ? (() => {
+        const d = new Date(startDateParam);
+        d.setHours(0, 0, 0, 0);
+        return d;
+      })()
+    : undefined;
+
+  const [forecastActual, { forecast }] = await Promise.all([
+    computeForecastActualOnly(profileId, { days, startDate }),
+    computeForecast(profileId, { days, startDate }),
+  ]);
+
+  const factDates = new Set(
+    forecastActual.filter((d) => d.hasFactData).map((d) => d.date)
+  );
+  const factRows = forecastActual.filter((d) => d.hasFactData);
+  const expectedRows = forecast.filter((d) => !factDates.has(d.date));
+
+  const round = (n: number) => String(Math.round(n));
+
+  const headerRow = React.createElement(
+    View,
+    { style: styles.headerRow },
+    React.createElement(Text, { style: styles.cell }, "Дата"),
+    React.createElement(Text, { style: styles.cell }, "Баланс"),
+    React.createElement(Text, { style: styles.cell }, "Доходы"),
+    React.createElement(Text, { style: styles.cellLast }, "Расходы")
+  );
+
+  const tableRows = (rows: Array<{ date: string; balance: number; inflows: number; outflows: number }>) =>
+    rows.map((d) =>
+      React.createElement(
+        View,
+        { key: d.date, style: styles.row },
+        React.createElement(Text, { style: styles.cell }, d.date),
+        React.createElement(Text, { style: styles.cell }, round(d.balance)),
+        React.createElement(Text, { style: styles.cell }, round(d.inflows)),
+        React.createElement(Text, { style: styles.cellLast }, round(d.outflows))
+      )
+    );
+
+  const factTable = React.createElement(
+    View,
+    { style: styles.table },
+    React.createElement(Text, { style: styles.sectionTitle }, "Факт"),
+    headerRow,
+    ...tableRows(
+      factRows.map((d) => ({
+        date: d.date,
+        balance: d.balance,
+        inflows: d.inflows ?? 0,
+        outflows: d.outflows ?? 0,
+      }))
+    )
+  );
+
+  const expectedTable = React.createElement(
+    View,
+    { style: styles.table },
+    React.createElement(Text, { style: styles.sectionTitle }, "Ожидаемые"),
+    headerRow,
+    ...tableRows(expectedRows)
+  );
 
   const Doc = () =>
     React.createElement(
@@ -49,16 +144,8 @@ export async function GET(req: Request) {
         Page,
         { size: "A4", style: styles.page },
         React.createElement(Text, { style: styles.title }, `Прогноз: ${profile.name}`),
-        ...forecast.slice(0, 90).map((d) =>
-          React.createElement(
-            View,
-            { key: d.date, style: styles.row },
-            React.createElement(Text, { style: styles.cell }, d.date),
-            React.createElement(Text, { style: styles.cell }, d.balance.toFixed(0)),
-            React.createElement(Text, { style: styles.cell }, d.inflows.toFixed(0)),
-            React.createElement(Text, { style: styles.cell }, d.outflows.toFixed(0))
-          )
-        )
+        factTable,
+        expectedTable
       )
     );
 

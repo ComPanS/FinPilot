@@ -3,27 +3,45 @@
 import { useState } from "react";
 import { generateReportAction } from "@/app/actions/reports";
 
+function toDateStr(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
 export function ReportGenerator({
   profileId,
   profileName,
-  canExportPDF,
 }: {
   profileId: string;
   profileName: string;
-  canExportPDF: boolean;
 }) {
+  const today = new Date();
+  const defaultEnd = new Date(today);
+  defaultEnd.setDate(defaultEnd.getDate() + 29);
   const [format, setFormat] = useState<"excel" | "pdf">("excel");
-  const [days, setDays] = useState(30);
+  const [startDate, setStartDate] = useState(toDateStr(today));
+  const [endDate, setEndDate] = useState(toDateStr(defaultEnd));
   const [loading, setLoading] = useState(false);
 
   const handleGenerate = async () => {
-    if (format === "pdf" && !canExportPDF) {
-      alert("Экспорт в PDF доступен на тарифе Pro и выше");
+    const from = new Date(startDate);
+    const to = new Date(endDate);
+    if (from > to) {
+      alert("Дата начала не может быть позже даты окончания");
+      return;
+    }
+    const days = Math.ceil((to.getTime() - from.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+    if (days > 365) {
+      alert("Максимальный период — 365 дней");
       return;
     }
     setLoading(true);
     try {
-      const res = await generateReportAction(profileId, { format, days });
+      const res = await generateReportAction(profileId, {
+        format,
+        startDate,
+        endDate,
+        days,
+      });
       if (res?.error) {
         alert(res.error);
         return;
@@ -44,25 +62,31 @@ export function ReportGenerator({
           <select
             value={format}
             onChange={(e) => setFormat(e.target.value as "excel" | "pdf")}
-            className="mt-1 rounded border border-border px-3 py-2"
+            className="mt-1 w-full rounded border border-border bg-background px-3 py-2 text-foreground"
           >
             <option value="excel">Excel</option>
-            <option value="pdf" disabled={!canExportPDF}>
-              PDF {!canExportPDF && "(Pro)"}
-            </option>
+            <option value="pdf">PDF</option>
           </select>
         </div>
-        <div>
-          <label className="block text-sm font-medium">Период (дней)</label>
-          <select
-            value={days}
-            onChange={(e) => setDays(Number(e.target.value))}
-            className="mt-1 rounded border border-border px-3 py-2"
-          >
-            <option value={30}>30 дней</option>
-            <option value={60}>60 дней</option>
-            <option value={90}>90 дней</option>
-          </select>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="block text-sm font-medium">Дата начала</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="mt-1 w-full rounded border border-border bg-background px-3 py-2 text-foreground"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium">Дата окончания</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="mt-1 w-full rounded border border-border bg-background px-3 py-2 text-foreground"
+            />
+          </div>
         </div>
         <button
           onClick={handleGenerate}

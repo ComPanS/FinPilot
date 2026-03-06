@@ -11,7 +11,7 @@ export default async function ReportsPage() {
 
   const user = await prisma.user.findUnique({
     where: { email: session.user.email },
-    include: { profiles: true, subscription: true },
+    include: { profiles: true },
   });
 
   if (!user) redirect("/login");
@@ -19,8 +19,6 @@ export default async function ReportsPage() {
   const cookieStore = await cookies();
   const profile = getActiveProfile(user, cookieStore);
   if (!profile) redirect("/onboarding");
-
-  const canExportPDF = user.subscription?.plan !== "FREE";
 
   return (
     <div className="space-y-8" data-tour-id="reports-page">
@@ -33,7 +31,6 @@ export default async function ReportsPage() {
       <ReportGenerator
         profileId={profile.id}
         profileName={profile.name}
-        canExportPDF={canExportPDF}
       />
     </div>
   );
