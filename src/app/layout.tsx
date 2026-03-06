@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { QueryProvider } from "@/components/providers/query-provider";
+import { SiteFooter } from "@/components/layout/site-footer";
 import "./globals.css";
 
 const inter = Inter({
@@ -24,7 +25,12 @@ export default function RootLayout({
     <html lang="ru" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans antialiased`}>
         <ThemeProvider attribute="data-theme" defaultTheme="system" enableSystem>
-          <QueryProvider>{children}</QueryProvider>
+          <div className="flex min-h-screen flex-col">
+            <div className="flex flex-1 flex-col">
+              <QueryProvider>{children}</QueryProvider>
+            </div>
+            <SiteFooter />
+          </div>
         </ThemeProvider>
       </body>
     </html>

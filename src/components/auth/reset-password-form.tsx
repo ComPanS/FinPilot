@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Link from "next/link";
 import { resetPasswordAction } from "@/app/actions/auth";
+import { PasswordInput } from "@/components/ui/password-input";
 
 const schema = z.object({
   password: z.string().min(6, "Минимум 6 символов"),
@@ -67,10 +68,8 @@ export function ResetPasswordForm({ token }: { token: string }) {
           <label className="mb-1 block text-sm font-medium text-foreground">
             Новый пароль
           </label>
-          <input
+          <PasswordInput
             {...register("password")}
-            type="password"
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             placeholder="••••••••"
           />
           {errors.password && (
@@ -83,10 +82,8 @@ export function ResetPasswordForm({ token }: { token: string }) {
           <label className="mb-1 block text-sm font-medium text-foreground">
             Подтвердите пароль
           </label>
-          <input
+          <PasswordInput
             {...register("confirmPassword")}
-            type="password"
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             placeholder="••••••••"
           />
           {errors.confirmPassword && (

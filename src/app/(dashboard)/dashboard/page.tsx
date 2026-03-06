@@ -9,8 +9,6 @@ import { countDaysWithFactData, hasLast3MonthsFactData } from "@/lib/services/fa
 import { DashboardCharts } from "@/components/dashboard/dashboard-charts";
 import { ExpectedChartsSection } from "@/components/dashboard/expected-charts-section";
 import { HalfYearChart } from "@/components/dashboard/half-year-chart";
-import { DashboardCalculationLog } from "@/components/dashboard/dashboard-calculation-log";
-import { IncomeLogger } from "@/components/dashboard/income-logger";
 
 export const dynamic = "force-dynamic";
 
@@ -118,8 +116,6 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <IncomeLogger incomes={profile.regularIncomes.map((i) => ({ id: i.id, name: i.name, amount: i.amount != null ? Number(i.amount) : undefined, avgCheck: i.avgCheck != null ? Number(i.avgCheck) : undefined, frequency: i.frequency, taxes: i.taxes != null ? Number(i.taxes) : undefined }))} />
-      <DashboardCalculationLog profileId={profile.id} />
       <div>
         <h1 className="text-2xl font-bold text-foreground">
           Добро пожаловать, {user.name ?? profile.name ?? "Пользователь"}!

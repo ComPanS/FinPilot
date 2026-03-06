@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Link from "next/link";
+import { PasswordInput } from "@/components/ui/password-input";
 
 const schema = z.object({
   email: z.string().email("Введите корректный email"),
@@ -90,10 +91,8 @@ export function LoginForm() {
           <label className="mb-1 block text-sm font-medium text-foreground">
             Пароль
           </label>
-          <input
+          <PasswordInput
             {...register("password")}
-            type="password"
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             placeholder="••••••••"
           />
           {errors.password && (

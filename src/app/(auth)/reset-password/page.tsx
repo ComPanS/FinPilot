@@ -12,7 +12,7 @@ export default async function ResetPasswordPage({
 
   if (!token) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <div className="flex flex-1 items-center justify-center bg-background p-4">
         <div className="w-full max-w-md space-y-8">
           <div className="rounded-xl border border-border bg-surface p-6 text-center">
             <h1 className="text-xl font-semibold text-danger">
@@ -37,7 +37,7 @@ export default async function ResetPasswordPage({
 
   if (!result.success) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <div className="flex flex-1 items-center justify-center bg-background p-4">
         <div className="w-full max-w-md space-y-8">
           <div className="rounded-xl border border-border bg-surface p-6 text-center">
             <h1 className="text-xl font-semibold text-danger">Ошибка</h1>
@@ -55,7 +55,7 @@ export default async function ResetPasswordPage({
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+    <div className="flex flex-1 items-center justify-center bg-background p-4">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-foreground">

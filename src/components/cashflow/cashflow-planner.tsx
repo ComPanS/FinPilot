@@ -286,10 +286,6 @@ export function CashFlowPlanner({
       }
       const base64 = btoa(binary);
       const result = await parseExcelAndImportAction(profile.id, base64);
-      console.log("[Excel Import] parseExcelAndImportAction result:", result);
-      if (result?.debugJson) {
-        console.log("[Excel Import] raw JSON (parse error):", result.debugJson);
-      }
       setExcelLoading(false);
       input.value = "";
       if (result?.error) {

@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { updateProfileAction, updatePasswordAction, updateZoneSettingsAction, deleteAccountAction, requestEmailChangeAction } from "@/app/actions/settings";
 import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
+import { PasswordInput } from "@/components/ui/password-input";
 
 const profileSchema = z.object({
   name: z.string().min(1),
@@ -224,26 +225,23 @@ export function SettingsForm({
         <form onSubmit={onPasswordSubmit} className="mt-4 space-y-4">
           <div>
             <label className="block text-sm font-medium">Текущий пароль</label>
-            <input
+            <PasswordInput
               {...passwordForm.register("currentPassword")}
-              type="password"
-              className="mt-1 w-full max-w-md rounded border border-border px-3 py-2"
+              className="mt-1 w-full max-w-md rounded border border-border px-3 py-2 pr-10"
             />
           </div>
           <div>
             <label className="block text-sm font-medium">Новый пароль</label>
-            <input
+            <PasswordInput
               {...passwordForm.register("newPassword")}
-              type="password"
-              className="mt-1 w-full max-w-md rounded border border-border px-3 py-2"
+              className="mt-1 w-full max-w-md rounded border border-border px-3 py-2 pr-10"
             />
           </div>
           <div>
             <label className="block text-sm font-medium">Подтвердите</label>
-            <input
+            <PasswordInput
               {...passwordForm.register("confirmPassword")}
-              type="password"
-              className="mt-1 w-full max-w-md rounded border border-border px-3 py-2"
+              className="mt-1 w-full max-w-md rounded border border-border px-3 py-2 pr-10"
             />
             {passwordForm.formState.errors.confirmPassword && (
               <p className="mt-1 text-sm text-danger">

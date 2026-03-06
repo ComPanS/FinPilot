@@ -8,6 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Link from "next/link";
 import { registerUser } from "@/app/actions/auth";
+import { PasswordInput } from "@/components/ui/password-input";
 
 const schema = z
   .object({
@@ -131,10 +132,8 @@ export function RegisterForm() {
           <label className="mb-1 block text-sm font-medium text-foreground">
             Пароль
           </label>
-          <input
+          <PasswordInput
             {...register("password")}
-            type="password"
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             placeholder="••••••••"
           />
           {errors.password && (
@@ -145,10 +144,8 @@ export function RegisterForm() {
           <label className="mb-1 block text-sm font-medium text-foreground">
             Подтвердите пароль
           </label>
-          <input
+          <PasswordInput
             {...register("confirmPassword")}
-            type="password"
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             placeholder="••••••••"
           />
           {errors.confirmPassword && (
@@ -165,8 +162,14 @@ export function RegisterForm() {
             className="mt-1 rounded border-border"
           />
           <label htmlFor="consent" className="text-sm text-muted-foreground">
-            Даю согласие на обработку персональных данных в соответствии с 152-ФЗ
-            и GDPR
+            Согласен с{" "}
+            <Link href="/privacy" className="text-primary hover:underline">
+              политикой конфиденциальности
+            </Link>{" "}
+            и{" "}
+            <Link href="/terms" className="text-primary hover:underline">
+              правилами использования
+            </Link>
           </label>
         </div>
         {errors.consent && (

@@ -227,10 +227,6 @@ export function OnboardingWizard({
       }
       const base64 = btoa(binary);
       const result = await parseExcelWithAIAction(base64);
-      console.log("[Excel Import] parseExcelWithAIAction result:", result);
-      if (result?.debugJson) {
-        console.log("[Excel Import] raw JSON (parse error):", result.debugJson);
-      }
       setExcelLoading(false);
       input.value = "";
       if (result?.error) {
