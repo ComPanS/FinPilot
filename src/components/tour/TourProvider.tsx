@@ -267,6 +267,8 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
   // Restore tour after navigation (when we navigated via navigateTo or manually)
   useEffect(() => {
     if (typeof window === "undefined") return;
+    // Не восстанавливать тур на страницах заполнения профиля
+    if (pathname === "/onboarding" || pathname?.startsWith("/profiles/new")) return;
 
     const pending = sessionStorage.getItem(TOUR_PENDING_STEP_KEY);
     const pendingRoute = sessionStorage.getItem(TOUR_PENDING_ROUTE_KEY);

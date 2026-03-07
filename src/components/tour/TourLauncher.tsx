@@ -14,7 +14,10 @@ export function TourLauncher({ tourCompleted }: { tourCompleted: boolean }) {
   const tour = useTour();
 
   useEffect(() => {
-    if (!tour || pathname !== "/dashboard" || tourCompleted || tour.isTourActive) return;
+    if (!tour || tourCompleted || tour.isTourActive) return;
+    // Не запускать тур на страницах заполнения профиля
+    if (pathname === "/onboarding" || pathname?.startsWith("/profiles/new")) return;
+    if (pathname !== "/dashboard") return;
 
     const pending = typeof window !== "undefined" && sessionStorage.getItem(TOUR_PENDING_STEP_KEY);
     if (!pending) {
