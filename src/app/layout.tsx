@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { QueryProvider } from "@/components/providers/query-provider";
-import { SiteFooter } from "@/components/layout/site-footer";
+import { ConditionalFooter } from "@/components/layout/conditional-footer";
 import "./globals.css";
 
 const inter = Inter({
@@ -29,7 +29,7 @@ export default function RootLayout({
             <div className="flex flex-1 flex-col">
               <QueryProvider>{children}</QueryProvider>
             </div>
-            <SiteFooter />
+            <ConditionalFooter />
           </div>
         </ThemeProvider>
       </body>

@@ -51,6 +51,10 @@
   --muted: #94a3b8;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

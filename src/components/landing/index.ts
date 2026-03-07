@@ -1,0 +1,11 @@
+export { Header } from "./header";
+export { HeroSection } from "./hero-section";
+export { ValuePropositions } from "./value-propositions";
+export { HowItWorks } from "./how-it-works";
+export { ProductFeatures } from "./product-features";
+export { DashboardMockup } from "./dashboard-mockup";
+export { PricingSection } from "./pricing-section";
+export { Testimonials } from "./testimonials";
+export { FAQ } from "./faq";
+export { FinalCTA } from "./final-cta";
+export { Footer } from "./footer";
