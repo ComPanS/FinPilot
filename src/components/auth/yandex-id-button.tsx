@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 
 const YANDEX_AUTH_URL = "https://oauth.yandex.ru/authorize";
 
@@ -17,6 +18,7 @@ export function YandexIdButton({
 }: YandexIdButtonProps) {
   const router = useRouter();
   const [clientId, setClientId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const messageHandlerRef = useRef<((event: MessageEvent) => void) | null>(
     null,
@@ -25,10 +27,14 @@ export function YandexIdButton({
   useEffect(() => {
     fetch("/api/yandex-config")
       .then((r) => r.json())
-      .then((data: { clientId?: string | null }) =>
-        setClientId(data.clientId ?? null),
-      )
-      .catch(() => setClientId(null));
+      .then((data: { clientId?: string | null }) => {
+        setClientId(data.clientId ?? null);
+        setIsLoading(false);
+      })
+      .catch(() => {
+        setClientId(null);
+        setIsLoading(false);
+      });
   }, []);
 
   const handleYandexToken = useCallback(
@@ -113,15 +119,19 @@ export function YandexIdButton({
     };
   }, []);
 
-  if (!clientId) return null;
+  const isDisabled = isLoading || !clientId;
 
   return (
     <div className="flex w-full flex-col items-center gap-1">
       <button
         type="button"
         onClick={handleClick}
-        className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-border px-4 py-2 font-medium transition-colors hover:bg-surface"
+        disabled={isDisabled}
+        className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-border px-4 py-2 font-medium transition-colors hover:bg-surface disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:bg-transparent"
       >
+        {isLoading ? (
+          <Loader2 className="h-5 w-5 shrink-0 animate-spin" aria-hidden />
+        ) : null}
         Войти через Яндекс
       </button>
       {error && !onError && (
