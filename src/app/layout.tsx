@@ -36,9 +36,9 @@ export const metadata: Metadata = {
   category: "finance",
   alternates: { canonical: siteUrl },
   icons: {
-    icon: "/logo.webp",
-    shortcut: "/logo.webp",
-    apple: "/logo.webp",
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
   },
   openGraph: {
     title: "ФинПланер — Управленка за 5 минут",
@@ -49,7 +49,7 @@ export const metadata: Metadata = {
     siteName: "ФинПланер",
     images: [
       {
-        url: "/logo.webp",
+        url: "/logo.png",
         width: 512,
         height: 512,
         alt: "ФинПланер",
@@ -61,7 +61,7 @@ export const metadata: Metadata = {
     title: "ФинПланер — Управленка за 5 минут",
     description:
       "Кассовый планировщик для ИП и микробизнеса. Прогноз денежных потоков на 3 месяца.",
-    images: ["/logo.webp"],
+    images: ["/logo.png"],
   },
 };
 

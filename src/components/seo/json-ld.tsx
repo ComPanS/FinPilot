@@ -8,7 +8,7 @@ const organizationJsonLd = {
   "@type": "Organization",
   name: "ФинПланер",
   url: siteUrl,
-  logo: `${siteUrl}/logo.webp`,
+  logo: `${siteUrl}/logo.png`,
   description:
     "Кассовый планировщик для ИП и микробизнеса. Прогноз денежных потоков на 3 месяца.",
 };
@@ -23,7 +23,7 @@ const websiteJsonLd = {
   publisher: {
     "@type": "Organization",
     name: "ФинПланер",
-    logo: `${siteUrl}/logo.webp`,
+    logo: `${siteUrl}/logo.png`,
   },
 };
 
