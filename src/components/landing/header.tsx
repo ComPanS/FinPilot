@@ -13,26 +13,44 @@ export function Header() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <div className="flex items-center">
-            <Link href="/" className="text-xl font-bold text-foreground cursor-pointer">
-              ФинПилот
+            <Link
+              href="/"
+              className="text-xl font-bold text-foreground cursor-pointer"
+            >
+              ФинПланер
             </Link>
           </div>
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
-            <Link href="#features" className="text-foreground hover:text-primary transition-colors cursor-pointer">
+            <Link
+              href="#features"
+              className="text-foreground hover:text-primary transition-colors cursor-pointer"
+            >
               Функции
             </Link>
-            <Link href="#how-it-works" className="text-foreground hover:text-primary transition-colors cursor-pointer">
+            <Link
+              href="#how-it-works"
+              className="text-foreground hover:text-primary transition-colors cursor-pointer"
+            >
               Как это работает
             </Link>
-            <Link href="#pricing" className="text-foreground hover:text-primary transition-colors cursor-pointer">
+            <Link
+              href="#pricing"
+              className="text-foreground hover:text-primary transition-colors cursor-pointer"
+            >
               Тарифы
             </Link>
-            <Link href="#faq" className="text-foreground hover:text-primary transition-colors cursor-pointer">
+            <Link
+              href="#faq"
+              className="text-foreground hover:text-primary transition-colors cursor-pointer"
+            >
               FAQ
             </Link>
-            <Link href="/login" className="text-foreground hover:text-primary transition-colors cursor-pointer">
+            <Link
+              href="/login"
+              className="text-foreground hover:text-primary transition-colors cursor-pointer"
+            >
               Войти
             </Link>
           </nav>
@@ -60,19 +78,39 @@ export function Header() {
         {mobileMenuOpen && (
           <div className="md:hidden py-4 border-t border-border">
             <nav className="flex flex-col space-y-4">
-              <Link href="#features" className="text-foreground hover:text-primary transition-colors cursor-pointer" onClick={() => setMobileMenuOpen(false)}>
+              <Link
+                href="#features"
+                className="text-foreground hover:text-primary transition-colors cursor-pointer"
+                onClick={() => setMobileMenuOpen(false)}
+              >
                 Функции
               </Link>
-              <Link href="#how-it-works" className="text-foreground hover:text-primary transition-colors cursor-pointer" onClick={() => setMobileMenuOpen(false)}>
+              <Link
+                href="#how-it-works"
+                className="text-foreground hover:text-primary transition-colors cursor-pointer"
+                onClick={() => setMobileMenuOpen(false)}
+              >
                 Как это работает
               </Link>
-              <Link href="#pricing" className="text-foreground hover:text-primary transition-colors cursor-pointer" onClick={() => setMobileMenuOpen(false)}>
+              <Link
+                href="#pricing"
+                className="text-foreground hover:text-primary transition-colors cursor-pointer"
+                onClick={() => setMobileMenuOpen(false)}
+              >
                 Тарифы
               </Link>
-              <Link href="#faq" className="text-foreground hover:text-primary transition-colors cursor-pointer" onClick={() => setMobileMenuOpen(false)}>
+              <Link
+                href="#faq"
+                className="text-foreground hover:text-primary transition-colors cursor-pointer"
+                onClick={() => setMobileMenuOpen(false)}
+              >
                 FAQ
               </Link>
-              <Link href="/login" className="text-foreground hover:text-primary transition-colors cursor-pointer" onClick={() => setMobileMenuOpen(false)}>
+              <Link
+                href="/login"
+                className="text-foreground hover:text-primary transition-colors cursor-pointer"
+                onClick={() => setMobileMenuOpen(false)}
+              >
                 Войти
               </Link>
               <Link

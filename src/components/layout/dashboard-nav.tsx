@@ -51,7 +51,7 @@ export function DashboardNav({
       )}
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
         <Link href="/dashboard" className="text-xl font-bold text-primary">
-          ФинПилот
+          ФинПланер
         </Link>
         <nav className="flex gap-1">
           {navItems.map((item) => (

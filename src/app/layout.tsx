@@ -12,8 +12,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "ФинПилот — Управленка за 5 минут",
-  description: "Кассовый планировщик для ИП и микробизнеса. Прогноз денежных потоков на 3 месяца.",
+  title: "ФинПланер — Управленка за 5 минут",
+  description:
+    "Кассовый планировщик для ИП и микробизнеса. Прогноз денежных потоков на 3 месяца.",
 };
 
 export default function RootLayout({
@@ -24,7 +25,11 @@ export default function RootLayout({
   return (
     <html lang="ru" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans antialiased`}>
-        <ThemeProvider attribute="data-theme" defaultTheme="system" enableSystem>
+        <ThemeProvider
+          attribute="data-theme"
+          defaultTheme="system"
+          enableSystem
+        >
           <div className="flex min-h-screen flex-col">
             <div className="flex flex-1 flex-col">
               <QueryProvider>{children}</QueryProvider>

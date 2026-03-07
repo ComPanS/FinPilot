@@ -8,7 +8,9 @@ function getTransporter() {
   const from = process.env.SMTP_FROM || user;
 
   if (!host || !user || !pass) {
-    throw new Error("SMTP not configured (SMTP_HOST, SMTP_USER, SMTP_PASSWORD)");
+    throw new Error(
+      "SMTP not configured (SMTP_HOST, SMTP_USER, SMTP_PASSWORD)",
+    );
   }
 
   return nodemailer.createTransport({
@@ -25,7 +27,7 @@ export async function sendVerificationEmail(email: string, code: string) {
   await transporter.sendMail({
     from,
     to: email,
-    subject: "Подтверждение email — ФинПилот",
+    subject: "Подтверждение email — ФинПланер",
     text: `Ваш код подтверждения: ${code}\n\nКод действителен 15 минут.`,
     html: `
       <!DOCTYPE html>
@@ -38,7 +40,7 @@ export async function sendVerificationEmail(email: string, code: string) {
         <div style="max-width: 480px; margin: 0 auto; padding: 40px 24px;">
           <div style="background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden;">
             <div style="background: #10b981; padding: 24px; text-align: center;">
-              <span style="font-size: 24px; font-weight: 700; color: #ffffff;">ФинПилот</span>
+              <span style="font-size: 24px; font-weight: 700; color: #ffffff;">ФинПланер</span>
             </div>
             <div style="padding: 32px;">
               <h2 style="margin: 0 0 16px; font-size: 20px; color: #0f172a;">Подтверждение email</h2>
@@ -47,10 +49,10 @@ export async function sendVerificationEmail(email: string, code: string) {
                 <span style="font-size: 28px; font-weight: 700; letter-spacing: 6px; color: #0f172a;">${code}</span>
               </div>
               <p style="margin: 0; font-size: 13px; color: #64748b;">Код действителен 15 минут.</p>
-              <p style="margin: 24px 0 0; font-size: 13px; color: #94a3b8;">Если вы не регистрировались в ФинПилот, проигнорируйте это письмо.</p>
+              <p style="margin: 24px 0 0; font-size: 13px; color: #94a3b8;">Если вы не регистрировались в ФинПланер, проигнорируйте это письмо.</p>
             </div>
           </div>
-          <p style="margin: 24px 0 0; font-size: 12px; color: #94a3b8; text-align: center;">© ${new Date().getFullYear()} ФинПилот</p>
+          <p style="margin: 24px 0 0; font-size: 12px; color: #94a3b8; text-align: center;">© ${new Date().getFullYear()} ФинПланер</p>
         </div>
       </body>
       </html>
@@ -64,7 +66,7 @@ export async function sendPasswordResetEmail(email: string, resetUrl: string) {
   await transporter.sendMail({
     from,
     to: email,
-    subject: "Восстановление пароля — ФинПилот",
+    subject: "Восстановление пароля — ФинПланер",
     text: `Восстановите пароль, перейдя по ссылке:\n${resetUrl}\n\nСсылка действительна 1 час.`,
     html: `
       <div style="font-family: sans-serif; max-width: 480px;">
@@ -80,14 +82,14 @@ export async function sendPasswordResetEmail(email: string, resetUrl: string) {
 
 export async function sendEmailChangeVerification(
   newEmail: string,
-  verifyUrl: string
+  verifyUrl: string,
 ) {
   const from = process.env.SMTP_FROM || process.env.SMTP_USER;
   const transporter = getTransporter();
   await transporter.sendMail({
     from,
     to: newEmail,
-    subject: "Подтверждение смены email — ФинПилот",
+    subject: "Подтверждение смены email — ФинПланер",
     text: `Подтвердите смену email, перейдя по ссылке:\n${verifyUrl}\n\nСсылка действительна 1 час.`,
     html: `
       <div style="font-family: sans-serif; max-width: 480px;">

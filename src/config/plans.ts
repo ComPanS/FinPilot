@@ -1,4 +1,4 @@
-// Единый источник правды для тарифов FinPilot (PRICES.md)
+// Единый источник правды для тарифов ffinplaner (PRICES.md)
 // Все проверки доступа и отображение на фронте берут данные отсюда.
 
 export type PlanLimits = {
@@ -193,7 +193,9 @@ const LEGACY_PLAN_MAP: Record<string, string> = {
   BUSINESS: "PRO",
 };
 
-export function getPlanConfig(planId: string | null | undefined): PlanConfig | null {
+export function getPlanConfig(
+  planId: string | null | undefined,
+): PlanConfig | null {
   if (!planId) return null;
   const mapped = LEGACY_PLAN_MAP[planId] ?? planId;
   const plan = PLANS[mapped];
@@ -207,7 +209,7 @@ export function getPlanLimits(planId: string | null | undefined): PlanLimits {
 
 export function canAccessFeature(
   planId: string | null | undefined,
-  feature: keyof PlanFeatures
+  feature: keyof PlanFeatures,
 ): boolean {
   const plan = getPlanConfig(planId);
   return plan?.features[feature] ?? false;
@@ -216,12 +218,15 @@ export function canAccessFeature(
 /** Эффективный план: TRIAL с активным периодом = Pro */
 export function getEffectivePlan(
   planId: string | null | undefined,
-  trialEndsAt: Date | null | undefined
+  trialEndsAt: Date | null | undefined,
 ): string {
   if (planId === "TRIAL" && trialEndsAt && new Date(trialEndsAt) > new Date()) {
     return "TRIAL";
   }
-  if (planId === "TRIAL" && (!trialEndsAt || new Date(trialEndsAt) <= new Date())) {
+  if (
+    planId === "TRIAL" &&
+    (!trialEndsAt || new Date(trialEndsAt) <= new Date())
+  ) {
     return "FREE";
   }
   return planId ?? "FREE";
@@ -230,7 +235,7 @@ export function getEffectivePlan(
 /** Лимиты с учётом триала (TRIAL = Pro) */
 export function getEffectiveLimits(
   planId: string | null | undefined,
-  trialEndsAt: Date | null | undefined
+  trialEndsAt: Date | null | undefined,
 ): PlanLimits {
   const effective = getEffectivePlan(planId, trialEndsAt);
   return getPlanLimits(effective === "TRIAL" ? "PRO" : effective);

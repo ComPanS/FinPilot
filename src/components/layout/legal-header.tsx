@@ -8,7 +8,7 @@ export async function LegalHeader() {
     <header className="border-b border-border bg-surface">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
         <Link href="/" className="text-xl font-bold text-primary">
-          ФинПилот
+          ФинПланер
         </Link>
         <nav className="flex items-center gap-6">
           <Link

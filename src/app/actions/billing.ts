@@ -8,7 +8,7 @@ import { PLANS, BILLABLE_PLANS } from "@/config/plans";
 export async function createCheckoutAction(
   userId: string,
   planId: string,
-  billingPeriod: "monthly" | "yearly" = "monthly"
+  billingPeriod: "monthly" | "yearly" = "monthly",
 ) {
   const session = await auth();
   if (!session?.user?.email) return { error: "Не авторизован" };
@@ -35,13 +35,14 @@ export async function createCheckoutAction(
   try {
     const payment = await createPayment({
       amount,
-      description: `ФинПилот ${plan.name} (${billingPeriod === "yearly" ? "год" : "мес"})`,
+      description: `ФинПланер ${plan.name} (${billingPeriod === "yearly" ? "год" : "мес"})`,
       returnUrl: `${baseUrl}/billing?success=1`,
       metadata: { userId, planId, billingPeriod },
     });
 
-    const confirmationUrl = (payment as { confirmation?: { confirmation_url?: string } })
-      ?.confirmation?.confirmation_url;
+    const confirmationUrl = (
+      payment as { confirmation?: { confirmation_url?: string } }
+    )?.confirmation?.confirmation_url;
     if (!confirmationUrl) {
       return { error: "Не удалось создать платёж" };
     }

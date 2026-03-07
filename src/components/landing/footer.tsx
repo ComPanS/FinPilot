@@ -8,17 +8,18 @@ export function Footer() {
         <div className="grid md:grid-cols-4 gap-8 mb-8">
           {/* Brand */}
           <div className="md:col-span-2">
-            <div className="text-2xl font-bold mb-4">ФинПилот</div>
+            <div className="text-2xl font-bold mb-4">ФинПланер</div>
             <p className="text-gray-400 mb-4">
-              Управление денежными потоками для малого бизнеса и индивидуальных предпринимателей.
+              Управление денежными потоками для малого бизнеса и индивидуальных
+              предпринимателей.
             </p>
             <div className="flex items-center gap-2 text-gray-400">
               <Mail size={18} />
               <a
-                href="mailto:support@finpilot.ru"
+                href="mailto:support@ffinplaner.ru"
                 className="hover:text-primary transition-colors cursor-pointer"
               >
-                support@finpilot.ru
+                support@ffinplaner.ru
               </a>
             </div>
           </div>
@@ -28,22 +29,34 @@ export function Footer() {
             <h4 className="font-semibold mb-4">Продукт</h4>
             <ul className="space-y-3 text-gray-400">
               <li>
-                <Link href="#features" className="hover:text-primary transition-colors cursor-pointer">
+                <Link
+                  href="#features"
+                  className="hover:text-primary transition-colors cursor-pointer"
+                >
                   Функции
                 </Link>
               </li>
               <li>
-                <Link href="#pricing" className="hover:text-primary transition-colors cursor-pointer">
+                <Link
+                  href="#pricing"
+                  className="hover:text-primary transition-colors cursor-pointer"
+                >
                   Тарифы
                 </Link>
               </li>
               <li>
-                <Link href="#how-it-works" className="hover:text-primary transition-colors cursor-pointer">
+                <Link
+                  href="#how-it-works"
+                  className="hover:text-primary transition-colors cursor-pointer"
+                >
                   Как это работает
                 </Link>
               </li>
               <li>
-                <Link href="#faq" className="hover:text-primary transition-colors cursor-pointer">
+                <Link
+                  href="#faq"
+                  className="hover:text-primary transition-colors cursor-pointer"
+                >
                   FAQ
                 </Link>
               </li>
@@ -55,17 +68,26 @@ export function Footer() {
             <h4 className="font-semibold mb-4">Документы</h4>
             <ul className="space-y-3 text-gray-400">
               <li>
-                <Link href="/privacy" className="hover:text-primary transition-colors cursor-pointer">
+                <Link
+                  href="/privacy"
+                  className="hover:text-primary transition-colors cursor-pointer"
+                >
                   Политика конфиденциальности
                 </Link>
               </li>
               <li>
-                <Link href="/terms" className="hover:text-primary transition-colors cursor-pointer">
+                <Link
+                  href="/terms"
+                  className="hover:text-primary transition-colors cursor-pointer"
+                >
                   Правила использования
                 </Link>
               </li>
               <li>
-                <Link href="/terms" className="hover:text-primary transition-colors cursor-pointer">
+                <Link
+                  href="/terms"
+                  className="hover:text-primary transition-colors cursor-pointer"
+                >
                   Договор оферты
                 </Link>
               </li>
@@ -74,7 +96,7 @@ export function Footer() {
         </div>
 
         <div className="pt-8 border-t border-gray-800 text-center text-gray-400 text-sm">
-          <p>© 2026 ФинПилот. Все права защищены.</p>
+          <p>© 2026 ФинПланер. Все права защищены.</p>
         </div>
       </div>
     </footer>

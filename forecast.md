@@ -1,4 +1,4 @@
-# Прогноз доходов и прибыли в FinPilot
+# Прогноз доходов и прибыли в ffinplaner
 
 Подробное описание реализации прогноза: от источников данных до отображения на фронтенде. Включает адаптивные паттерны, приоритеты данных и логику слияния ожидаемого и фактического.
 
@@ -81,14 +81,15 @@
 // src/types/index.ts
 
 export interface ForecastDay {
-  date: string;      // "YYYY-MM-DD"
-  balance: number;    // баланс на конец дня
-  inflows: number;    // доходы за день
-  outflows: number;  // расходы за день
+  date: string; // "YYYY-MM-DD"
+  balance: number; // баланс на конец дня
+  inflows: number; // доходы за день
+  outflows: number; // расходы за день
 }
 ```
 
 **Пример:**
+
 ```json
 {
   "date": "2025-03-15",
@@ -110,7 +111,7 @@ export interface ForecastDayFact {
   balance: number | null;
   inflows: number | null;
   outflows: number | null;
-  hasFactData: boolean;  // true, если есть ActualEntry или ManualTransaction
+  hasFactData: boolean; // true, если есть ActualEntry или ManualTransaction
 }
 ```
 
@@ -127,9 +128,24 @@ export interface WhatIfChanges {
   expenseOverrides?: Record<string, { amount?: number; hidden?: boolean }>;
   incomeOverrides?: Record<string, { amount?: number; hidden?: boolean }>;
   manualOverrides?: Record<string, { amount?: number; hidden?: boolean }>;
-  addExpenses?: Array<{ name: string; amount: number; frequency: string; categoryId: string }>;
-  addIncomes?: Array<{ name: string; amount: number; frequency: string; categoryId?: string }>;
-  addManual?: Array<{ date: string; type: "IN" | "OUT"; amount: number; description?: string }>;
+  addExpenses?: Array<{
+    name: string;
+    amount: number;
+    frequency: string;
+    categoryId: string;
+  }>;
+  addIncomes?: Array<{
+    name: string;
+    amount: number;
+    frequency: string;
+    categoryId?: string;
+  }>;
+  addManual?: Array<{
+    date: string;
+    type: "IN" | "OUT";
+    amount: number;
+    description?: string;
+  }>;
 }
 ```
 
@@ -139,14 +155,14 @@ export interface WhatIfChanges {
 
 ### 3.1 Модели Prisma
 
-| Модель | Назначение |
-|--------|------------|
-| `RegularExpense` | Регулярные расходы (частота, сумма, категория, expectedData, seasonalMultiplier) |
-| `RegularIncome` | Регулярные доходы (частота, сумма, налоги, expectedData, salesPlan) |
-| `ManualTransaction` | Разовые операции IN/OUT на конкретную дату |
-| `ProfileMonthlyData` | Суммарный доход/расход по месяцам (YYYY-MM) |
-| `ExpectedEntry` | Ожидаемые суммы по периодам (по сущности или MONTHLY_TOTAL) |
-| `ActualEntry` | Фактические суммы (по дню, месяцу или диапазону) |
+| Модель               | Назначение                                                                       |
+| -------------------- | -------------------------------------------------------------------------------- |
+| `RegularExpense`     | Регулярные расходы (частота, сумма, категория, expectedData, seasonalMultiplier) |
+| `RegularIncome`      | Регулярные доходы (частота, сумма, налоги, expectedData, salesPlan)              |
+| `ManualTransaction`  | Разовые операции IN/OUT на конкретную дату                                       |
+| `ProfileMonthlyData` | Суммарный доход/расход по месяцам (YYYY-MM)                                      |
+| `ExpectedEntry`      | Ожидаемые суммы по периодам (по сущности или MONTHLY_TOTAL)                      |
+| `ActualEntry`        | Фактические суммы (по дню, месяцу или диапазону)                                 |
 
 ### 3.2 ExpectedEntry — ожидаемые суммы
 
@@ -183,6 +199,7 @@ model ActualEntry {
 ```
 
 Форматы `period`:
+
 - `YYYY-MM` — сумма за месяц, распределяется равномерно по дням.
 - `YYYY-MM-DD` — сумма за конкретный день.
 - `YYYY-MM-DD:YYYY-MM-DD` — сумма за диапазон, распределяется по дням.
@@ -191,21 +208,21 @@ model ActualEntry {
 
 **Ожидаемые данные (getEffectiveDailyAmountWithPatterns):**
 
-| # | Источник | Условие |
-|---|----------|---------|
-| 1 | ExpectedEntry для `dateKey` (YYYY-MM-DD) | Точная сумма на день |
-| 2 | ExpectedEntry для `monthKey` (YYYY-MM) или expectedData JSON | Распределение по дням месяца |
-| 3 | patternMap (факторы) | baseDaily × weekdayFactor × monthDayFactor × monthFactor |
-| 4 | seasonalMultiplier | baseAmount × mult |
-| 5 | dailyAmountFromFrequency | amount / 30, /7 и т.д. (fallback) |
+| #   | Источник                                                     | Условие                                                  |
+| --- | ------------------------------------------------------------ | -------------------------------------------------------- |
+| 1   | ExpectedEntry для `dateKey` (YYYY-MM-DD)                     | Точная сумма на день                                     |
+| 2   | ExpectedEntry для `monthKey` (YYYY-MM) или expectedData JSON | Распределение по дням месяца                             |
+| 3   | patternMap (факторы)                                         | baseDaily × weekdayFactor × monthDayFactor × monthFactor |
+| 4   | seasonalMultiplier                                           | baseAmount × mult                                        |
+| 5   | dailyAmountFromFrequency                                     | amount / 30, /7 и т.д. (fallback)                        |
 
 **Фактические данные (actual-data.ts):**
 
-| # | Формат period | Логика |
-|---|---------------|--------|
-| 1 | `YYYY-MM-DD` | Точное совпадение по дню |
-| 2 | `YYYY-MM-DD:YYYY-MM-DD` | День попадает в диапазон → amount / daysInRange |
-| 3 | `YYYY-MM` | Сумма делится на число дней в месяце |
+| #   | Формат period           | Логика                                          |
+| --- | ----------------------- | ----------------------------------------------- |
+| 1   | `YYYY-MM-DD`            | Точное совпадение по дню                        |
+| 2   | `YYYY-MM-DD:YYYY-MM-DD` | День попадает в диапазон → amount / daysInRange |
+| 3   | `YYYY-MM`               | Сумма делится на число дней в месяце            |
 
 ---
 
@@ -229,12 +246,12 @@ export async function computeForecast(
     useActualData?: boolean;
     usePatterns?: boolean;
     patternLookbackMonths?: number;
-  } = {}
+  } = {},
 ): Promise<{
   forecast: ForecastDay[];
   usedPatterns: boolean;
   hasEnoughPatternData: boolean;
-}>
+}>;
 ```
 
 **Порядок выполнения:**
@@ -243,9 +260,13 @@ export async function computeForecast(
    Если не передан `initialBalance`, вызывается `computeHistoricalBalance(profileId, день_перед_стартом)`.
 
 2. **Загрузка данных:**
+
    ```typescript
    const [expenses, incomes, transactions, monthlyData] = await Promise.all([
-     prisma.regularExpense.findMany({ where: { profileId }, include: { category: true } }),
+     prisma.regularExpense.findMany({
+       where: { profileId },
+       include: { category: true },
+     }),
      prisma.regularIncome.findMany({ where: { profileId } }),
      prisma.manualTransaction.findMany({ where: { profileId } }),
      prisma.profileMonthlyData.findMany({ where: { profileId } }),
@@ -293,7 +314,11 @@ export async function computeForecast(
       balance = balance + inflows - outflows;
       result.push({ date: key, balance, inflows, outflows });
     }
-    return { forecast: result, usedPatterns: patternMap != null, hasEnoughPatternData: patternResult?.hasEnoughData ?? false };
+    return {
+      forecast: result,
+      usedPatterns: patternMap != null,
+      hasEnoughPatternData: patternResult?.hasEnoughData ?? false,
+    };
     ```
 
 ### 4.2 computeForecastActualOnly — только дни с фактом
@@ -301,8 +326,8 @@ export async function computeForecast(
 ```typescript
 export async function computeForecastActualOnly(
   profileId: string,
-  options: { days?: number; startDate?: Date } = {}
-): Promise<ForecastDayFact[]>
+  options: { days?: number; startDate?: Date } = {},
+): Promise<ForecastDayFact[]>;
 ```
 
 - Учитываются только `ActualEntry` и `ManualTransaction`.
@@ -316,8 +341,8 @@ export async function computeForecastActualOnly(
 export async function computeHistoricalBalance(
   profileId: string,
   asOfDate: Date,
-  options?: { useActualData?: boolean }
-): Promise<number>
+  options?: { useActualData?: boolean },
+): Promise<number>;
 ```
 
 - Строит дневные притоки и оттоки от самой ранней даты до `asOfDate`.
@@ -353,16 +378,16 @@ export async function fetchActualEntriesBatch(
   profileId: string,
   entityIds: string[],
   startDate: Date,
-  endDate: Date
-): Promise<ActualByEntity>
+  endDate: Date,
+): Promise<ActualByEntity>;
 
 export function getActualAmountForDay(
   entityId: string,
   entityType: "EXPENSE" | "INCOME",
   dateKey: string,
   monthKeyStr: string,
-  actual: ActualByEntity
-): number | null
+  actual: ActualByEntity,
+): number | null;
 ```
 
 Приоритет: день → диапазон → месяц.
@@ -380,12 +405,12 @@ export async function buildDailyPatternMap(
   profileId: string,
   startDate: Date,
   days: number,
-  options?: { patternLookbackMonths?: number }
+  options?: { patternLookbackMonths?: number },
 ): Promise<{
   patternMap: Map<string, PatternMapEntry>;
   hasEnoughData: boolean;
   daysWithData: number;
-}>
+}>;
 ```
 
 **Алгоритм:**
@@ -411,9 +436,11 @@ export async function buildDailyPatternMap(
 7. Для каждого дня в диапазоне прогноза: `{ inflow: { weekdayFactor, monthDayFactor, monthFactor }, outflow: {...} }`.
 
 **Константы:**
+
 - `MIN_DAYS_WITH_DATA = 30` — при меньшем числе дней с данными возвращается пустая карта.
 
 **Применение:**
+
 ```
 effectiveDaily = baseDaily * seasonal * weekdayFactor * monthDayFactor * monthFactor
 ```
@@ -468,11 +495,12 @@ export async function getForecastAction(
     usePatterns?: boolean;
     patternLookbackMonths?: number;
     returnBoth?: boolean;
-  }
-)
+  },
+);
 ```
 
 **Логика:**
+
 1. Проверка авторизации и доступа к профилю.
 2. Ограничение по тарифу: FREE — 30 дней, PRO — 90 дней.
 3. При `returnBoth: true`:
@@ -484,7 +512,8 @@ export async function getForecastAction(
    return {
      forecastExpected: forecastRes.forecast,
      forecastFactOnly,
-     zoneGreenMin, zoneRedMax,
+     zoneGreenMin,
+     zoneRedMax,
      usedPatterns: forecastRes.usedPatterns,
      hasEnoughPatternData: forecastRes.hasEnoughPatternData,
    };
@@ -492,11 +521,13 @@ export async function getForecastAction(
 4. Иначе — один вызов `computeForecast()` с переданным `useActualData`.
 
 **Возвращаемые поля:**
+
 - `forecast`, `forecastExpected`, `forecastFactOnly`, `zoneGreenMin`, `zoneRedMax`
 - `usedPatterns: boolean` — применялись ли паттерны
 - `hasEnoughPatternData: boolean` — достаточно ли данных (≥30 дней) для паттернов
 
 **Дефолты:**
+
 - `usePatterns: true`
 - `patternLookbackMonths: 12`
 
@@ -518,6 +549,7 @@ const forecastFactOnly = forecastRes.forecastFactOnly ?? [];
 ```
 
 Данные передаются в `DashboardCharts`:
+
 ```tsx
 <DashboardCharts
   dataExpected={forecastExpected}
@@ -576,12 +608,14 @@ const loadForecast = async () => {
 ```typescript
 const totalIncome = chartData.reduce((s, d) => {
   const fact = factByDateForTotals?.get(d.date);
-  const inflows = fact?.hasFactData && fact.inflows != null ? fact.inflows : d.inflows;
+  const inflows =
+    fact?.hasFactData && fact.inflows != null ? fact.inflows : d.inflows;
   return s + inflows;
 }, 0);
 const totalExpense = chartData.reduce((s, d) => {
   const fact = factByDateForTotals?.get(d.date);
-  const outflows = fact?.hasFactData && fact.outflows != null ? fact.outflows : d.outflows;
+  const outflows =
+    fact?.hasFactData && fact.outflows != null ? fact.outflows : d.outflows;
   return s + outflows;
 }, 0);
 ```
@@ -598,14 +632,14 @@ const totalExpense = chartData.reduce((s, d) => {
 
 ```typescript
 type ChartPoint = ForecastDay & {
-  dateShort: string;           // "ДД.ММ.ГГГГ" для оси X
-  profit: number;              // inflows - outflows
-  profitPositive: number;      // profit >= 0 ? profit : 0
-  profitNegative: number;      // profit < 0 ? profit : 0
-  positiveBalance: number;     // balance >= 0 ? balance : 0
-  negativeBalance: number;     // balance < 0 ? balance : 0
-  cumulativeInflows: number;   // нарастающий итог доходов
-  cumulativeOutflows: number;  // нарастающий итог расходов
+  dateShort: string; // "ДД.ММ.ГГГГ" для оси X
+  profit: number; // inflows - outflows
+  profitPositive: number; // profit >= 0 ? profit : 0
+  profitNegative: number; // profit < 0 ? profit : 0
+  positiveBalance: number; // balance >= 0 ? balance : 0
+  negativeBalance: number; // balance < 0 ? balance : 0
+  cumulativeInflows: number; // нарастающий итог доходов
+  cumulativeOutflows: number; // нарастающий итог расходов
   // Ожидаемые значения (всегда заполнены)
   balanceExpected?: number;
   profitExpected?: number;
@@ -647,6 +681,7 @@ type ChartPoint = ForecastDay & {
 Чтобы Area-графики корректно отображали переход через ноль (например, баланс с плюса на минус), между соседними точками вставляется **интерполированная точка** с нулевым значением.
 
 **Алгоритм:**
+
 ```
 Для каждой пары (a, b):
   va = getValue(a), vb = getValue(b)
@@ -657,6 +692,7 @@ type ChartPoint = ForecastDay & {
 ```
 
 Используется в двух вариантах:
+
 - `chartDataWithProfitCrossings` — для графика «Прибыль за день» (пересечение `profit`)
 - `chartDataWithBalanceCrossings` — для графика «Баланс» (пересечение `balance`)
 
@@ -664,11 +700,11 @@ type ChartPoint = ForecastDay & {
 
 #### 10.4.1 Карточки сводных показателей
 
-| Показатель | Формула |
-|------------|---------|
-| Суммарная прибыль | `totalIncome - totalExpense` |
-| Суммарный доход | `Σ (fact?.hasFactData ? fact.inflows : d.inflows)` |
-| Суммарный расход | `Σ (fact?.hasFactData ? fact.outflows : d.outflows)` |
+| Показатель        | Формула                                              |
+| ----------------- | ---------------------------------------------------- |
+| Суммарная прибыль | `totalIncome - totalExpense`                         |
+| Суммарный доход   | `Σ (fact?.hasFactData ? fact.inflows : d.inflows)`   |
+| Суммарный расход  | `Σ (fact?.hasFactData ? fact.outflows : d.outflows)` |
 
 При наличии факта на день используется факт, иначе — ожидаемое значение.
 
@@ -713,16 +749,18 @@ type ChartPoint = ForecastDay & {
 - **Вход:** `ForecastDay[]` (только ожидаемый прогноз, без факта)
 - **Подготовка:**
   ```typescript
-  chartData = insertZeroCrossings(data.map((d) => {
-    const balance = Math.round(d.balance);
-    return {
-      ...d,
-      balance,
-      dateShort: formatDateDdMmYyyy(d.date),
-      positiveBalance: balance >= 0 ? balance : 0,
-      negativeBalance: balance < 0 ? balance : 0,
-    };
-  }))
+  chartData = insertZeroCrossings(
+    data.map((d) => {
+      const balance = Math.round(d.balance);
+      return {
+        ...d,
+        balance,
+        dateShort: formatDateDdMmYyyy(d.date),
+        positiveBalance: balance >= 0 ? balance : 0,
+        negativeBalance: balance < 0 ? balance : 0,
+      };
+    }),
+  );
   ```
 - **Тип:** ComposedChart (Area)
 - **Area:** `positiveBalance` (зелёная), `negativeBalance` (красная)
@@ -744,7 +782,7 @@ type ChartPoint = ForecastDay & {
 
 ```typescript
 for (const d of forecastData) {
-  const monthKey = d.date.slice(0, 7);  // "YYYY-MM"
+  const monthKey = d.date.slice(0, 7); // "YYYY-MM"
   byMonth[monthKey].inflows += d.inflows;
   byMonth[monthKey].outflows += d.outflows;
 }
@@ -766,19 +804,19 @@ for (const d of forecastData) {
 
 ### 10.7 Сводка компонентов Recharts
 
-| Компонент | Использование |
-|-----------|---------------|
-| AreaChart / ComposedChart | Баланс, прибыль, кумулятивные доход/расход |
-| BarChart | Прибыль/доход/расход по месяцам (PlannedIndicators) |
-| Line | Ожидаемый vs Факт (balanceExpected, balanceFact, profitExpected, profitFact) |
-| Area | Заливка под кривой (positiveBalance, negativeBalance, cumulativeInflows) |
-| ReferenceLine | y=0, zoneGreenMin, zoneRedMax |
-| ReferenceArea | Периоды с отрицательным балансом |
-| XAxis | dateShort или month |
-| YAxis | Числовые значения, tickFormatter для локализации |
-| Tooltip | Кастомный контент с датой, ожидаемым, фактом |
-| Legend | Подписи линий |
-| CartesianGrid | Сетка |
+| Компонент                 | Использование                                                                |
+| ------------------------- | ---------------------------------------------------------------------------- |
+| AreaChart / ComposedChart | Баланс, прибыль, кумулятивные доход/расход                                   |
+| BarChart                  | Прибыль/доход/расход по месяцам (PlannedIndicators)                          |
+| Line                      | Ожидаемый vs Факт (balanceExpected, balanceFact, profitExpected, profitFact) |
+| Area                      | Заливка под кривой (positiveBalance, negativeBalance, cumulativeInflows)     |
+| ReferenceLine             | y=0, zoneGreenMin, zoneRedMax                                                |
+| ReferenceArea             | Периоды с отрицательным балансом                                             |
+| XAxis                     | dateShort или month                                                          |
+| YAxis                     | Числовые значения, tickFormatter для локализации                             |
+| Tooltip                   | Кастомный контент с датой, ожидаемым, фактом                                 |
+| Legend                    | Подписи линий                                                                |
+| CartesianGrid             | Сетка                                                                        |
 
 ---
 
@@ -798,14 +836,14 @@ balance[i] = balance[i-1] + inflows[i] - outflows[i]
 
 ### 11.3 Дневная сумма из частоты
 
-| Частота | Формула |
-|---------|---------|
-| DAILY | `amount` |
-| WEEKLY | `amount / 7` |
-| MONTHLY | `amount / 30` |
-| QUARTERLY | `amount / 90` |
-| YEARLY | `amount / 365` |
-| CUSTOM | `amount / customDays` |
+| Частота   | Формула               |
+| --------- | --------------------- |
+| DAILY     | `amount`              |
+| WEEKLY    | `amount / 7`          |
+| MONTHLY   | `amount / 30`         |
+| QUARTERLY | `amount / 90`         |
+| YEARLY    | `amount / 365`        |
+| CUSTOM    | `amount / customDays` |
 
 ### 11.4 Доход с учётом налогов
 
@@ -846,19 +884,19 @@ dailyOutflows[key] *= expenseMult
 
 ## 12. Сводка файлов
 
-| Файл | Роль |
-|------|------|
-| `src/lib/services/forecast.ts` | Основной расчёт прогноза, computeHistoricalBalance, computeForecastActualOnly |
-| `src/lib/services/expected-data.ts` | Ожидаемые суммы, getEffectiveDailyAmountWithPatterns, fetchExpectedEntriesBatch |
-| `src/lib/services/expected-patterns.ts` | Адаптивные паттерны, buildDailyPatternMap, applyMonthlyScaling |
-| `src/lib/pattern-cache.ts` | Кэш patternMap (Upstash Redis, TTL 6 ч) |
-| `src/lib/services/actual-data.ts` | Фактические записи, fetchActualEntriesBatch, getActualAmountForDay |
-| `src/lib/services/expected-from-actual.ts` | Deprecated, логика в expected-patterns |
-| `src/app/actions/forecast.ts` | Server actions для прогноза |
-| `src/types/index.ts` | ForecastDay, ForecastDayFact, WhatIfChanges |
-| `src/app/(dashboard)/dashboard/page.tsx` | Страница дашборда, вызов прогноза |
-| `src/components/dashboard/dashboard-charts.tsx` | Графики прибыли, дохода, расхода, ожидаемый vs факт |
-| `src/components/cashflow/forecast-chart.tsx` | График баланса, подсказка про паттерны |
-| `src/components/cashflow/cashflow-planner.tsx` | Планировщик, кнопка «Рассчитать прогноз» |
-| `src/components/dashboard/planned-indicators.tsx` | Показатели по месяцам |
-| `src/components/what-if/what-if-simulator.tsx` | Симулятор сценариев |
+| Файл                                              | Роль                                                                            |
+| ------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `src/lib/services/forecast.ts`                    | Основной расчёт прогноза, computeHistoricalBalance, computeForecastActualOnly   |
+| `src/lib/services/expected-data.ts`               | Ожидаемые суммы, getEffectiveDailyAmountWithPatterns, fetchExpectedEntriesBatch |
+| `src/lib/services/expected-patterns.ts`           | Адаптивные паттерны, buildDailyPatternMap, applyMonthlyScaling                  |
+| `src/lib/pattern-cache.ts`                        | Кэш patternMap (Upstash Redis, TTL 6 ч)                                         |
+| `src/lib/services/actual-data.ts`                 | Фактические записи, fetchActualEntriesBatch, getActualAmountForDay              |
+| `src/lib/services/expected-from-actual.ts`        | Deprecated, логика в expected-patterns                                          |
+| `src/app/actions/forecast.ts`                     | Server actions для прогноза                                                     |
+| `src/types/index.ts`                              | ForecastDay, ForecastDayFact, WhatIfChanges                                     |
+| `src/app/(dashboard)/dashboard/page.tsx`          | Страница дашборда, вызов прогноза                                               |
+| `src/components/dashboard/dashboard-charts.tsx`   | Графики прибыли, дохода, расхода, ожидаемый vs факт                             |
+| `src/components/cashflow/forecast-chart.tsx`      | График баланса, подсказка про паттерны                                          |
+| `src/components/cashflow/cashflow-planner.tsx`    | Планировщик, кнопка «Рассчитать прогноз»                                        |
+| `src/components/dashboard/planned-indicators.tsx` | Показатели по месяцам                                                           |
+| `src/components/what-if/what-if-simulator.tsx`    | Симулятор сценариев                                                             |

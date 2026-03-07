@@ -177,13 +177,12 @@ export const TOUR_STEPS: TourStep[] = [
     target: "[data-tour-id='nav-dashboard']",
     content: {
       title: "Готово!",
-      body: "Вы познакомились с основными разделами ФинПилота. Рекомендуем заполнить факт-данные за последний год для более точного прогноза. Если нашли ошибки или есть предложения — пишите на support@finpilot.ru, с радостью сотрудничаем. Удачной работы с денежными потоками!",
+      body: "Вы познакомились с основными разделами ФинПланера. Рекомендуем заполнить факт-данные за последний год для более точного прогноза. Если нашли ошибки или есть предложения — пишите на support@ffinplaner.ru, с радостью сотрудничаем. Удачной работы с денежными потоками!",
     },
     type: "info",
     route: "/reports",
   },
 ];
-
 
 export const TOUR_STORAGE_KEY = "finpilot_tour_completed";
 export const TOUR_PENDING_STEP_KEY = "finpilot_tour_pending_step";

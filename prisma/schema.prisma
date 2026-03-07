@@ -1,4 +1,4 @@
-// FinPilot - Prisma Schema
+// ffinplaner - Prisma Schema
 // PostgreSQL (Neon/Supabase compatible)
 
 generator client {
@@ -327,7 +327,7 @@ model Subscription {
   yookassaPaymentMethodId String?
   currentPeriodEnd        DateTime?
   reportExportsCount      Int       @default(0)
-  reportExportsMonth      String?   // YYYY-MM, reset when month changes
+  reportExportsMonth      String? // YYYY-MM, reset when month changes
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
 

@@ -47,7 +47,7 @@ export function FAQ() {
             Часто задаваемые вопросы
           </h2>
           <p className="text-lg text-muted-foreground">
-            Всё, что нужно знать о ФинПилот
+            Всё, что нужно знать о ФинПланер
           </p>
         </div>
 
