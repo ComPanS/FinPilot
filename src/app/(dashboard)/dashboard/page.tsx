@@ -7,9 +7,9 @@ import { getPlanConfig, getEffectivePlan } from "@/config/plans";
 import Link from "next/link";
 import { getForecastAction } from "@/app/actions/forecast";
 import { countDaysWithFactData, hasLast3MonthsFactData } from "@/lib/services/fact-stats";
-import { DashboardCharts } from "@/components/dashboard/dashboard-charts";
-import { ExpectedChartsSection } from "@/components/dashboard/expected-charts-section";
-import { HalfYearChart } from "@/components/dashboard/half-year-chart";
+import { DashboardCharts } from "@/components/dashboard/dashboard-charts-dynamic";
+import { ExpectedChartsSection } from "@/components/dashboard/expected-charts-section-dynamic";
+import { HalfYearChart } from "@/components/dashboard/half-year-chart-dynamic";
 
 export const dynamic = "force-dynamic";
 

@@ -154,6 +154,7 @@ model ActualEntry {
   @@unique([profileId, entityType, entityId, period])
   @@index([profileId])
   @@index([entityId])
+  @@index([profileId, period])
 }
 
 model ProfileMonthlyData {
@@ -288,6 +289,7 @@ model ManualTransaction {
 
   @@index([profileId])
   @@index([date])
+  @@index([profileId, date])
 }
 
 model WhatIfScenario {

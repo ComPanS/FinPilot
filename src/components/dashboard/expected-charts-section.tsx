@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { DashboardCharts, type VisibleCharts } from "./dashboard-charts";
+import { DashboardCharts, type VisibleCharts } from "./dashboard-charts-dynamic";
 
 type ForecastDay = {
   date: string;

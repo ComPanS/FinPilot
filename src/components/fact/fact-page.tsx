@@ -13,8 +13,8 @@ import {
   deleteMonthlyDataAction,
 } from "@/app/actions/cashflow";
 import { ActualDataModal } from "./actual-data-modal";
-import { FactChart } from "./fact-chart";
-import { HistoryModal } from "@/components/cashflow/history-modal";
+import { FactChart } from "./fact-chart-dynamic";
+import { HistoryModal } from "@/components/cashflow/history-modal-dynamic";
 import { EditModal } from "@/components/cashflow/edit-modal";
 import { EditMonthlyModal } from "@/components/cashflow/edit-monthly-modal";
 import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";

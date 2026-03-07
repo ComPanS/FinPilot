@@ -1,6 +1,6 @@
 import { CheckCircle2, Play, Shield, FileCheck, Lock } from "lucide-react";
 import Link from "next/link";
-import { DashboardMockup } from "./dashboard-mockup";
+import { DashboardMockup } from "./dashboard-mockup-dynamic";
 
 export function HeroSection() {
   return (

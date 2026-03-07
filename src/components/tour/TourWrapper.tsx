@@ -1,7 +1,12 @@
 "use client";
 
-import { TourProvider } from "./TourProvider";
-import { TourLauncher } from "./TourLauncher";
+import dynamic from "next/dynamic";
+
+const TourProviderWithLauncher = dynamic(
+  () =>
+    import("./TourProviderWithLauncher").then((m) => m.TourProviderWithLauncher),
+  { ssr: false }
+);
 
 export function TourWrapper({
   children,
@@ -10,10 +15,12 @@ export function TourWrapper({
   children: React.ReactNode;
   tourCompleted: boolean;
 }) {
+  if (tourCompleted) {
+    return <>{children}</>;
+  }
   return (
-    <TourProvider>
-      <TourLauncher tourCompleted={tourCompleted} />
+    <TourProviderWithLauncher tourCompleted={tourCompleted}>
       {children}
-    </TourProvider>
+    </TourProviderWithLauncher>
   );
 }

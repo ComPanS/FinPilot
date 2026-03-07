@@ -24,7 +24,9 @@ function isYooKassaIp(ip: string | null): boolean {
 export async function POST(req: Request) {
   try {
     const ip = getClientIdentifier(req.headers);
-    console.log("[webhook:yookassa] Request received", { ip });
+    if (process.env.NODE_ENV === "development") {
+      console.log("[webhook:yookassa] Request received", { ip });
+    }
 
     const { success } = await webhookLimiter.limit(ip);
     if (!success) {
@@ -37,7 +39,9 @@ export async function POST(req: Request) {
         ? allowedIps.split(",").map((s) => s.trim()).some((a) => ip === a || ip.startsWith(a))
         : isYooKassaIp(ip);
       if (!ipAllowed) {
-        console.warn("[webhook:yookassa] IP not allowed", { ip });
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[webhook:yookassa] IP not allowed", { ip });
+        }
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
     }
@@ -47,7 +51,9 @@ export async function POST(req: Request) {
     const paymentPayload = body.object ?? body;
     const paymentId = paymentPayload?.id;
 
-    console.log("[webhook:yookassa] Event", { event, paymentId, status: paymentPayload?.status });
+    if (process.env.NODE_ENV === "development") {
+      console.log("[webhook:yookassa] Event", { event, paymentId, status: paymentPayload?.status });
+    }
 
     if (!paymentId) return NextResponse.json({ received: true });
 
@@ -61,7 +67,9 @@ export async function POST(req: Request) {
 
     if (event === "payment.waiting_for_capture" && paymentPayload?.status === "waiting_for_capture") {
       try {
-        console.log("[webhook:yookassa] Capturing payment", { paymentId });
+        if (process.env.NODE_ENV === "development") {
+          console.log("[webhook:yookassa] Capturing payment", { paymentId });
+        }
         payment = (await capturePayment(paymentId)) as PaymentShape;
       } catch (err) {
         console.error("[webhook:yookassa] Capture failed", { paymentId, err });
@@ -80,7 +88,9 @@ export async function POST(req: Request) {
       }
     }
     if (!payment || payment.status !== "succeeded") {
-      console.log("[webhook:yookassa] Payment not succeeded, skipping", { paymentId, status: payment?.status });
+      if (process.env.NODE_ENV === "development") {
+        console.log("[webhook:yookassa] Payment not succeeded, skipping", { paymentId, status: payment?.status });
+      }
       return NextResponse.json({ received: true });
     }
 
@@ -91,7 +101,9 @@ export async function POST(req: Request) {
     const trialEndsAtRaw = metadata.trialEndsAt;
     const currentPeriodEndRaw = metadata.currentPeriodEnd;
 
-    console.log("[webhook:yookassa] Processing payment", { paymentId, userId, planId, billingPeriod });
+    if (process.env.NODE_ENV === "development") {
+      console.log("[webhook:yookassa] Processing payment", { paymentId, userId, planId, billingPeriod });
+    }
 
     if (userId && planId && BILLABLE_PLANS.includes(planId as (typeof BILLABLE_PLANS)[number])) {
       const now = new Date();
@@ -138,8 +150,10 @@ export async function POST(req: Request) {
           currentPeriodEnd: periodEnd,
         },
       });
-      console.log("[webhook:yookassa] Subscription updated", { userId, planId, periodEnd: formatDateMSK(periodEnd) });
-    } else {
+      if (process.env.NODE_ENV === "development") {
+        console.log("[webhook:yookassa] Subscription updated", { userId, planId, periodEnd: formatDateMSK(periodEnd) });
+      }
+    } else if (process.env.NODE_ENV === "development") {
       console.warn("[webhook:yookassa] Skipped: missing userId/planId or invalid plan", { userId, planId });
     }
 

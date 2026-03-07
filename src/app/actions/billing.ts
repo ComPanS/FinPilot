@@ -40,14 +40,16 @@ export async function createCheckoutAction(
 
   try {
     const returnUrl = `${baseUrl.replace(/\/$/, "")}/billing?success=1`;
-    console.log("[billing] Creating checkout", {
-      userId,
-      planId,
-      billingPeriod,
-      amount,
-      returnUrl,
-      baseUrlSource: returnBaseUrl ? "client" : process.env.APP_URL ? "APP_URL" : process.env.NEXTAUTH_URL ? "NEXTAUTH_URL" : "default",
-    });
+    if (process.env.NODE_ENV === "development") {
+      console.log("[billing] Creating checkout", {
+        userId,
+        planId,
+        billingPeriod,
+        amount,
+        returnUrl,
+        baseUrlSource: returnBaseUrl ? "client" : process.env.APP_URL ? "APP_URL" : process.env.NEXTAUTH_URL ? "NEXTAUTH_URL" : "default",
+      });
+    }
 
     const metadata: Record<string, string> = { userId, planId, billingPeriod };
     if (options?.trialEndsAt) metadata.trialEndsAt = options.trialEndsAt.toISOString();
@@ -68,7 +70,9 @@ export async function createCheckoutAction(
       return { error: "Не удалось создать платёж" };
     }
 
-    console.log("[billing] Checkout created, redirecting to YooKassa");
+    if (process.env.NODE_ENV === "development") {
+      console.log("[billing] Checkout created, redirecting to YooKassa");
+    }
     return { url: confirmationUrl };
   } catch (e) {
     console.error("[billing] YooKassa error:", e);

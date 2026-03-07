@@ -15,10 +15,10 @@ import {
   createCategory,
   createIncomeCategory,
 } from "@/app/actions/cashflow";
-import { HistoryModal } from "./history-modal";
+import { HistoryModal } from "./history-modal-dynamic";
 import { EditModal } from "./edit-modal";
 import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
-import { ExpectedPeriodsModal } from "./expected-periods-modal";
+import { ExpectedPeriodsModal } from "./expected-periods-modal-dynamic";
 import { parseCashFlowTextAction } from "@/app/actions/ai-cashflow";
 import { parseExcelAndImportAction } from "@/app/actions/excel-import";
 import { emitTourAction } from "@/components/tour/useTourAction";

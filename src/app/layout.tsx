@@ -9,12 +9,32 @@ const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin", "cyrillic"],
   weight: ["400", "500", "600", "700"],
+  display: "swap",
 });
 
+const baseUrl =
+  process.env.APP_URL ||
+  process.env.NEXTAUTH_URL ||
+  "https://finplaner.ru";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(baseUrl.replace(/\/$/, "")),
   title: "ФинПланер — Управленка за 5 минут",
   description:
     "Кассовый планировщик для ИП и микробизнеса. Прогноз денежных потоков на 3 месяца.",
+  openGraph: {
+    title: "ФинПланер — Управленка за 5 минут",
+    description:
+      "Кассовый планировщик для ИП и микробизнеса. Прогноз денежных потоков на 3 месяца.",
+    locale: "ru_RU",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ФинПланер — Управленка за 5 минут",
+    description:
+      "Кассовый планировщик для ИП и микробизнеса. Прогноз денежных потоков на 3 месяца.",
+  },
 };
 
 export default function RootLayout({
@@ -23,7 +43,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru" suppressHydrationWarning>
+    <html lang="ru" suppressHydrationWarning data-scroll-behavior="smooth">
       <body className={`${inter.variable} font-sans antialiased`}>
         <ThemeProvider
           attribute="data-theme"

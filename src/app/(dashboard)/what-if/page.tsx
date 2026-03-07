@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getActiveProfile } from "@/lib/active-profile";
 import { getEffectiveLimits } from "@/config/plans";
-import { WhatIfSimulator } from "@/components/what-if/what-if-simulator";
+import { WhatIfSimulator } from "@/components/what-if/what-if-simulator-dynamic";
 
 type SerializedProfile = {
   id: string;
