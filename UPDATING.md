@@ -2,7 +2,6 @@
 
 ```bash
 cd /var/www/FinPilot
-mv deploy/nginx.conf.initial deploy/nginx.conf.initial.bak
 git pull
 docker compose build app
 docker compose up -d

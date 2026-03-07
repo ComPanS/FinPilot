@@ -35,11 +35,13 @@ export async function completeOnboarding(data: {
   });
   if (!existingUser) return { error: "Пользователь не найден" };
 
-  const categoryOther = await prisma.expenseCategory.findFirst({
-    where: { slug: "other" },
-  });
-  if (!categoryOther) {
-    const categories = [
+  let [catExpenseOther, catIncomeOther] = await Promise.all([
+    prisma.expenseCategory.findFirst({ where: { slug: "other" } }),
+    prisma.incomeCategory.findFirst({ where: { slug: "other" } }),
+  ]);
+
+  if (!catExpenseOther) {
+    const expenseCategories = [
       { slug: "rent", name: "Аренда", isSystem: true },
       { slug: "salary", name: "Зарплата", isSystem: true },
       { slug: "taxes", name: "Налоги", isSystem: true },
@@ -52,7 +54,7 @@ export async function completeOnboarding(data: {
       { slug: "transport", name: "Транспорт", isSystem: true },
       { slug: "other", name: "Прочее", isSystem: true },
     ];
-    for (const c of categories) {
+    for (const c of expenseCategories) {
       await prisma.expenseCategory.upsert({
         where: { slug: c.slug },
         create: c,
@@ -61,7 +63,26 @@ export async function completeOnboarding(data: {
     }
   }
 
-  const [catExpenseOther, catIncomeOther] = await Promise.all([
+  if (!catIncomeOther) {
+    const incomeCategories = [
+      { slug: "sales", name: "Продажи", isSystem: true },
+      { slug: "services", name: "Услуги", isSystem: true },
+      { slug: "salary", name: "Зарплата", isSystem: true },
+      { slug: "investments", name: "Инвестиции", isSystem: true },
+      { slug: "rent", name: "Аренда", isSystem: true },
+      { slug: "other", name: "Прочее", isSystem: true },
+      { slug: "custom", name: "Своя категория", isSystem: true },
+    ];
+    for (const c of incomeCategories) {
+      await prisma.incomeCategory.upsert({
+        where: { slug: c.slug },
+        create: c,
+        update: {},
+      });
+    }
+  }
+
+  [catExpenseOther, catIncomeOther] = await Promise.all([
     prisma.expenseCategory.findFirst({ where: { slug: "other" } }),
     prisma.incomeCategory.findFirst({ where: { slug: "other" } }),
   ]);
