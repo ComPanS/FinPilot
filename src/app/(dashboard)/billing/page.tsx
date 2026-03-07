@@ -1,7 +1,14 @@
+import type { Metadata } from "next";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { BillingPlans } from "@/components/billing/billing-plans";
+
+export const metadata: Metadata = {
+  title: "Тарифы — ФинПланер",
+  description: "Тарифы и подписка ФинПланер",
+};
+
 import { CancelSubscriptionButton } from "@/components/billing/cancel-subscription-button";
 import { getPlanConfig, getEffectivePlan } from "@/config/plans";
 import { formatDateShortMSK } from "@/lib/date-utils";

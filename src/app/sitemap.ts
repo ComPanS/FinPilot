@@ -12,6 +12,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/register",
     "/forgot-password",
     "/billing",
+    "/privacy",
+    "/terms",
   ];
 
   return publicPaths.map((path) => ({

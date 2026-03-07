@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ConditionalFooter } from "@/components/layout/conditional-footer";
+import { JsonLd } from "@/components/seo/json-ld";
 import "./globals.css";
 
 const inter = Inter({
@@ -13,27 +14,54 @@ const inter = Inter({
 });
 
 const baseUrl =
-  process.env.APP_URL ||
-  process.env.NEXTAUTH_URL ||
-  "https://finplaner.ru";
+  process.env.APP_URL || process.env.NEXTAUTH_URL || "https://finplaner.ru";
+
+const siteUrl = baseUrl.replace(/\/$/, "");
 
 export const metadata: Metadata = {
-  metadataBase: new URL(baseUrl.replace(/\/$/, "")),
+  metadataBase: new URL(siteUrl),
   title: "ФинПланер — Управленка за 5 минут",
   description:
     "Кассовый планировщик для ИП и микробизнеса. Прогноз денежных потоков на 3 месяца.",
+  keywords: [
+    "кассовый планировщик",
+    "ИП",
+    "микробизнес",
+    "денежные потоки",
+    "прогноз",
+    "кассовые разрывы",
+    "ФинПланер",
+  ],
+  robots: { index: true, follow: true },
+  category: "finance",
+  alternates: { canonical: siteUrl },
+  icons: {
+    icon: "/logo.webp",
+    shortcut: "/logo.webp",
+    apple: "/logo.webp",
+  },
   openGraph: {
     title: "ФинПланер — Управленка за 5 минут",
     description:
       "Кассовый планировщик для ИП и микробизнеса. Прогноз денежных потоков на 3 месяца.",
     locale: "ru_RU",
     type: "website",
+    siteName: "ФинПланер",
+    images: [
+      {
+        url: "/logo.webp",
+        width: 512,
+        height: 512,
+        alt: "ФинПланер",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "ФинПланер — Управленка за 5 минут",
     description:
       "Кассовый планировщик для ИП и микробизнеса. Прогноз денежных потоков на 3 месяца.",
+    images: ["/logo.webp"],
   },
 };
 
@@ -45,6 +73,7 @@ export default function RootLayout({
   return (
     <html lang="ru" suppressHydrationWarning data-scroll-behavior="smooth">
       <body className={`${inter.variable} font-sans antialiased`}>
+        <JsonLd />
         <ThemeProvider
           attribute="data-theme"
           defaultTheme="system"

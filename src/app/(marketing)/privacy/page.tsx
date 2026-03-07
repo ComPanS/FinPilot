@@ -1,5 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalHeader } from "@/components/layout/legal-header";
+
+export const metadata: Metadata = {
+  title: "Политика конфиденциальности — ФинПланер",
+  description:
+    "Политика конфиденциальности сервиса ФинПланер. Порядок обработки и защиты персональных данных.",
+};
 
 export default function PrivacyPage() {
   return (

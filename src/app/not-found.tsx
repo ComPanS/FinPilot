@@ -1,5 +1,10 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalHeader } from "@/components/layout/legal-header";
+
+export const metadata: Metadata = {
+  title: "Страница не найдена — ФинПланер",
+};
 
 export default function NotFound() {
   return (

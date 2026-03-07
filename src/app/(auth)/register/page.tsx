@@ -1,4 +1,10 @@
+import type { Metadata } from "next";
 import { RegisterForm } from "@/components/auth/register-form";
+
+export const metadata: Metadata = {
+  title: "Регистрация — ФинПланер",
+  description: "Создайте аккаунт ФинПланер",
+};
 
 export default function RegisterPage() {
   return (

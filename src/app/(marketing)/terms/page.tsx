@@ -1,5 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalHeader } from "@/components/layout/legal-header";
+
+export const metadata: Metadata = {
+  title: "Правила использования — ФинПланер",
+  description:
+    "Правила использования сервиса ФинПланер. Условия предоставления услуг.",
+};
 
 export default function TermsPage() {
   return (
