@@ -3,7 +3,7 @@
  * Skips limiting when UPSTASH_REDIS_REST_URL/TOKEN are not set.
  */
 
-import { Ratelimit } from "@upstash/ratelimit";
+import { Ratelimit, type Duration } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 
 function getRedis(): Redis | null {
@@ -14,24 +14,24 @@ function getRedis(): Redis | null {
 }
 
 /** 5 login attempts per minute per identifier */
-export const authLimiter = createLimiter("auth", 5, "1 m");
+export const authLimiter = createLimiter("auth", 5, "1 m" as Duration);
 
 /** 3 forgot-password emails per hour per identifier */
-export const forgotPasswordLimiter = createLimiter("forgot", 3, "1 h");
+export const forgotPasswordLimiter = createLimiter("forgot", 3, "1 h" as Duration);
 
 /** 3 verification resends per hour per identifier */
-export const resendVerificationLimiter = createLimiter("resend", 3, "1 h");
+export const resendVerificationLimiter = createLimiter("resend", 3, "1 h" as Duration);
 
 /** 20 AI chat requests per minute per identifier (stricter than quota) */
-export const aiChatLimiter = createLimiter("ai-chat", 20, "1 m");
+export const aiChatLimiter = createLimiter("ai-chat", 20, "1 m" as Duration);
 
 /** 60 webhook requests per minute per IP */
-export const webhookLimiter = createLimiter("webhook", 60, "1 m");
+export const webhookLimiter = createLimiter("webhook", 60, "1 m" as Duration);
 
 function createLimiter(
   prefix: string,
   limit: number,
-  window: string
+  window: Duration
 ): { limit: (id: string) => Promise<{ success: boolean }> } {
   const redis = getRedis();
   if (!redis) {

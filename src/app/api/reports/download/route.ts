@@ -143,7 +143,7 @@ export async function GET(req: Request) {
     ...tableRows(
       factRows.map((d) => ({
         date: d.date,
-        balance: d.balance,
+        balance: d.balance ?? 0,
         inflows: d.inflows ?? 0,
         outflows: d.outflows ?? 0,
       }))

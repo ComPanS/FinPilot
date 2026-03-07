@@ -41,7 +41,7 @@ async function getCryptoKey(): Promise<CryptoKey> {
   const keyBytes = getKeyBytes();
   return crypto.subtle.importKey(
     "raw",
-    keyBytes,
+    keyBytes as BufferSource,
     { name: "AES-GCM", length: 256 },
     false,
     ["encrypt", "decrypt"]
@@ -87,9 +87,9 @@ export async function decrypt(ciphertext: string): Promise<string> {
     const iv = combined.subarray(0, IV_LENGTH);
     const encrypted = combined.subarray(IV_LENGTH);
     const decrypted = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv, tagLength: AUTH_TAG_LENGTH },
+      { name: "AES-GCM", iv: iv as BufferSource, tagLength: AUTH_TAG_LENGTH },
       key,
-      encrypted
+      encrypted as BufferSource
     );
     return new TextDecoder().decode(decrypted);
   } catch {

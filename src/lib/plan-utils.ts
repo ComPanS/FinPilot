@@ -6,13 +6,15 @@ import {
   type PlanLimits,
 } from "@/config/plans";
 
+export type SubscriptionLike = Pick<Subscription, "plan" | "trialEndsAt"> | null;
+
 export type UserPlanContext = {
   planId: string;
   trialEndsAt: Date | null;
   limits: PlanLimits;
 };
 
-export function getUserPlanContext(subscription: Subscription | null): UserPlanContext {
+export function getUserPlanContext(subscription: SubscriptionLike): UserPlanContext {
   const planId = subscription?.plan ?? "FREE";
   const trialEndsAt = subscription?.trialEndsAt ?? null;
   const effective = getEffectivePlan(planId, trialEndsAt);
@@ -25,21 +27,21 @@ export function getUserPlanContext(subscription: Subscription | null): UserPlanC
   };
 }
 
-export function canUserExportReports(subscription: Subscription | null): boolean {
+export function canUserExportReports(subscription: SubscriptionLike): boolean {
   const planId = subscription?.plan ?? "FREE";
   const trialEndsAt = subscription?.trialEndsAt ?? null;
   const effective = getEffectivePlan(planId, trialEndsAt);
   return canAccessFeature(effective, "canExportReports");
 }
 
-export function canUserUseAIChat(subscription: Subscription | null): boolean {
+export function canUserUseAIChat(subscription: SubscriptionLike): boolean {
   const planId = subscription?.plan ?? "FREE";
   const trialEndsAt = subscription?.trialEndsAt ?? null;
   const effective = getEffectivePlan(planId, trialEndsAt);
   return canAccessFeature(effective, "canUseAIChat");
 }
 
-export function getReportExportLimit(planId: string, trialEndsAt: Date | null): number {
-  const limits = getEffectiveLimits(planId, trialEndsAt);
+export function getReportExportLimit(planId: string, trialEndsAt?: Date | null): number {
+  const limits = getEffectiveLimits(planId, trialEndsAt ?? null);
   return limits.reportExportsPerMonth;
 }

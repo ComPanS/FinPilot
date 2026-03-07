@@ -51,7 +51,7 @@ export function DashboardMockup() {
                 borderRadius: '8px',
                 fontSize: '12px'
               }}
-              formatter={(value: number) => [`${value.toLocaleString('ru-RU')} ₽`, 'Баланс']}
+              formatter={(value: number | undefined) => [`${(value ?? 0).toLocaleString('ru-RU')} ₽`, 'Баланс']}
               labelFormatter={(label) => `День ${label}`}
             />
             <Area 
