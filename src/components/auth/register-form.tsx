@@ -8,6 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Link from "next/link";
 import { registerUser } from "@/app/actions/auth";
+import { YandexIdButton } from "@/components/auth/yandex-id-button";
 import { PasswordInput } from "@/components/ui/password-input";
 
 const schema = z
@@ -183,13 +184,16 @@ export function RegisterForm() {
           {isSubmitting ? "Регистрация..." : "Зарегистрироваться"}
         </button>
       </form>
-      <div className="mt-4 flex justify-center">
-        <a
-          href="/api/auth/signin/google"
-          className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm transition-colors hover:bg-surface"
-        >
-          Зарегистрироваться через Google
-        </a>
+      <div className="mt-4 flex flex-col items-center gap-2">
+        <div className="flex flex-wrap justify-center gap-2">
+          <a
+            href="/api/auth/signin/google"
+            className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm transition-colors hover:bg-surface"
+          >
+            Войти через Google
+          </a>
+          <YandexIdButton callbackUrl="/onboarding" />
+        </div>
       </div>
       <p className="mt-4 text-center text-sm text-muted-foreground">
         Уже есть аккаунт?{" "}

@@ -13,6 +13,7 @@ export default auth((req) => {
     "/reset-password",
     "/verify-email",
     "/verify-new-email",
+    "/oauth/yandex/token",
   ];
   const isPublic = publicPaths.some(
     (p) => pathname === p || pathname.startsWith(p + "/"),

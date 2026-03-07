@@ -44,20 +44,18 @@ export function DashboardNav({
 
   return (
     <header className="relative sticky top-0 z-50 border-b border-border bg-surface">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
-        <div className="flex items-center gap-2 min-w-0">
-          <Link href="/dashboard" className="text-xl font-bold text-primary shrink-0">
-            ФинПланер
-          </Link>
-          {profiles.length > 0 && (
-            <div className="hidden md:block shrink-0">
-              <ProfileSwitcher
-                profiles={profiles}
-                activeProfileId={activeProfileId}
-              />
-            </div>
-          )}
+      {profiles.length > 0 && (
+        <div className="absolute left-0 top-1/2 z-10 hidden -translate-y-1/2 pl-4 md:block">
+          <ProfileSwitcher
+            profiles={profiles}
+            activeProfileId={activeProfileId}
+          />
         </div>
+      )}
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
+        <Link href="/dashboard" className="text-xl font-bold text-primary shrink-0">
+          ФинПланер
+        </Link>
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex flex-1 justify-center gap-1 min-w-0 overflow-x-auto">
