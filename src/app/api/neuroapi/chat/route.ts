@@ -42,17 +42,21 @@ export async function POST(req: Request) {
 
     if (!canUserUseAIChat(user.subscription)) {
       return NextResponse.json(
-        { error: "ИИ-ассистент доступен в тарифе Pro. Перейдите на Pro для доступа." },
+        { error: "ИИ-ассистент доступен в тарифах Standard и Pro. Перейдите на платный тариф для доступа." },
         { status: 403 }
       );
     }
 
     const quota = await checkAIQuota(user.id);
     if (!quota.allowed) {
-      return NextResponse.json(
-        { error: quota.remaining === 0 ? "Лимит ИИ-запросов исчерпан. Попробуйте завтра." : `Лимит ИИ-запросов исчерпан. Доступно: ${quota.remaining} сегодня.` },
-        { status: 429 }
-      );
+      const limits = getEffectiveLimits(user.subscription?.plan, user.subscription?.trialEndsAt);
+      const isMonthlyLimit = limits.aiRequestsPerMonth > 0;
+      const msg = isMonthlyLimit
+        ? (quota.remaining === 0
+            ? "Лимит ИИ-запросов (5/мес) исчерпан. Попробуйте в следующем месяце или перейдите на Pro для безлимита."
+            : `Лимит ИИ-запросов исчерпан. Доступно: ${quota.remaining} в этом месяце.`)
+        : "Лимит ИИ-запросов исчерпан. Попробуйте завтра.";
+      return NextResponse.json({ error: msg }, { status: 429 });
     }
 
     const limits = getEffectiveLimits(user.subscription?.plan, user.subscription?.trialEndsAt);

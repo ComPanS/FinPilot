@@ -7,6 +7,7 @@ export type PlanLimits = {
   whatIfScenarios: number;
   reportExportsPerMonth: number; // -1 = unlimited
   aiRequestsPerDay: number; // 0 = no chat, -1 = unlimited (fair-use)
+  aiRequestsPerMonth: number; // 0 = no chat, -1 = unlimited, >0 = лимит в месяц
   autoInsightsCount: number; // на дашборде
 };
 
@@ -48,6 +49,7 @@ export const PLANS: Record<string, PlanConfig> = {
       whatIfScenarios: 1,
       reportExportsPerMonth: 0,
       aiRequestsPerDay: 0,
+      aiRequestsPerMonth: 0,
       autoInsightsCount: 0,
     },
     features: {
@@ -80,11 +82,12 @@ export const PLANS: Record<string, PlanConfig> = {
       whatIfScenarios: 3,
       reportExportsPerMonth: 15,
       aiRequestsPerDay: 0,
+      aiRequestsPerMonth: 5,
       autoInsightsCount: 5,
     },
     features: {
       canExportReports: true,
-      canUseAIChat: false,
+      canUseAIChat: true,
       hasAutoInsights: true,
       hasPrioritySupport: false,
       hasExtendedWhatIf: false,
@@ -92,10 +95,10 @@ export const PLANS: Record<string, PlanConfig> = {
     featuresList: [
       "До 3 профилей",
       "60 дней прогноз",
+      "ИИ-ассистент: 5 запросов в месяц",
       "Экспорт PDF и Excel (15/мес)",
       "Режим «Что если»: до 3 сценариев",
       "История операций: 12 месяцев",
-      "5 автоматических рекомендаций на дашборде",
     ],
     targetAudience: "ИП с 1–3 бизнес-юнитами, микробизнес",
   },
@@ -113,6 +116,7 @@ export const PLANS: Record<string, PlanConfig> = {
       whatIfScenarios: 50,
       reportExportsPerMonth: -1,
       aiRequestsPerDay: -1,
+      aiRequestsPerMonth: -1,
       autoInsightsCount: -1,
     },
     features: {
@@ -148,6 +152,7 @@ export const PLANS: Record<string, PlanConfig> = {
       whatIfScenarios: 50,
       reportExportsPerMonth: -1,
       aiRequestsPerDay: -1,
+      aiRequestsPerMonth: -1,
       autoInsightsCount: -1,
     },
     features: {

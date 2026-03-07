@@ -233,11 +233,14 @@ export async function askNeuro(prompt: string, context: any) {
 - Rate limiting (Upstash).
 - Соответствие 152-ФЗ и GDPR (согласие на обработку).
 
-### 10. Монетизация
+### 10. Монетизация и автосписания
 
-Юкасса
+**YooKassa:**
+- Первый платёж: `createPayment` с `save_payment_method: true` → редирект на форму оплаты.
+- Webhook `payment.succeeded` сохраняет `payment_method.id` в `yookassaPaymentMethodId` и обновляет подписку.
 
-- Freemium: 1 профиль, 5 ИИ-запросов/день, 30-дневный прогноз.
-- Pro: 499 руб./мес. — безлимит, 3 профиля, экспорт PDF.
-- Business: 999 руб./мес. — 5 профилей, приоритетная поддержка.
-- Stripe Checkout + Webhooks (Next.js Route Handler).
+**Автосписания:**
+- System cron: `pnpm run cron:renew` — запускать ежедневно (напр. `0 5 * * *` в crontab).
+- За 3 дня до `currentPeriodEnd` создаётся recurring-платёж через `createRecurringPayment(payment_method_id)`.
+- Webhook продлевает `currentPeriodEnd` на 1 месяц или 1 год.
+- Отменённые подписки (`cancelAtPeriodEnd`) истекают в cron при `currentPeriodEnd <= now`.

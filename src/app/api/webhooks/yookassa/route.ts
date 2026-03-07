@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getPayment } from "@/lib/providers/yookassa";
+import { getPayment, capturePayment } from "@/lib/providers/yookassa";
 import { webhookLimiter, getClientIdentifier } from "@/lib/ratelimit";
 import { BILLABLE_PLANS } from "@/config/plans";
+import { formatDateMSK } from "@/lib/date-utils";
 
 /** YooKassa webhook IP whitelist (official docs: /25, /27 ranges) */
 const YOOKASSA_IP_PREFIXES = [
@@ -23,8 +24,11 @@ function isYooKassaIp(ip: string | null): boolean {
 export async function POST(req: Request) {
   try {
     const ip = getClientIdentifier(req.headers);
+    console.log("[webhook:yookassa] Request received", { ip });
+
     const { success } = await webhookLimiter.limit(ip);
     if (!success) {
+      console.warn("[webhook:yookassa] Rate limit exceeded", { ip });
       return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
     }
     if (process.env.YOOKASSA_WEBHOOK_SKIP_IP_CHECK !== "true") {
@@ -33,6 +37,7 @@ export async function POST(req: Request) {
         ? allowedIps.split(",").map((s) => s.trim()).some((a) => ip === a || ip.startsWith(a))
         : isYooKassaIp(ip);
       if (!ipAllowed) {
+        console.warn("[webhook:yookassa] IP not allowed", { ip });
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
     }
@@ -42,17 +47,40 @@ export async function POST(req: Request) {
     const paymentPayload = body.object ?? body;
     const paymentId = paymentPayload?.id;
 
-    if (!paymentId || (event !== "payment.succeeded" && paymentPayload?.status !== "succeeded")) {
+    console.log("[webhook:yookassa] Event", { event, paymentId, status: paymentPayload?.status });
+
+    if (!paymentId) return NextResponse.json({ received: true });
+
+    type PaymentShape = {
+      id?: string;
+      status?: string;
+      metadata?: Record<string, string>;
+      payment_method?: { id?: string };
+    };
+    let payment: PaymentShape | null = null;
+
+    if (event === "payment.waiting_for_capture" && paymentPayload?.status === "waiting_for_capture") {
+      try {
+        console.log("[webhook:yookassa] Capturing payment", { paymentId });
+        payment = (await capturePayment(paymentId)) as PaymentShape;
+      } catch (err) {
+        console.error("[webhook:yookassa] Capture failed", { paymentId, err });
+        return NextResponse.json({ received: true });
+      }
+    } else if (event !== "payment.succeeded" && paymentPayload?.status !== "succeeded") {
       return NextResponse.json({ received: true });
     }
 
-    let payment: { id?: string; status?: string; metadata?: Record<string, string> } | null = null;
-    try {
-      payment = await getPayment(paymentId) as { id?: string; status?: string; metadata?: Record<string, string> };
-    } catch {
-      return NextResponse.json({ received: true });
+    if (!payment) {
+      try {
+        payment = (await getPayment(paymentId)) as PaymentShape;
+      } catch (err) {
+        console.error("[webhook:yookassa] Failed to fetch payment", { paymentId, err });
+        return NextResponse.json({ received: true });
+      }
     }
     if (!payment || payment.status !== "succeeded") {
+      console.log("[webhook:yookassa] Payment not succeeded, skipping", { paymentId, status: payment?.status });
       return NextResponse.json({ received: true });
     }
 
@@ -60,33 +88,64 @@ export async function POST(req: Request) {
     const userId = metadata.userId;
     const planId = metadata.planId;
     const billingPeriod = metadata.billingPeriod ?? "monthly";
+    const trialEndsAtRaw = metadata.trialEndsAt;
+    const currentPeriodEndRaw = metadata.currentPeriodEnd;
+
+    console.log("[webhook:yookassa] Processing payment", { paymentId, userId, planId, billingPeriod });
 
     if (userId && planId && BILLABLE_PLANS.includes(planId as (typeof BILLABLE_PLANS)[number])) {
-      const periodEnd = new Date();
-      periodEnd.setMonth(periodEnd.getMonth() + (billingPeriod === "yearly" ? 12 : 1));
+      const now = new Date();
+      const monthsToAdd = billingPeriod === "yearly" ? 12 : 1;
+
+      let baseDate = now;
+      if (trialEndsAtRaw) {
+        const trialEnd = new Date(trialEndsAtRaw);
+        baseDate = trialEnd > now ? trialEnd : now;
+      } else if (currentPeriodEndRaw) {
+        const existingEnd = new Date(currentPeriodEndRaw);
+        baseDate = existingEnd > now ? existingEnd : now;
+      } else {
+        const existing = await prisma.subscription.findUnique({ where: { userId } });
+        if (existing?.currentPeriodEnd && existing.currentPeriodEnd > now) {
+          baseDate = existing.currentPeriodEnd;
+        }
+      }
+
+      const periodEnd = new Date(baseDate);
+      periodEnd.setMonth(periodEnd.getMonth() + monthsToAdd);
+
+      const paymentMethodId = payment.payment_method?.id ?? undefined;
 
       await prisma.subscription.upsert({
         where: { userId },
         create: {
           userId,
           plan: planId,
+          billingPeriod,
           status: "active",
           yookassaPaymentId: payment.id,
+          yookassaPaymentMethodId: paymentMethodId,
           currentPeriodEnd: periodEnd,
+          trialEndsAt: null,
         },
         update: {
           plan: planId,
+          billingPeriod,
           status: "active",
           trialEndsAt: null,
           yookassaPaymentId: payment.id,
+          yookassaPaymentMethodId: paymentMethodId ?? undefined,
           currentPeriodEnd: periodEnd,
         },
       });
+      console.log("[webhook:yookassa] Subscription updated", { userId, planId, periodEnd: formatDateMSK(periodEnd) });
+    } else {
+      console.warn("[webhook:yookassa] Skipped: missing userId/planId or invalid plan", { userId, planId });
     }
 
     return NextResponse.json({ received: true });
   } catch (e) {
-    console.error("Webhook error:", e);
+    console.error("[webhook:yookassa] Error:", e);
     return NextResponse.json({ error: "Webhook failed" }, { status: 500 });
   }
 }

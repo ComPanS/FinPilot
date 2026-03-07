@@ -1,13 +1,22 @@
-/** Форматирует дату YYYY-MM-DD в dd-mm-yyyy */
-export function formatDateDdMmYyyy(dateStr: string): string {
-  const [y, m, d] = dateStr.split("-");
-  return d && m && y ? `${d}-${m}-${y}` : dateStr;
+const MSK = "Europe/Moscow";
+
+/** Форматировать дату в МСК для логов */
+export function formatDateMSK(d: Date): string {
+  return d.toLocaleString("ru-RU", { timeZone: MSK });
 }
 
-/** Форматирует Date в dd-mm-yyyy */
-export function formatDateToDdMmYyyy(date: Date): string {
-  const d = String(date.getDate()).padStart(2, "0");
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const y = date.getFullYear();
-  return `${d}-${m}-${y}`;
+/** Форматировать дату в МСК для UI (короткий формат) */
+export function formatDateShortMSK(d: Date): string {
+  return d.toLocaleDateString("ru-RU", { timeZone: MSK });
+}
+
+/** DD.MM.YYYY в МСК (для дат из данных, строка или Date) */
+export function formatDateDdMmYyyy(d: Date | string): string {
+  const date = typeof d === "string" ? new Date(d) : d;
+  return date.toLocaleDateString("ru-RU", { timeZone: MSK, day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+/** DD.MM.YYYY в МСК (алиас) */
+export function formatDateToDdMmYyyy(d: Date | string): string {
+  return formatDateDdMmYyyy(d);
 }

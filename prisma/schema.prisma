@@ -321,7 +321,9 @@ model Subscription {
   id                      String    @id @default(cuid())
   userId                  String    @unique
   plan                    String // FREE, STANDARD, PRO, TRIAL
+  billingPeriod           String? // monthly, yearly — для автосписаний
   status                  String // active, canceled, past_due
+  cancelAtPeriodEnd       Boolean   @default(false)
   trialEndsAt             DateTime?
   yookassaPaymentId       String?
   yookassaPaymentMethodId String?
