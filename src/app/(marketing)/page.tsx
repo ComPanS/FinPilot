@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
+import { PLANS } from "@/config/plans";
 
 export default async function LandingPage() {
   const session = await auth();
   if (session?.user) redirect("/dashboard");
+
+  const displayPlans = [PLANS.FREE, PLANS.STANDARD, PLANS.PRO];
 
   return (
     <div className="min-h-screen bg-background">
@@ -55,7 +58,7 @@ export default async function LandingPage() {
         <div className="mt-24 grid gap-8 md:grid-cols-3">
           <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
             <h3 className="font-semibold text-foreground">
-              Прогноз на 90 дней
+              Прогноз до 90 дней
             </h3>
             <p className="mt-2 text-sm text-muted-foreground">
               Автоматический расчёт ежедневного баланса. Видите красные зоны
@@ -76,6 +79,46 @@ export default async function LandingPage() {
             </p>
           </div>
         </div>
+
+        <section className="mt-24">
+          <h2 className="text-center text-2xl font-bold text-foreground">Тарифы</h2>
+          <p className="mx-auto mt-2 max-w-xl text-center text-muted-foreground">
+            Начните бесплатно. Годовая подписка — 2 месяца в подарок.
+          </p>
+          <div className="mt-12 grid gap-6 md:grid-cols-3">
+            {displayPlans.map((plan) => (
+              <div
+                key={plan.id}
+                className={`rounded-xl border p-6 ${
+                  plan.id === "PRO" ? "border-primary bg-primary/5" : "border-border bg-surface"
+                }`}
+              >
+                <h3 className="font-semibold text-foreground">{plan.name}</h3>
+                <p className="mt-2 text-2xl font-bold">{plan.priceLabel}</p>
+                {plan.priceYear > 0 && (
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {plan.priceYearLabel} {plan.yearlySavingsPercent > 0 && `(экономия ${plan.yearlySavingsPercent}%)`}
+                  </p>
+                )}
+                <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+                  {plan.featuresList.slice(0, 5).map((f) => (
+                    <li key={f}>• {f}</li>
+                  ))}
+                </ul>
+                <Link
+                  href="/register"
+                  className={`mt-6 block w-full rounded-lg px-4 py-2 text-center font-medium transition-colors ${
+                    plan.id === "PRO"
+                      ? "bg-primary text-white hover:bg-primary-dark"
+                      : "border border-border hover:bg-surface"
+                  }`}
+                >
+                  {plan.id === "FREE" ? "Начать бесплатно" : "Выбрать"}
+                </Link>
+              </div>
+            ))}
+          </div>
+        </section>
       </main>
     </div>
   );

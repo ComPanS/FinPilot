@@ -7,6 +7,8 @@ import { askNeuro } from "@/lib/neuroapi";
 import { checkAIQuota, createAIRequest } from "@/lib/services/ai";
 import { computeForecast, getRedZones } from "@/lib/services/forecast";
 import { aiChatLimiter, getClientIdentifier } from "@/lib/ratelimit";
+import { canUserUseAIChat } from "@/lib/plan-utils";
+import { getEffectiveLimits } from "@/config/plans";
 
 export async function POST(req: Request) {
   try {
@@ -38,19 +40,28 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Пустой запрос" }, { status: 400 });
     }
 
+    if (!canUserUseAIChat(user.subscription)) {
+      return NextResponse.json(
+        { error: "ИИ-ассистент доступен в тарифе Pro. Перейдите на Pro для доступа." },
+        { status: 403 }
+      );
+    }
+
     const quota = await checkAIQuota(user.id);
     if (!quota.allowed) {
       return NextResponse.json(
-        { error: `Лимит ИИ-запросов исчерпан. Доступно: ${quota.remaining} сегодня.` },
+        { error: quota.remaining === 0 ? "Лимит ИИ-запросов исчерпан. Попробуйте завтра." : `Лимит ИИ-запросов исчерпан. Доступно: ${quota.remaining} сегодня.` },
         { status: 429 }
       );
     }
+
+    const limits = getEffectiveLimits(user.subscription?.plan, user.subscription?.trialEndsAt);
 
     let context: Parameters<typeof askNeuro>[1] = {};
 
     if (profile) {
       const { forecast } = await computeForecast(profile.id, {
-        days: user.subscription?.plan === "FREE" ? 30 : 90,
+        days: limits.forecastDays,
       });
       const redZones = getRedZones(forecast);
       const expenses = await prisma.regularExpense.findMany({

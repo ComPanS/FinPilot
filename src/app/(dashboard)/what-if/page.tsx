@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getActiveProfile } from "@/lib/active-profile";
+import { getEffectiveLimits } from "@/config/plans";
 import { WhatIfSimulator } from "@/components/what-if/what-if-simulator";
 
 type SerializedProfile = {
@@ -78,11 +79,13 @@ export default async function WhatIfPage() {
   const profile = getActiveProfile(user, cookieStore);
   if (!profile) redirect("/onboarding");
 
+  const limits = getEffectiveLimits(user.subscription?.plan, user.subscription?.trialEndsAt);
+
   const [scenarios, expenseCategories, incomeCategories] = await Promise.all([
     prisma.whatIfScenario.findMany({
       where: { profileId: profile.id },
       orderBy: { createdAt: "desc" },
-      take: 10,
+      take: limits.whatIfScenarios,
     }),
     prisma.expenseCategory.findMany({
       where: { OR: [{ isSystem: true }, { userId: user.id }] },
@@ -108,6 +111,7 @@ export default async function WhatIfPage() {
         incomeCategories={incomeCategories}
         scenarios={scenarios}
         currency={profile.currency}
+        scenarioLimit={limits.whatIfScenarios}
       />
     </div>
   );

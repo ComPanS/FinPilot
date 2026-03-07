@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getPayment } from "@/lib/providers/yookassa";
 import { webhookLimiter, getClientIdentifier } from "@/lib/ratelimit";
+import { BILLABLE_PLANS } from "@/config/plans";
 
 /** YooKassa webhook IP whitelist (official docs: /25, /27 ranges) */
 const YOOKASSA_IP_PREFIXES = [
@@ -58,10 +59,11 @@ export async function POST(req: Request) {
     const metadata = payment.metadata ?? {};
     const userId = metadata.userId;
     const planId = metadata.planId;
+    const billingPeriod = metadata.billingPeriod ?? "monthly";
 
-    if (userId && planId) {
+    if (userId && planId && BILLABLE_PLANS.includes(planId as (typeof BILLABLE_PLANS)[number])) {
       const periodEnd = new Date();
-      periodEnd.setMonth(periodEnd.getMonth() + 1);
+      periodEnd.setMonth(periodEnd.getMonth() + (billingPeriod === "yearly" ? 12 : 1));
 
       await prisma.subscription.upsert({
         where: { userId },
@@ -75,6 +77,7 @@ export async function POST(req: Request) {
         update: {
           plan: planId,
           status: "active",
+          trialEndsAt: null,
           yookassaPaymentId: payment.id,
           currentPeriodEnd: periodEnd,
         },

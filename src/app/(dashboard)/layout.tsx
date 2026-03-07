@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getActiveProfile, getActiveProfileId } from "@/lib/active-profile";
+import { expireTrialIfNeeded } from "@/app/actions/trial";
 import { DashboardNav } from "@/components/layout/dashboard-nav";
 import { TourWrapper } from "@/components/tour/TourWrapper";
 
@@ -19,6 +20,8 @@ export default async function DashboardLayout({
     include: { profiles: true, subscription: true },
   });
   if (!user) redirect("/login");
+
+  await expireTrialIfNeeded(user.id);
 
   const cookieStore = await cookies();
   const activeProfile = getActiveProfile(user, cookieStore);

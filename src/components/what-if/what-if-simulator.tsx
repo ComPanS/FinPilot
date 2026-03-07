@@ -63,12 +63,14 @@ export function WhatIfSimulator({
   incomeCategories,
   scenarios,
   currency,
+  scenarioLimit = 10,
 }: {
   profile: Profile;
   expenseCategories: ExpenseCategory[];
   incomeCategories: IncomeCategory[];
   scenarios: Scenario[];
   currency: string;
+  scenarioLimit?: number;
 }) {
   const { month1, month2 } = getTwoNextMonths();
 
@@ -559,7 +561,7 @@ export function WhatIfSimulator({
       <div className="rounded-xl border border-border bg-surface p-6">
         <h3 className="font-semibold">Сохранить сценарий</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          До 10 сценариев. Текущие настройки будут сохранены.
+          До {scenarioLimit} сценариев на вашем тарифе. Текущие настройки будут сохранены.
         </p>
         <div className="mt-4 flex gap-2">
           <input
@@ -571,7 +573,11 @@ export function WhatIfSimulator({
           <button
             onClick={async () => {
               if (!scenarioName.trim()) return;
-              await saveScenarioAction(profile.id, scenarioName, buildChanges());
+              const res = await saveScenarioAction(profile.id, scenarioName, buildChanges());
+              if (res?.error) {
+                alert(res.error);
+                return;
+              }
               setScenarioName("");
               window.location.reload();
             }}

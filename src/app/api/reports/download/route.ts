@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { canUserExportReports, getReportExportLimit } from "@/lib/plan-utils";
 import {
   computeForecast,
   computeForecastActualOnly,
@@ -64,10 +65,31 @@ export async function GET(req: Request) {
 
   const user = await prisma.user.findUnique({
     where: { email: session.user.email },
-    include: { profiles: true },
+    include: { profiles: true, subscription: true },
   });
   if (!user || !user.profiles.some((p) => p.id === profileId)) {
     return NextResponse.json({ error: "Профиль не найден" }, { status: 403 });
+  }
+
+  if (!canUserExportReports(user.subscription)) {
+    return NextResponse.json({ error: "Экспорт отчётов доступен в тарифах Standard и Pro" }, { status: 403 });
+  }
+
+  const limit = getReportExportLimit(user.subscription?.plan ?? "FREE", user.subscription?.trialEndsAt ?? null);
+  if (limit >= 0 && user.subscription) {
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const count = user.subscription.reportExportsMonth === monthKey ? (user.subscription.reportExportsCount ?? 0) : 0;
+    if (count >= limit) {
+      return NextResponse.json({ error: "Лимит экспортов исчерпан" }, { status: 403 });
+    }
+    await prisma.subscription.update({
+      where: { userId: user.id },
+      data: {
+        reportExportsCount: user.subscription.reportExportsMonth === monthKey ? count + 1 : 1,
+        reportExportsMonth: monthKey,
+      },
+    });
   }
 
   const profile = user.profiles.find((p) => p.id === profileId)!;

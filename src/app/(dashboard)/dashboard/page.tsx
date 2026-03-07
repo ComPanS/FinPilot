@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getActiveProfile } from "@/lib/active-profile";
+import { getPlanConfig, getEffectivePlan } from "@/config/plans";
 import Link from "next/link";
 import { getForecastAction } from "@/app/actions/forecast";
 import { countDaysWithFactData, hasLast3MonthsFactData } from "@/lib/services/fact-stats";
@@ -145,7 +146,11 @@ export default async function DashboardPage() {
         <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
           <h3 className="text-sm font-medium text-muted-foreground">Тариф</h3>
           <p className="mt-2 text-2xl font-bold text-foreground">
-            {user.subscription?.plan ?? "FREE"}
+            {(() => {
+              const effective = getEffectivePlan(user.subscription?.plan, user.subscription?.trialEndsAt);
+              const config = getPlanConfig(effective === "TRIAL" ? "PRO" : effective);
+              return config?.name ?? "Бесплатный";
+            })()}
           </p>
         </div>
       </div>

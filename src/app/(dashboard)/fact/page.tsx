@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getActiveProfile } from "@/lib/active-profile";
+import { getEffectiveLimits } from "@/config/plans";
 import { FactPage } from "@/components/fact/fact-page";
 import { getForecastAction } from "@/app/actions/forecast";
 
@@ -74,7 +75,7 @@ export default async function FactPageRoute() {
     }),
   ]);
 
-  const forecastDays = user.subscription?.plan === "FREE" ? 30 : 90;
+  const forecastDays = getEffectiveLimits(user.subscription?.plan, user.subscription?.trialEndsAt).forecastDays;
   const now = new Date();
   const firstOfMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
   const lastOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);

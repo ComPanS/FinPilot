@@ -2,6 +2,7 @@
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { getEffectiveLimits } from "@/config/plans";
 import { computeForecast, computeForecastActualOnly } from "@/lib/services/forecast";
 import type { WhatIfChanges } from "@/types";
 
@@ -30,8 +31,8 @@ export async function getForecastAction(
   }
 
   const profile = user.profiles.find((p) => p.id === profileId)!;
-  const defaultDays = user.subscription?.plan === "FREE" ? 30 : 90;
-  const days = options?.days ?? defaultDays;
+  const limits = getEffectiveLimits(user.subscription?.plan, user.subscription?.trialEndsAt);
+  const days = options?.days ?? limits.forecastDays;
   const startDate = options?.startDate
     ? typeof options.startDate === "string"
       ? new Date(

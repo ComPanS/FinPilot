@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getActiveProfile } from "@/lib/active-profile";
+import { getEffectiveLimits } from "@/config/plans";
 import { CashFlowPlanner } from "@/components/cashflow/cashflow-planner";
 
 export const dynamic = "force-dynamic";
@@ -59,7 +60,7 @@ export default async function CashFlowPage() {
     }),
   ]);
 
-  const forecastDays = user.subscription?.plan === "FREE" ? 30 : 90;
+  const forecastDays = getEffectiveLimits(user.subscription?.plan, user.subscription?.trialEndsAt).forecastDays;
 
   const serializedProfile = serializeProfile(profile);
 

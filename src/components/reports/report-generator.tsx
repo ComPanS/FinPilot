@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { generateReportAction } from "@/app/actions/reports";
 
@@ -10,9 +11,15 @@ function toDateStr(d: Date): string {
 export function ReportGenerator({
   profileId,
   profileName,
+  canExport,
+  exportsRemaining,
+  exportsLimit,
 }: {
   profileId: string;
   profileName: string;
+  canExport: boolean;
+  exportsRemaining: number;
+  exportsLimit: number;
 }) {
   const today = new Date();
   const defaultEnd = new Date(today);
@@ -54,9 +61,30 @@ export function ReportGenerator({
     }
   };
 
+  if (!canExport) {
+    return (
+      <div className="rounded-xl border border-border bg-surface p-6">
+        <p className="text-muted-foreground">
+          Экспорт отчётов в PDF и Excel доступен в тарифах Standard и Pro.
+        </p>
+        <Link
+          href="/billing"
+          className="mt-4 inline-block rounded-lg bg-primary px-4 py-2 font-medium text-white hover:bg-primary-dark"
+        >
+          Перейти к тарифам
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-xl border border-border bg-surface p-6">
       <div className="space-y-4">
+        {exportsLimit >= 0 && (
+          <p className="text-sm text-muted-foreground">
+            Осталось экспортов в этом месяце: {exportsRemaining} из {exportsLimit}
+          </p>
+        )}
         <div>
           <label className="block text-sm font-medium">Формат</label>
           <select
@@ -90,10 +118,10 @@ export function ReportGenerator({
         </div>
         <button
           onClick={handleGenerate}
-          disabled={loading}
+          disabled={loading || (exportsLimit >= 0 && exportsRemaining <= 0)}
           className="rounded bg-primary px-4 py-2 font-medium text-white hover:bg-primary-dark disabled:opacity-50"
         >
-          {loading ? "Генерация..." : "Скачать отчёт"}
+          {loading ? "Генерация..." : exportsLimit >= 0 && exportsRemaining <= 0 ? "Лимит исчерпан" : "Скачать отчёт"}
         </button>
       </div>
     </div>

@@ -43,9 +43,15 @@ export async function createProfileAction(data: {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    include: { profiles: true },
+    include: { profiles: true, subscription: true },
   });
   if (!user) return { error: "Пользователь не найден" };
+
+  const { getEffectiveLimits } = await import("@/config/plans");
+  const limits = getEffectiveLimits(user.subscription?.plan, user.subscription?.trialEndsAt);
+  if (user.profiles.length >= limits.profiles) {
+    return { error: `Лимит профилей: ${limits.profiles}. Перейдите на другой тариф для добавления.` };
+  }
 
   const profile = await prisma.cashFlowProfile.create({
     data: {
@@ -88,8 +94,15 @@ export async function addProfileWithSetupAction(data: {
 
   const existingUser = await prisma.user.findFirst({
     where: { email: session.user.email! },
+    include: { profiles: true, subscription: true },
   });
   if (!existingUser) return { error: "Пользователь не найден" };
+
+  const { getEffectiveLimits } = await import("@/config/plans");
+  const limits = getEffectiveLimits(existingUser.subscription?.plan, existingUser.subscription?.trialEndsAt);
+  if (existingUser.profiles.length >= limits.profiles) {
+    return { error: `Лимит профилей: ${limits.profiles}. Перейдите на другой тариф для добавления.` };
+  }
 
   const categoryOther = await prisma.expenseCategory.findFirst({
     where: { slug: "other" },

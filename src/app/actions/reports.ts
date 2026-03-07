@@ -6,7 +6,34 @@ import {
   computeForecast,
   computeForecastActualOnly,
 } from "@/lib/services/forecast";
+import { canUserExportReports, getReportExportLimit } from "@/lib/plan-utils";
 import ExcelJS from "exceljs";
+
+async function checkAndIncrementReportExport(
+  userId: string,
+  sub: { plan: string; trialEndsAt: Date | null; reportExportsCount: number; reportExportsMonth: string | null } | null
+) {
+  if (!canUserExportReports(sub)) {
+    return { error: "Экспорт отчётов доступен в тарифах Standard и Pro" };
+  }
+  const limit = getReportExportLimit(sub?.plan ?? "FREE", sub?.trialEndsAt ?? null);
+  if (limit >= 0 && sub) {
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const count = sub.reportExportsMonth === monthKey ? (sub.reportExportsCount ?? 0) : 0;
+    if (count >= limit) {
+      return { error: `Лимит экспортов (${limit}/мес) исчерпан. Перейдите на Pro для безлимита.` };
+    }
+    await prisma.subscription.update({
+      where: { userId },
+      data: {
+        reportExportsCount: sub.reportExportsMonth === monthKey ? count + 1 : 1,
+        reportExportsMonth: monthKey,
+      },
+    });
+  }
+  return null;
+}
 
 export async function generateReportAction(
   profileId: string,
@@ -22,10 +49,14 @@ export async function generateReportAction(
 
   const user = await prisma.user.findUnique({
     where: { email: session.user.email },
-    include: { profiles: true },
+    include: { profiles: true, subscription: true },
   });
   if (!user || !user.profiles.some((p) => p.id === profileId)) {
     return { error: "Профиль не найден" };
+  }
+
+  if (!canUserExportReports(user.subscription)) {
+    return { error: "Экспорт отчётов доступен в тарифах Standard и Pro" };
   }
 
   const profile = user.profiles.find((p) => p.id === profileId)!;
@@ -46,6 +77,8 @@ export async function generateReportAction(
   const round = (n: number) => Math.round(n);
 
   if (options.format === "excel") {
+    const quotaError = await checkAndIncrementReportExport(user.id, user.subscription);
+    if (quotaError) return quotaError;
     const workbook = new ExcelJS.Workbook();
     const cols = [
       { header: "Дата", key: "date", width: 12 },

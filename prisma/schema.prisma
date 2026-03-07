@@ -24,6 +24,7 @@ model User {
   consentAt     DateTime? // 152-ФЗ, GDPR consent
   weeklyReport  Boolean   @default(false)
   tourCompleted Boolean   @default(false)
+  trialUsedAt   DateTime? // антифрод: 1 триал на email
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -319,11 +320,14 @@ model Forecast {
 model Subscription {
   id                      String    @id @default(cuid())
   userId                  String    @unique
-  plan                    String // FREE, PRO, BUSINESS
+  plan                    String // FREE, STANDARD, PRO, TRIAL
   status                  String // active, canceled, past_due
+  trialEndsAt             DateTime?
   yookassaPaymentId       String?
   yookassaPaymentMethodId String?
   currentPeriodEnd        DateTime?
+  reportExportsCount      Int       @default(0)
+  reportExportsMonth      String?   // YYYY-MM, reset when month changes
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
 

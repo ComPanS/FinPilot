@@ -3,6 +3,7 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { getEffectiveLimits } from "@/config/plans";
 import type { WhatIfChanges } from "@/types";
 
 export async function saveScenarioAction(
@@ -15,17 +16,18 @@ export async function saveScenarioAction(
 
   const user = await prisma.user.findUnique({
     where: { email: session.user.email },
-    include: { profiles: true },
+    include: { profiles: true, subscription: true },
   });
   if (!user || !user.profiles.some((p) => p.id === profileId)) {
     return { error: "Профиль не найден" };
   }
 
+  const limits = getEffectiveLimits(user.subscription?.plan, user.subscription?.trialEndsAt);
   const count = await prisma.whatIfScenario.count({
     where: { profileId },
   });
-  if (count >= 10) {
-    return { error: "Максимум 10 сценариев" };
+  if (count >= limits.whatIfScenarios) {
+    return { error: `Максимум ${limits.whatIfScenarios} сценариев на вашем тарифе` };
   }
 
   await prisma.whatIfScenario.create({
