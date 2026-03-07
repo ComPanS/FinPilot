@@ -1,7 +1,7 @@
 # Обновление продакшена
 
 ```bash
-cd /opt/FinPilot
+cd /var/www/FinPilot
 git pull
 docker compose build app
 docker compose up -d

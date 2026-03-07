@@ -21,7 +21,7 @@ sudo apt install docker-compose-plugin -y
 ## 2. Клонирование и настройка
 
 ```bash
-cd /opt  # или другая директория
+cd /var/www/  # или другая директория
 git clone https://github.com/YOUR_USER/FinPilot.git
 cd FinPilot
 ```
@@ -58,21 +58,26 @@ docker compose up -d
 
 ## 5. Nginx и SSL
 
+**Шаг 1.** Сначала — конфиг без SSL (сертификатов ещё нет):
+
 ```bash
 sudo apt install nginx certbot python3-certbot-nginx -y
-sudo cp deploy/nginx.conf.example /etc/nginx/sites-available/ffinplaner
+sudo cp deploy/nginx.conf.initial /etc/nginx/sites-available/ffinplaner
 sudo ln -s /etc/nginx/sites-available/ffinplaner /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
 ```
 
-Сначала получить сертификат:
+**Шаг 2.** Получить сертификат (certbot добавит SSL в конфиг):
 
 ```bash
 sudo certbot --nginx -d ffinplaner.ru -d www.ffinplaner.ru
 ```
 
+**Шаг 3.** (Опционально) Заменить на полный конфиг с редиректом HTTP→HTTPS:
+
 ```bash
-sudo nginx -t
-sudo systemctl reload nginx
+sudo cp deploy/nginx.conf.example /etc/nginx/sites-available/ffinplaner
+sudo nginx -t && sudo systemctl reload nginx
 ```
 
 ## 6. Cron (продление подписок)
