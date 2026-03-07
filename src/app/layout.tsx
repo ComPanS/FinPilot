@@ -4,6 +4,7 @@ import { ThemeProvider } from "next-themes";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ConditionalFooter } from "@/components/layout/conditional-footer";
 import { JsonLd } from "@/components/seo/json-ld";
+import { YandexMetrika } from "@/components/analytics/yandex-metrika";
 import "./globals.css";
 
 const inter = Inter({
@@ -73,6 +74,7 @@ export default function RootLayout({
   return (
     <html lang="ru" suppressHydrationWarning data-scroll-behavior="smooth">
       <body className={`${inter.variable} font-sans antialiased`}>
+        <YandexMetrika />
         <JsonLd />
         <ThemeProvider
           attribute="data-theme"
