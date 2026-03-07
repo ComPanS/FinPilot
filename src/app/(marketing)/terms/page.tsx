@@ -5,7 +5,7 @@ export default function TermsPage() {
   return (
     <div className="min-h-screen bg-background">
       <LegalHeader />
-      <main className="mx-auto max-w-3xl px-4 py-12">
+      <main className="mx-auto max-w-3xl px-4 sm:px-6 py-12">
         <h1 className="text-2xl font-bold text-foreground">
           Правила использования
         </h1>

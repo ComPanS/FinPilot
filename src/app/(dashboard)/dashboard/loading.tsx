@@ -22,7 +22,7 @@ export default function DashboardPageLoading() {
         <div className="h-6 w-32 rounded bg-muted" />
         <ChartSkeleton />
       </section>
-      <div className="flex gap-4">
+      <div className="flex flex-col sm:flex-row gap-4">
         <div className="h-10 w-40 rounded-lg bg-muted" />
         <div className="h-10 w-32 rounded-lg bg-muted" />
       </div>

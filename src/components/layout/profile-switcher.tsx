@@ -54,13 +54,13 @@ export function ProfileSwitcher({
         aria-expanded={open}
         aria-haspopup="listbox"
       >
-        <span className="max-w-[140px] truncate">{activeProfile?.name ?? "Профиль"}</span>
+        <span className="max-w-[min(140px,45vw)] truncate">{activeProfile?.name ?? "Профиль"}</span>
         <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
       </button>
 
       {open && (
         <div
-          className="absolute left-0 top-full z-50 mt-1 min-w-[200px] rounded-lg border border-border bg-surface py-1 shadow-lg"
+          className="absolute left-0 top-full z-50 mt-1 min-w-[200px] max-w-[min(200px,90vw)] rounded-lg border border-border bg-surface py-1 shadow-lg"
           role="listbox"
         >
           <Link

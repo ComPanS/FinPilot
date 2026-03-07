@@ -28,7 +28,7 @@ export function ValuePropositions() {
             return (
               <div
                 key={index}
-                className="bg-surface rounded-xl p-8 border border-border hover:border-primary hover:shadow-lg transition-all duration-300"
+                className="bg-surface rounded-xl p-4 sm:p-6 lg:p-8 border border-border hover:border-primary hover:shadow-lg transition-all duration-300"
               >
                 <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mb-6">
                   <Icon className="text-primary" size={28} />

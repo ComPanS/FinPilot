@@ -307,7 +307,7 @@ export function ActualDataModal({
       aria-label="Закрыть"
     >
       <div
-        className="max-h-[90vh] w-full max-w-2xl cursor-pointer overflow-auto rounded-xl border border-border bg-surface p-6"
+        className="max-h-[90vh] w-full max-w-2xl mx-4 sm:mx-6 cursor-pointer overflow-auto rounded-xl border border-border bg-surface p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between">

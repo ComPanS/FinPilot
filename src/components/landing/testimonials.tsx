@@ -41,7 +41,7 @@ export function Testimonials() {
           {testimonials.map((testimonial, index) => (
             <div
               key={index}
-              className="bg-surface rounded-xl p-8 border border-border hover:border-primary hover:shadow-lg transition-all duration-300"
+              className="bg-surface rounded-xl p-4 sm:p-6 lg:p-8 border border-border hover:border-primary hover:shadow-lg transition-all duration-300"
             >
               <div className="flex gap-1 mb-4">
                 {[...Array(5)].map((_, i) => (

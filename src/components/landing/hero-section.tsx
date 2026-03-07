@@ -36,13 +36,13 @@ export function HeroSection() {
             <div className="flex flex-col sm:flex-row gap-4 mb-12">
               <Link
                 href="/register"
-                className="bg-primary hover:bg-primary-dark text-white px-8 py-4 rounded-lg transition-colors font-semibold shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 cursor-pointer inline-flex justify-center items-center"
+                className="bg-primary hover:bg-primary-dark text-white px-6 py-3 sm:px-8 sm:py-4 rounded-lg transition-colors font-semibold shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 cursor-pointer inline-flex justify-center items-center"
               >
                 Создать первый прогноз — бесплатно
               </Link>
               <Link
                 href="#features"
-                className="border-2 border-border hover:border-primary text-foreground px-8 py-4 rounded-lg transition-colors font-semibold flex items-center justify-center gap-2 bg-surface cursor-pointer"
+                className="border-2 border-border hover:border-primary text-foreground px-6 py-3 sm:px-8 sm:py-4 rounded-lg transition-colors font-semibold flex items-center justify-center gap-2 bg-surface cursor-pointer"
               >
                 <Play size={20} />
                 Смотреть демо

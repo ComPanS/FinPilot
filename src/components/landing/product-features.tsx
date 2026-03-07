@@ -46,8 +46,8 @@ export function ProductFeatures() {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl p-8 border border-primary/20">
-            <div className="bg-surface rounded-lg shadow-xl p-6">
+          <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl p-4 sm:p-6 lg:p-8 border border-primary/20">
+            <div className="bg-surface rounded-lg shadow-xl p-4 sm:p-6">
               <div className="flex items-center gap-2 mb-6 pb-4 border-b border-border">
                 <div className="w-3 h-3 rounded-full bg-danger"></div>
                 <div className="w-3 h-3 rounded-full bg-warning"></div>

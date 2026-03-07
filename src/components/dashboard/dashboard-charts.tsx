@@ -316,7 +316,7 @@ export function DashboardCharts({
               </span>
             </p>
           )}
-          <div className="h-80 min-h-[320px] min-w-[200px] w-full">
+          <div className="h-80 min-h-[320px] min-w-0 w-full">
             <ResponsiveContainer
               width="100%"
               height={320}
@@ -446,7 +446,7 @@ export function DashboardCharts({
           <h3 className="mb-2 text-sm font-medium text-muted-foreground">
             Прибыль за день
           </h3>
-          <div className="h-80 min-h-[320px] min-w-[200px] w-full">
+          <div className="h-80 min-h-[320px] min-w-0 w-full">
             <ResponsiveContainer
               width="100%"
               height={320}
@@ -559,7 +559,7 @@ export function DashboardCharts({
             <h3 className="mb-2 text-sm font-medium text-muted-foreground">
               Доход
             </h3>
-            <div className="h-80 min-h-[320px] min-w-[200px] w-full">
+            <div className="h-80 min-h-[320px] min-w-0 w-full">
               <ResponsiveContainer
                 width="100%"
                 height={320}
@@ -658,7 +658,7 @@ export function DashboardCharts({
             <h3 className="mb-2 text-sm font-medium text-muted-foreground">
               Расход
             </h3>
-            <div className="h-80 min-h-[320px] min-w-[200px] w-full">
+            <div className="h-80 min-h-[320px] min-w-0 w-full">
               <ResponsiveContainer
                 width="100%"
                 height={320}

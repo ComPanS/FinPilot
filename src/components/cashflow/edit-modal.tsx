@@ -169,7 +169,7 @@ export function EditModal({
       aria-label="Закрыть"
     >
       <div
-        className="max-h-[90vh] w-full max-w-lg overflow-auto rounded-xl border border-border bg-surface p-6"
+        className="max-h-[90vh] w-full max-w-lg mx-4 sm:mx-6 overflow-auto rounded-xl border border-border bg-surface p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between">

@@ -217,7 +217,7 @@ export function WhatIfSimulator({
                           [e.id]: { ...prev[e.id], amount: v },
                         }));
                       }}
-                      className="w-24 rounded border border-border px-2 py-1 text-sm"
+                      className="min-w-0 w-20 sm:w-24 rounded border border-border px-2 py-1 text-sm"
                     />
                   </li>
                 );
@@ -255,7 +255,7 @@ export function WhatIfSimulator({
                           [i.id]: { ...prev[i.id], amount: v },
                         }));
                       }}
-                      className="w-24 rounded border border-border px-2 py-1 text-sm"
+                      className="min-w-0 w-20 sm:w-24 rounded border border-border px-2 py-1 text-sm"
                     />
                   </li>
                 );
@@ -295,7 +295,7 @@ export function WhatIfSimulator({
                           [t.id]: { ...prev[t.id], amount: v },
                         }));
                       }}
-                      className="w-24 rounded border border-border px-2 py-1 text-sm"
+                      className="min-w-0 w-20 sm:w-24 rounded border border-border px-2 py-1 text-sm"
                     />
                   </li>
                 );
@@ -451,7 +451,7 @@ export function WhatIfSimulator({
                 value={incomeGrowth}
                 onChange={(e) => setIncomeGrowth(e.target.value)}
                 placeholder="0"
-                className="mt-1 w-24 rounded border border-border px-2 py-1"
+                className="mt-1 min-w-0 w-20 sm:w-24 rounded border border-border px-2 py-1"
               />
             </div>
             <div>
@@ -461,7 +461,7 @@ export function WhatIfSimulator({
                 value={expenseGrowth}
                 onChange={(e) => setExpenseGrowth(e.target.value)}
                 placeholder="0"
-                className="mt-1 w-24 rounded border border-border px-2 py-1"
+                className="mt-1 min-w-0 w-20 sm:w-24 rounded border border-border px-2 py-1"
               />
             </div>
           </div>
@@ -876,8 +876,8 @@ function EditExpenseForm({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <input placeholder="Название" value={name} onChange={(e) => setName(e.target.value)} className="w-32 rounded border border-border px-2 py-1 text-sm" />
-      <input type="number" placeholder="Сумма" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-20 rounded border border-border px-2 py-1 text-sm" />
+      <input placeholder="Название" value={name} onChange={(e) => setName(e.target.value)} className="min-w-0 w-24 sm:w-32 rounded border border-border px-2 py-1 text-sm" />
+      <input type="number" placeholder="Сумма" value={amount} onChange={(e) => setAmount(e.target.value)} className="min-w-0 w-16 sm:w-20 rounded border border-border px-2 py-1 text-sm" />
       <select value={frequency} onChange={(e) => setFrequency(e.target.value)} className="rounded border border-border px-2 py-1 text-sm">
         <option value="DAILY">Ежедневно</option>
         <option value="WEEKLY">Еженедельно</option>
@@ -985,8 +985,8 @@ function EditIncomeForm({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <input placeholder="Название" value={name} onChange={(e) => setName(e.target.value)} className="w-32 rounded border border-border px-2 py-1 text-sm" />
-      <input type="number" placeholder="Сумма" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-20 rounded border border-border px-2 py-1 text-sm" />
+      <input placeholder="Название" value={name} onChange={(e) => setName(e.target.value)} className="min-w-0 w-24 sm:w-32 rounded border border-border px-2 py-1 text-sm" />
+      <input type="number" placeholder="Сумма" value={amount} onChange={(e) => setAmount(e.target.value)} className="min-w-0 w-16 sm:w-20 rounded border border-border px-2 py-1 text-sm" />
       <select value={frequency} onChange={(e) => setFrequency(e.target.value)} className="rounded border border-border px-2 py-1 text-sm">
         <option value="DAILY">Ежедневно</option>
         <option value="WEEKLY">Еженедельно</option>
@@ -1088,8 +1088,8 @@ function EditManualForm({
         <option value="IN">Доход</option>
         <option value="OUT">Расход</option>
       </select>
-      <input type="number" placeholder="Сумма" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-20 rounded border border-border px-2 py-1 text-sm" />
-      <input placeholder="Описание" value={description} onChange={(e) => setDescription(e.target.value)} className="w-24 rounded border border-border px-2 py-1 text-sm" />
+      <input type="number" placeholder="Сумма" value={amount} onChange={(e) => setAmount(e.target.value)} className="min-w-0 w-16 sm:w-20 rounded border border-border px-2 py-1 text-sm" />
+      <input placeholder="Описание" value={description} onChange={(e) => setDescription(e.target.value)} className="min-w-0 w-20 sm:w-24 rounded border border-border px-2 py-1 text-sm" />
       <button onClick={handleSave} className="rounded bg-primary px-2 py-1 text-sm text-white">Сохранить</button>
       <button onClick={onCancel} className="rounded border border-border px-2 py-1 text-sm">Отмена</button>
     </div>

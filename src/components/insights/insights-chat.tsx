@@ -139,7 +139,7 @@ export function InsightsChat({
             e.preventDefault();
             sendPrompt(prompt);
           }}
-          className="mt-4 flex gap-2"
+          className="mt-4 flex flex-col sm:flex-row gap-2"
         >
           <input
             value={prompt}

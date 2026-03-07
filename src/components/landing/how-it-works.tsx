@@ -41,7 +41,7 @@ export function HowItWorks() {
             const Icon = step.icon;
             return (
               <div key={index} className="relative">
-                <div className="bg-surface rounded-xl p-8 shadow-lg border border-border text-center">
+                <div className="bg-surface rounded-xl p-4 sm:p-6 lg:p-8 shadow-lg border border-border text-center">
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold text-lg shadow-lg">
                     {step.number}
                   </div>

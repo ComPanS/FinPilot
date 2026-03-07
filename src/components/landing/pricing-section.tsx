@@ -29,7 +29,7 @@ export function PricingSection({ plans }: PricingSectionProps) {
             return (
               <div
                 key={plan.id}
-                className={`bg-surface rounded-xl p-8 border-2 transition-all duration-300 hover:shadow-xl ${
+                className={`bg-surface rounded-xl p-4 sm:p-6 lg:p-8 border-2 transition-all duration-300 hover:shadow-xl ${
                   highlighted
                     ? "border-primary shadow-lg scale-105"
                     : "border-border hover:border-primary"

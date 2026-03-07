@@ -331,7 +331,7 @@ export function ExpectedPeriodsModal({
       aria-label="Закрыть"
     >
       <div
-        className="max-h-[90vh] w-full max-w-2xl cursor-pointer overflow-auto rounded-xl border border-border bg-surface p-6"
+        className="max-h-[90vh] w-full max-w-2xl mx-4 sm:mx-6 cursor-pointer overflow-auto rounded-xl border border-border bg-surface p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between">
@@ -547,7 +547,7 @@ export function ExpectedPeriodsModal({
             <p className="text-sm text-muted-foreground">
               Множитель по месяцам (1.0 = без изменений, 1.2 = +20%, 0.8 = -20%)
             </p>
-            <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
               {Array.from({ length: 12 }, (_, i) => {
                 const m = String(i + 1).padStart(2, "0");
                 const val = seasonalMultiplier[m] ?? "1";

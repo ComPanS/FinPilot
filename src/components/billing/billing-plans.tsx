@@ -68,9 +68,9 @@ export function BillingPlans({
         </p>
       )}
       {BILLABLE_PLANS.length > 0 && (
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
           <span className="text-sm text-muted-foreground">Период оплаты:</span>
-          <div className="flex rounded-lg border border-border p-1">
+          <div className="flex rounded-lg border border-border p-1 w-full sm:w-auto">
             <button
               type="button"
               onClick={() => setBillingPeriod("monthly")}
