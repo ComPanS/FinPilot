@@ -3,6 +3,7 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { createExpenseSchema, createIncomeSchema, createManualTransactionSchema } from "@/lib/schemas/cashflow";
 
 function slugify(text: string): string {
   return text
@@ -157,6 +158,8 @@ export async function createExpense(data: {
   expectedData?: Record<string, number>;
   seasonalMultiplier?: Record<string, number>;
 }) {
+  const parsed = createExpenseSchema.safeParse(data);
+  if (!parsed.success) return { error: parsed.error.errors[0]?.message ?? "Неверные данные" };
   const session = await auth();
   if (!session?.user?.email) return { error: "Не авторизован" };
 
@@ -164,7 +167,8 @@ export async function createExpense(data: {
     where: { email: session.user.email },
     include: { profiles: true },
   });
-  if (!user || !user.profiles.some((p) => p.id === data.profileId)) {
+  const d = parsed.data;
+  if (!user || !user.profiles.some((p) => p.id === d.profileId)) {
     return { error: "Профиль не найден" };
   }
 
@@ -174,26 +178,26 @@ export async function createExpense(data: {
 
   const exp = await prisma.regularExpense.create({
     data: {
-      profileId: data.profileId,
-      name: data.name,
-      amount: data.amount,
-      frequency: data.frequency,
-      categoryId: data.categoryId,
-      customDays: data.customDays ?? undefined,
-      expectedData: data.expectedData ?? undefined,
-      seasonalMultiplier: data.seasonalMultiplier ?? undefined,
+      profileId: d.profileId,
+      name: d.name,
+      amount: d.amount,
+      frequency: d.frequency,
+      categoryId: d.categoryId,
+      customDays: d.customDays ?? undefined,
+      expectedData: d.expectedData ?? undefined,
+      seasonalMultiplier: d.seasonalMultiplier ?? undefined,
       startDate,
     },
   });
-  if (data.expectedData && Object.keys(data.expectedData).length > 0) {
-    await syncExpectedDataToEntries(data.profileId, "EXPENSE", exp.id, data.expectedData);
+  if (d.expectedData && Object.keys(d.expectedData).length > 0) {
+    await syncExpectedDataToEntries(d.profileId, "EXPENSE", exp.id, d.expectedData);
   }
-  await saveHistory(data.profileId, "EXPENSE", exp.id, "create", undefined, {
-    name: data.name,
-    amount: data.amount,
-    frequency: data.frequency,
-    categoryId: data.categoryId,
-    customDays: data.customDays,
+  await saveHistory(d.profileId, "EXPENSE", exp.id, "create", undefined, {
+    name: d.name,
+    amount: d.amount,
+    frequency: d.frequency,
+    categoryId: d.categoryId,
+    customDays: d.customDays,
   });
   revalidatePath("/cashflow");
   revalidatePath("/dashboard");
@@ -261,50 +265,53 @@ export async function createIncome(data: {
   expectedData?: Record<string, number>;
   seasonalMultiplier?: Record<string, number>;
 }) {
+  const parsed = createIncomeSchema.safeParse(data);
+  if (!parsed.success) return { error: parsed.error.errors[0]?.message ?? "Неверные данные" };
   const session = await auth();
   if (!session?.user?.email) return { error: "Не авторизован" };
 
+  const d = parsed.data;
   const user = await prisma.user.findUnique({
     where: { email: session.user.email },
     include: { profiles: true },
   });
-  if (!user || !user.profiles.some((p) => p.id === data.profileId)) {
+  if (!user || !user.profiles.some((p) => p.id === d.profileId)) {
     return { error: "Профиль не найден" };
   }
 
-  const amt = data.amount ?? data.avgCheck ?? 0;
-  const salesPlan = data.salesPlan;
-  const frequency = data.frequency ?? "MONTHLY";
+  const amt = d.amount ?? d.avgCheck ?? 0;
+  const salesPlan = d.salesPlan;
+  const frequency = d.frequency ?? "MONTHLY";
   const startDate = new Date();
   startDate.setDate(1);
   startDate.setHours(0, 0, 0, 0);
 
   const inc = await prisma.regularIncome.create({
     data: {
-      profileId: data.profileId,
-      name: data.name,
+      profileId: d.profileId,
+      name: d.name,
       amount: amt,
-      avgCheck: data.avgCheck,
-      taxes: data.taxes ?? undefined,
+      avgCheck: d.avgCheck,
+      taxes: d.taxes ?? undefined,
       salesPlan: salesPlan ?? undefined,
       frequency,
-      customDays: data.customDays ?? undefined,
-      categoryId: data.categoryId ?? undefined,
-      expectedData: data.expectedData ?? undefined,
-      seasonalMultiplier: data.seasonalMultiplier ?? undefined,
+      customDays: d.customDays ?? undefined,
+      categoryId: d.categoryId ?? undefined,
+      expectedData: d.expectedData ?? undefined,
+      seasonalMultiplier: d.seasonalMultiplier ?? undefined,
       startDate,
     },
   });
-  if (data.expectedData && Object.keys(data.expectedData).length > 0) {
-    await syncExpectedDataToEntries(data.profileId, "INCOME", inc.id, data.expectedData);
+  if (d.expectedData && Object.keys(d.expectedData).length > 0) {
+    await syncExpectedDataToEntries(d.profileId, "INCOME", inc.id, d.expectedData);
   }
-  await saveHistory(data.profileId, "INCOME", inc.id, "create", undefined, {
-    name: data.name,
+  await saveHistory(d.profileId, "INCOME", inc.id, "create", undefined, {
+    name: d.name,
     amount: amt,
-    taxes: data.taxes,
+    taxes: d.taxes,
     salesPlan,
     frequency,
-    categoryId: data.categoryId,
+    categoryId: d.categoryId,
   });
   revalidatePath("/cashflow");
   revalidatePath("/dashboard");
@@ -386,37 +393,40 @@ export async function createManualTransaction(data: {
   expenseCategoryId?: string;
   incomeCategoryId?: string;
 }) {
+  const parsed = createManualTransactionSchema.safeParse(data);
+  if (!parsed.success) return { error: parsed.error.errors[0]?.message ?? "Неверные данные" };
   const session = await auth();
   if (!session?.user?.email) return { error: "Не авторизован" };
 
+  const d = parsed.data;
   const user = await prisma.user.findUnique({
     where: { email: session.user.email },
     include: { profiles: true },
   });
-  if (!user || !user.profiles.some((p) => p.id === data.profileId)) {
+  if (!user || !user.profiles.some((p) => p.id === d.profileId)) {
     return { error: "Профиль не найден" };
   }
 
   const tx = await prisma.manualTransaction.create({
     data: {
-      profileId: data.profileId,
-      date: data.date,
-      type: data.type,
-      amount: data.amount,
-      taxes: data.taxes ?? undefined,
-      description: data.description,
-      expenseCategoryId: data.type === "OUT" ? data.expenseCategoryId : undefined,
-      incomeCategoryId: data.type === "IN" ? data.incomeCategoryId : undefined,
+      profileId: d.profileId,
+      date: d.date,
+      type: d.type,
+      amount: d.amount,
+      taxes: d.taxes ?? undefined,
+      description: d.description,
+      expenseCategoryId: d.type === "OUT" ? d.expenseCategoryId : undefined,
+      incomeCategoryId: d.type === "IN" ? d.incomeCategoryId : undefined,
     },
   });
-  await saveHistory(data.profileId, "MANUAL", tx.id, "create", undefined, {
-    date: data.date,
-    type: data.type,
-    amount: data.amount,
-    taxes: data.taxes,
-    description: data.description,
-    expenseCategoryId: data.expenseCategoryId,
-    incomeCategoryId: data.incomeCategoryId,
+  await saveHistory(d.profileId, "MANUAL", tx.id, "create", undefined, {
+    date: d.date,
+    type: d.type,
+    amount: d.amount,
+    taxes: d.taxes,
+    description: d.description,
+    expenseCategoryId: d.expenseCategoryId,
+    incomeCategoryId: d.incomeCategoryId,
   });
   revalidatePath("/cashflow");
   revalidatePath("/dashboard");

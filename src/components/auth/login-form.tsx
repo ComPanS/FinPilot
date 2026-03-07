@@ -11,15 +11,25 @@ import { PasswordInput } from "@/components/ui/password-input";
 
 const schema = z.object({
   email: z.string().email("Введите корректный email"),
-  password: z.string().min(6, "Минимум 6 символов"),
+  password: z.string().min(8, "Минимум 8 символов"),
 });
 
 type FormData = z.infer<typeof schema>;
 
+const ALLOWED_CALLBACK_PREFIXES = ["/dashboard", "/cashflow", "/what-if", "/insights", "/reports", "/billing", "/settings", "/onboarding"];
+
+function getSafeCallbackUrl(raw: string | null): string {
+  if (!raw || typeof raw !== "string") return "/dashboard";
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith("/") || trimmed.startsWith("//") || trimmed.includes(":")) return "/dashboard";
+  const allowed = ALLOWED_CALLBACK_PREFIXES.some((p) => trimmed === p || trimmed.startsWith(p + "/"));
+  return allowed ? trimmed : "/dashboard";
+}
+
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
+  const callbackUrl = getSafeCallbackUrl(searchParams.get("callbackUrl"));
   const verified = searchParams.get("verified") === "1";
   const emailChanged = searchParams.get("emailChanged") === "1";
   const [error, setError] = useState<string | null>(null);

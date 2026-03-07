@@ -9,7 +9,7 @@ import { resetPasswordAction } from "@/app/actions/auth";
 import { PasswordInput } from "@/components/ui/password-input";
 
 const schema = z.object({
-  password: z.string().min(6, "Минимум 6 символов"),
+  password: z.string().min(8, "Минимум 8 символов"),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Пароли не совпадают",

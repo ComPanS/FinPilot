@@ -6,9 +6,17 @@ import { getActiveProfile } from "@/lib/active-profile";
 import { askNeuro } from "@/lib/neuroapi";
 import { checkAIQuota, createAIRequest } from "@/lib/services/ai";
 import { computeForecast, getRedZones } from "@/lib/services/forecast";
+import { aiChatLimiter, getClientIdentifier } from "@/lib/ratelimit";
 
 export async function POST(req: Request) {
   try {
+    const { success } = await aiChatLimiter.limit(getClientIdentifier(req.headers));
+    if (!success) {
+      return NextResponse.json(
+        { error: "Слишком много запросов. Подождите минуту." },
+        { status: 429 }
+      );
+    }
     const session = await auth();
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
@@ -73,9 +81,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ response });
   } catch (e) {
     console.error("AI chat error:", e);
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Ошибка ИИ" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Ошибка ИИ" }, { status: 500 });
   }
 }

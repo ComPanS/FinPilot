@@ -2,8 +2,30 @@
 
 import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
+import type { Components } from "react-markdown";
 
 const STORAGE_KEY = "insights_chat_reset";
+
+function isSafeHref(href: string | undefined): boolean {
+  if (!href || typeof href !== "string") return false;
+  const lower = href.toLowerCase().trim();
+  return (
+    !lower.startsWith("javascript:") &&
+    !lower.startsWith("data:") &&
+    !lower.startsWith("vbscript:")
+  );
+}
+
+const markdownComponents: Components = {
+  a: ({ href, children, ...props }) =>
+    isSafeHref(href) ? (
+      <a href={href!} rel="noopener noreferrer" target="_blank" {...props}>
+        {children}
+      </a>
+    ) : (
+      <span {...props}>{children}</span>
+    ),
+};
 
 const QUICK_PROMPTS = [
   "Проанализируй мой прогноз и дай 3 конкретные рекомендации по устранению кассовых разрывов",
@@ -107,7 +129,7 @@ export function InsightsChat({
               <p className="text-muted-foreground">{m.prompt}</p>
               <p className="text-sm font-medium text-foreground">ИИ:</p>
               <div className="prose prose-sm dark:prose-invert max-w-none">
-                <ReactMarkdown>{m.response}</ReactMarkdown>
+                <ReactMarkdown components={markdownComponents}>{m.response}</ReactMarkdown>
               </div>
             </div>
           ))}

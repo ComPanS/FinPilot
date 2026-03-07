@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { createEmailChangeRequest } from "@/lib/verification";
 import { sendEmailChangeVerification } from "@/lib/email";
+import { updatePasswordSchema } from "@/lib/schemas/auth";
 
 export async function updateProfileAction(data: {
   name: string;
@@ -29,6 +30,8 @@ export async function updatePasswordAction(data: {
   currentPassword: string;
   newPassword: string;
 }) {
+  const parsed = updatePasswordSchema.safeParse(data);
+  if (!parsed.success) return { error: parsed.error.errors[0]?.message ?? "Неверные данные" };
   const session = await auth();
   if (!session?.user?.email) return { error: "Не авторизован" };
 
@@ -39,10 +42,10 @@ export async function updatePasswordAction(data: {
     return { error: "Смена пароля только для входа по email" };
   }
 
-  const valid = await bcrypt.compare(data.currentPassword, user.password);
+  const valid = await bcrypt.compare(parsed.data.currentPassword, user.password);
   if (!valid) return { error: "Неверный текущий пароль" };
 
-  const hashed = await bcrypt.hash(data.newPassword, 10);
+  const hashed = await bcrypt.hash(parsed.data.newPassword, 10);
   await prisma.user.update({
     where: { id: user.id },
     data: { password: hashed },

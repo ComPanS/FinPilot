@@ -22,8 +22,8 @@ const zoneSchema = z.object({
 });
 
 const passwordSchema = z.object({
-  currentPassword: z.string().min(6),
-  newPassword: z.string().min(6),
+  currentPassword: z.string().min(8),
+  newPassword: z.string().min(8),
   confirmPassword: z.string(),
 }).refine((d) => d.newPassword === d.confirmPassword, {
   message: "Пароли не совпадают",

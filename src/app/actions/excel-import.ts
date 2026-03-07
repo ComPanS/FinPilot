@@ -21,6 +21,23 @@ const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 const MAX_ROWS = 200;
 const CHUNK_SIZE = 10;
 
+/** xlsx: ZIP (PK), xls: OLE Compound Document */
+const EXCEL_MAGIC = {
+  xlsx: Buffer.from([0x50, 0x4b, 0x03, 0x04]),
+  xlsxAlt: Buffer.from([0x50, 0x4b, 0x05, 0x06]),
+  xls: Buffer.from([0xd0, 0xcf, 0x11, 0xe0]),
+};
+
+function isValidExcelBuffer(buffer: Buffer): boolean {
+  if (buffer.length < 4) return false;
+  const head = buffer.subarray(0, 4);
+  return (
+    head.equals(EXCEL_MAGIC.xlsx) ||
+    head.equals(EXCEL_MAGIC.xlsxAlt) ||
+    head.equals(EXCEL_MAGIC.xls)
+  );
+}
+
 export type ParsedExcelItem = {
   type: "expense" | "income";
   name: string;
@@ -53,6 +70,9 @@ async function parseExcelToRows(base64: string): Promise<string[][]> {
   const buffer = Buffer.from(base64, "base64");
   if (buffer.length > MAX_FILE_SIZE_BYTES) {
     throw new Error("Файл слишком большой (максимум 5 МБ)");
+  }
+  if (!isValidExcelBuffer(buffer)) {
+    throw new Error("Недопустимый формат файла. Загрузите Excel (.xlsx или .xls)");
   }
 
   const workbook = new ExcelJS.Workbook();
