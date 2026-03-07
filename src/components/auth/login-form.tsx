@@ -17,13 +17,29 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
-const ALLOWED_CALLBACK_PREFIXES = ["/dashboard", "/cashflow", "/what-if", "/insights", "/reports", "/billing", "/settings", "/onboarding"];
+const ALLOWED_CALLBACK_PREFIXES = [
+  "/dashboard",
+  "/cashflow",
+  "/what-if",
+  "/insights",
+  "/reports",
+  "/billing",
+  "/settings",
+  "/onboarding",
+];
 
 function getSafeCallbackUrl(raw: string | null): string {
   if (!raw || typeof raw !== "string") return "/dashboard";
   const trimmed = raw.trim();
-  if (!trimmed.startsWith("/") || trimmed.startsWith("//") || trimmed.includes(":")) return "/dashboard";
-  const allowed = ALLOWED_CALLBACK_PREFIXES.some((p) => trimmed === p || trimmed.startsWith(p + "/"));
+  if (
+    !trimmed.startsWith("/") ||
+    trimmed.startsWith("//") ||
+    trimmed.includes(":")
+  )
+    return "/dashboard";
+  const allowed = ALLOWED_CALLBACK_PREFIXES.some(
+    (p) => trimmed === p || trimmed.startsWith(p + "/"),
+  );
   return allowed ? trimmed : "/dashboard";
 }
 
@@ -77,7 +93,10 @@ export function LoginForm() {
             {error}
             {error.includes("Подтвердите email") && (
               <span className="block mt-2">
-                <Link href={`/verify-email?email=${encodeURIComponent(watch("email") || "")}`} className="text-primary hover:underline">
+                <Link
+                  href={`/verify-email?email=${encodeURIComponent(watch("email") || "")}`}
+                  className="text-primary hover:underline"
+                >
                   Ввести код
                 </Link>
               </span>
@@ -102,12 +121,11 @@ export function LoginForm() {
           <label className="mb-1 block text-sm font-medium text-foreground">
             Пароль
           </label>
-          <PasswordInput
-            {...register("password")}
-            placeholder="••••••••"
-          />
+          <PasswordInput {...register("password")} placeholder="••••••••" />
           {errors.password && (
-            <p className="mt-1 text-sm text-danger">{errors.password.message}</p>
+            <p className="mt-1 text-sm text-danger">
+              {errors.password.message}
+            </p>
           )}
         </div>
         <div className="flex justify-end">
@@ -126,16 +144,8 @@ export function LoginForm() {
           {isSubmitting ? "Вход..." : "Войти"}
         </button>
       </form>
-      <div className="mt-4 flex flex-col items-center gap-2">
-        <div className="flex flex-wrap justify-center gap-2">
-          <a
-            href="/api/auth/signin/google"
-            className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm transition-colors hover:bg-surface"
-          >
-            Войти через Google
-          </a>
-          <YandexIdButton callbackUrl={callbackUrl} onError={setError} />
-        </div>
+      <div className="mt-4 w-full">
+        <YandexIdButton callbackUrl={callbackUrl} onError={setError} />
       </div>
       <p className="mt-4 text-center text-sm text-muted-foreground">
         Нет аккаунта?{" "}

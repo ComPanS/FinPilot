@@ -1,6 +1,5 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
@@ -25,7 +24,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         yandex_access_token: { label: "Yandex Token", type: "text" },
       },
       async authorize(credentials) {
-        const yandexToken = credentials?.yandex_access_token as string | undefined;
+        const yandexToken = credentials?.yandex_access_token as
+          | string
+          | undefined;
         if (yandexToken) {
           const profile = await fetchYandexProfile(yandexToken);
           const existingAccount = await prisma.account.findFirst({
@@ -44,7 +45,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 emailVerified: new Date(),
               },
             });
-            return { id: user.id, email: user.email, name: user.name, image: user.image };
+            return {
+              id: user.id,
+              email: user.email,
+              name: user.name,
+              image: user.image,
+            };
           }
           const existingUser = await prisma.user.findUnique({
             where: { email: profile.email },
@@ -74,7 +80,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 emailVerified: new Date(),
               },
             });
-            return { id: user.id, email: user.email, name: user.name, image: user.image };
+            return {
+              id: user.id,
+              email: user.email,
+              name: user.name,
+              image: user.image,
+            };
           }
           const newUser = await prisma.user.create({
             data: {
@@ -93,7 +104,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               access_token: yandexToken,
             },
           });
-          return { id: newUser.id, email: newUser.email, name: newUser.name, image: newUser.image };
+          return {
+            id: newUser.id,
+            email: newUser.email,
+            name: newUser.name,
+            image: newUser.image,
+          };
         }
         if (!credentials?.email || !credentials?.password) return null;
         const user = await prisma.user.findUnique({
@@ -105,7 +121,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
         const valid = await bcrypt.compare(
           credentials.password as string,
-          user.password
+          user.password,
         );
         if (!valid) return null;
         return {
@@ -116,25 +132,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         };
       },
     }),
-    Google({
-      clientId: process.env.AUTH_GOOGLE_ID,
-      clientSecret: process.env.AUTH_GOOGLE_SECRET,
-      allowDangerousEmailAccountLinking: false,
-    }),
   ],
   callbacks: {
-    async signIn({ user, account }) {
-      if (
-        account?.provider === "google" &&
-        user?.email
-      ) {
-        await prisma.user.updateMany({
-          where: { email: user.email },
-          data: { emailVerified: new Date() },
-        });
-      }
-      return true;
-    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;

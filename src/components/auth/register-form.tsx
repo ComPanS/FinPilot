@@ -42,10 +42,17 @@ export function RegisterForm() {
   });
 
   useEffect(() => {
-    const pending = typeof window !== "undefined" ? sessionStorage.getItem("pending_register") : null;
+    const pending =
+      typeof window !== "undefined"
+        ? sessionStorage.getItem("pending_register")
+        : null;
     if (pending) {
       try {
-        const parsed = JSON.parse(pending) as { name?: string; email?: string; password?: string };
+        const parsed = JSON.parse(pending) as {
+          name?: string;
+          email?: string;
+          password?: string;
+        };
         if (parsed.name || parsed.email || parsed.password) {
           reset({
             name: parsed.name ?? "",
@@ -74,10 +81,16 @@ export function RegisterForm() {
       if (typeof window !== "undefined") {
         sessionStorage.setItem(
           "pending_register",
-          JSON.stringify({ name: data.name, email: data.email, password: data.password })
+          JSON.stringify({
+            name: data.name,
+            email: data.email,
+            password: data.password,
+          }),
         );
       }
-      router.push(`/verify-email?email=${encodeURIComponent(result.verifyEmail)}`);
+      router.push(
+        `/verify-email?email=${encodeURIComponent(result.verifyEmail)}`,
+      );
       return;
     }
     const signInResult = await signIn("credentials", {
@@ -133,12 +146,11 @@ export function RegisterForm() {
           <label className="mb-1 block text-sm font-medium text-foreground">
             Пароль
           </label>
-          <PasswordInput
-            {...register("password")}
-            placeholder="••••••••"
-          />
+          <PasswordInput {...register("password")} placeholder="••••••••" />
           {errors.password && (
-            <p className="mt-1 text-sm text-danger">{errors.password.message}</p>
+            <p className="mt-1 text-sm text-danger">
+              {errors.password.message}
+            </p>
           )}
         </div>
         <div>
@@ -184,16 +196,8 @@ export function RegisterForm() {
           {isSubmitting ? "Регистрация..." : "Зарегистрироваться"}
         </button>
       </form>
-      <div className="mt-4 flex flex-col items-center gap-2">
-        <div className="flex flex-wrap justify-center gap-2">
-          <a
-            href="/api/auth/signin/google"
-            className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm transition-colors hover:bg-surface"
-          >
-            Войти через Google
-          </a>
-          <YandexIdButton callbackUrl="/onboarding" />
-        </div>
+      <div className="mt-4 w-full">
+        <YandexIdButton callbackUrl="/onboarding" />
       </div>
       <p className="mt-4 text-center text-sm text-muted-foreground">
         Уже есть аккаунт?{" "}

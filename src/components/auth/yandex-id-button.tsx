@@ -11,16 +11,23 @@ interface YandexIdButtonProps {
   onError?: (error: string) => void;
 }
 
-export function YandexIdButton({ callbackUrl = "/dashboard", onError }: YandexIdButtonProps) {
+export function YandexIdButton({
+  callbackUrl = "/dashboard",
+  onError,
+}: YandexIdButtonProps) {
   const router = useRouter();
   const [clientId, setClientId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const messageHandlerRef = useRef<((event: MessageEvent) => void) | null>(null);
+  const messageHandlerRef = useRef<((event: MessageEvent) => void) | null>(
+    null,
+  );
 
   useEffect(() => {
     fetch("/api/yandex-config")
       .then((r) => r.json())
-      .then((data: { clientId?: string | null }) => setClientId(data.clientId ?? null))
+      .then((data: { clientId?: string | null }) =>
+        setClientId(data.clientId ?? null),
+      )
       .catch(() => setClientId(null));
   }, []);
 
@@ -40,7 +47,7 @@ export function YandexIdButton({ callbackUrl = "/dashboard", onError }: YandexId
       router.push(callbackUrl);
       router.refresh();
     },
-    [callbackUrl, onError, router]
+    [callbackUrl, onError, router],
   );
 
   const handleClick = useCallback(() => {
@@ -70,12 +77,17 @@ export function YandexIdButton({ callbackUrl = "/dashboard", onError }: YandexId
     window.open(
       url,
       "yandex_oauth",
-      `width=${width},height=${height},left=${left},top=${top},scrollbars=yes`
+      `width=${width},height=${height},left=${left},top=${top},scrollbars=yes`,
     );
 
     const handler = (event: MessageEvent) => {
-      if (event.origin !== origin && event.origin !== window.location.origin) return;
-      const data = event.data as { type?: string; token?: string; error?: string };
+      if (event.origin !== origin && event.origin !== window.location.origin)
+        return;
+      const data = event.data as {
+        type?: string;
+        token?: string;
+        error?: string;
+      };
       if (data?.type === "yandex_token" && data.token) {
         window.removeEventListener("message", handler);
         messageHandlerRef.current = null;
@@ -104,11 +116,11 @@ export function YandexIdButton({ callbackUrl = "/dashboard", onError }: YandexId
   if (!clientId) return null;
 
   return (
-    <div className="flex flex-col items-center gap-1">
+    <div className="flex w-full flex-col items-center gap-1">
       <button
         type="button"
         onClick={handleClick}
-        className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm transition-colors hover:bg-surface"
+        className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-border px-4 py-2 font-medium transition-colors hover:bg-surface"
       >
         Войти через Яндекс
       </button>
