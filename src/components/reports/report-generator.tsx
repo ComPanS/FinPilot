@@ -49,11 +49,11 @@ export function ReportGenerator({
         endDate,
         days,
       });
-      if (res?.error) {
+      if (res && "error" in res) {
         alert(res.error);
         return;
       }
-      if (res?.url) {
+      if (res && "url" in res) {
         window.open(res.url, "_blank");
       }
     } finally {

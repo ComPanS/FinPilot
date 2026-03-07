@@ -1,0 +1,43 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Build output
+.next
+out
+dist
+
+# Git
+.git
+.gitignore
+
+# IDE and misc
+.vscode
+.idea
+*.log
+
+# Environment (use .env.docker.example as template)
+.env
+.env.local
+.env.*.local
+
+# Documentation
+*.md
+!README.md
+
+# Separate project (excluded from tsconfig)
+landing
+
+# Scripts (cron via API endpoint)
+scripts
+
+# Tests
+coverage
+.nyc_output
+*.test.*
+*.spec.*
+
+# Docker
+Dockerfile*
+docker-compose*
+.dockerignore
