@@ -50,6 +50,42 @@ export async function startTrialAction() {
   return { success: true, trialEndsAt };
 }
 
+/** Автоматически запустить пробный период, если пользователь на FREE и ещё не использовал */
+export async function startTrialIfEligible(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { subscription: true },
+  });
+  if (!user || user.trialUsedAt) return;
+
+  const sub = user.subscription;
+  if (sub && sub.plan !== "FREE" && sub.plan !== "TRIAL") return;
+
+  const trialEndsAt = new Date();
+  trialEndsAt.setDate(trialEndsAt.getDate() + 14);
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: userId },
+      data: { trialUsedAt: new Date() },
+    }),
+    prisma.subscription.upsert({
+      where: { userId },
+      create: {
+        userId,
+        plan: "TRIAL",
+        status: "active",
+        trialEndsAt,
+      },
+      update: {
+        plan: "TRIAL",
+        status: "active",
+        trialEndsAt,
+      },
+    }),
+  ]);
+}
+
 /** Истечь триал в БД если trialEndsAt прошло */
 export async function expireTrialIfNeeded(userId: string) {
   const sub = await prisma.subscription.findUnique({

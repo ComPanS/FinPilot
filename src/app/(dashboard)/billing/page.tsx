@@ -37,7 +37,6 @@ export default async function BillingPage() {
         currentPlan={planId}
         userId={user.id}
         trialEndsAt={user.subscription?.trialEndsAt}
-        trialUsed={!!user.trialUsedAt}
       />
     </div>
   );

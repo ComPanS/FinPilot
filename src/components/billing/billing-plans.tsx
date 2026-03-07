@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { createCheckoutAction } from "@/app/actions/billing";
-import { startTrialAction } from "@/app/actions/trial";
 import { PLANS, BILLABLE_PLANS } from "@/config/plans";
 
 const DISPLAY_PLANS = ["FREE", "STANDARD", "PRO"] as const;
@@ -11,12 +10,10 @@ export function BillingPlans({
   currentPlan,
   userId,
   trialEndsAt,
-  trialUsed,
 }: {
   currentPlan: string;
   userId: string;
   trialEndsAt?: Date | null;
-  trialUsed?: boolean;
 }) {
   const [loading, setLoading] = useState<string | null>(null);
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
@@ -41,37 +38,8 @@ export function BillingPlans({
     }
   };
 
-  const handleStartTrial = async () => {
-    setLoading("TRIAL");
-    try {
-      const res = await startTrialAction();
-      if (res?.error) {
-        alert(res.error);
-        return;
-      }
-      window.location.reload();
-    } finally {
-      setLoading(null);
-    }
-  };
-
-  const canStartTrial = (currentPlan === "FREE" || isTrialActive) && !trialUsed;
-
   return (
     <div className="space-y-6">
-      {canStartTrial && (
-        <div className="rounded-xl border border-primary bg-primary/5 p-4">
-          <p className="font-medium text-foreground">Попробуйте Pro бесплатно 14 дней</p>
-          <p className="mt-1 text-sm text-muted-foreground">Без привязки карты. Полный функционал Pro.</p>
-          <button
-            onClick={handleStartTrial}
-            disabled={!!loading}
-            className="mt-3 rounded-lg bg-primary px-4 py-2 font-medium text-white hover:bg-primary-dark disabled:opacity-50"
-          >
-            {loading === "TRIAL" ? "..." : "Начать пробный период"}
-          </button>
-        </div>
-      )}
       {BILLABLE_PLANS.length > 0 && (
         <div className="flex items-center gap-4">
           <span className="text-sm text-muted-foreground">Период оплаты:</span>
