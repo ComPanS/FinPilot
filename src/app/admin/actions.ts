@@ -62,6 +62,7 @@ export type UserActivityRow = {
   id: string;
   email: string;
   createdAt: Date;
+  lastActionAt: Date | null;
   regularExpenses: number;
   regularIncomes: number;
   actualEntries: number;
@@ -83,6 +84,11 @@ export async function getUsersActivity(): Promise<UserActivityRow[]> {
               expectedEntries: true,
             },
           },
+          cashFlowHistory: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { createdAt: true },
+          },
         },
       },
     },
@@ -94,16 +100,22 @@ export async function getUsersActivity(): Promise<UserActivityRow[]> {
     let regularIncomes = 0;
     let actualEntries = 0;
     let expectedEntries = 0;
+    let lastActionAt: Date | null = null;
     for (const p of u.profiles) {
       regularExpenses += p._count.regularExpenses;
       regularIncomes += p._count.regularIncomes;
       actualEntries += p._count.actualEntries;
       expectedEntries += p._count.expectedEntries;
+      const latest = p.cashFlowHistory[0]?.createdAt;
+      if (latest && (!lastActionAt || latest > lastActionAt)) {
+        lastActionAt = latest;
+      }
     }
     return {
       id: u.id,
       email: u.email,
       createdAt: u.createdAt,
+      lastActionAt,
       regularExpenses,
       regularIncomes,
       actualEntries,
