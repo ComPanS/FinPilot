@@ -9,9 +9,15 @@ import { getForecastAction } from "@/app/actions/forecast";
 
 export const dynamic = "force-dynamic";
 
+function toNum(v: unknown): number | undefined {
+  if (v == null) return undefined;
+  const n = Number(v);
+  return Number.isNaN(n) ? undefined : n;
+}
+
 function serializeProfile<T extends {
   regularExpenses: { amount: unknown }[];
-  regularIncomes: { amount?: unknown; avgCheck?: unknown }[];
+  regularIncomes: { amount?: unknown; avgCheck?: unknown; taxes?: unknown }[];
   manualTransactions?: { amount: unknown; taxes?: unknown }[];
   monthlyData?: { month: string; income: unknown; expense: unknown }[];
 }>(profile: T) {
@@ -23,8 +29,9 @@ function serializeProfile<T extends {
     })),
     regularIncomes: profile.regularIncomes.map((i) => ({
       ...i,
-      amount: i.amount != null ? Number(i.amount) : undefined,
-      avgCheck: i.avgCheck != null ? Number(i.avgCheck) : undefined,
+      amount: toNum(i.amount),
+      avgCheck: toNum(i.avgCheck),
+      taxes: toNum(i.taxes),
     })),
     manualTransactions: (profile.manualTransactions ?? []).map((t) => ({
       ...t,

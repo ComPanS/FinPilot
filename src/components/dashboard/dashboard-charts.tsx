@@ -60,6 +60,8 @@ export type VisibleCharts = {
   expense?: boolean;
 };
 
+type ManualTx = { date: string; type: "IN" | "OUT"; amount: number; description?: string };
+
 export function DashboardCharts({
   dataExpected,
   dataFact,
@@ -69,6 +71,7 @@ export function DashboardCharts({
   usedPatterns,
   hasEnoughPatternData,
   visibleCharts,
+  manualTransactions = [],
 }: {
   dataExpected: ForecastDay[];
   dataFact?: ForecastDayFact[];
@@ -78,6 +81,7 @@ export function DashboardCharts({
   usedPatterns?: boolean;
   hasEnoughPatternData?: boolean;
   visibleCharts?: VisibleCharts;
+  manualTransactions?: ManualTx[];
 }) {
   const showBalance = visibleCharts?.balance ?? true;
   const showProfit = visibleCharts?.profit ?? true;
@@ -98,13 +102,19 @@ export function DashboardCharts({
     type Acc = { points: ChartPoint[]; balance: number; cumInFact: number; cumOutFact: number };
     const initial: Acc = { points: [], balance: initialBalance, cumInFact: 0, cumOutFact: 0 };
 
+    // Income chart: ONLY inflows (regular + one-time IN). Expense chart: ONLY outflows (regular + one-time OUT).
+    // Never mix: inflows must never include outflows, outflows must never include inflows.
     const result = dataExpected.reduce<Acc>((acc, d) => {
-      const inflows = Math.round(d.inflows);
-      const outflows = Math.round(d.outflows);
-      const profit = Math.round(d.inflows - d.outflows);
+      const inflows = Math.round(Math.max(0, d.inflows ?? 0));
+      const outflows = Math.round(Math.max(0, d.outflows ?? 0));
+      const profit = Math.round((d.inflows ?? 0) - (d.outflows ?? 0));
       const prev = acc.points[acc.points.length - 1];
-      const cumulativeInflows = (prev?.cumulativeInflows ?? 0) + inflows;
-      const cumulativeOutflows = (prev?.cumulativeOutflows ?? 0) + outflows;
+      const cumulativeInflows = Math.round(
+        Math.max(0, (prev?.cumulativeInflows ?? 0) + inflows),
+      );
+      const cumulativeOutflows = Math.round(
+        Math.max(0, (prev?.cumulativeOutflows ?? 0) + outflows),
+      );
 
       const fact = factByDate?.get(d.date);
 
@@ -119,8 +129,13 @@ export function DashboardCharts({
       if (hasFactData && fact?.hasFactData) {
         const inVal = fact.inflows ?? inflows;
         const outVal = fact.outflows ?? outflows;
-        if (fact.inflows != null) nextCumInFact = acc.cumInFact + fact.inflows;
-        if (fact.outflows != null) nextCumOutFact = acc.cumOutFact + fact.outflows;
+        // Всегда накапливаем cumInFact/cumOutFact: факт если есть, иначе ожидаемое (избегаем просадки при первом дне с фактом)
+        nextCumInFact = Math.round(
+          acc.cumInFact + (fact.inflows != null ? Math.max(0, fact.inflows) : inflows),
+        );
+        nextCumOutFact = Math.round(
+          acc.cumOutFact + (fact.outflows != null ? Math.max(0, fact.outflows) : outflows),
+        );
         if (fact.balance != null) {
           nextBalance = Math.round(fact.balance);
         } else {
@@ -128,22 +143,17 @@ export function DashboardCharts({
         }
         balanceExpected = Math.round(nextBalance);
         profitExpected = Math.round(inVal - outVal);
-        cumulativeInflowsExpected =
-          fact.inflows != null
-            ? nextCumInFact
-            : (prev?.cumulativeInflowsExpected ?? 0) + inflows;
-        cumulativeOutflowsExpected =
-          fact.outflows != null
-            ? nextCumOutFact
-            : (prev?.cumulativeOutflowsExpected ?? 0) + outflows;
+        cumulativeInflowsExpected = nextCumInFact;
+        cumulativeOutflowsExpected = nextCumOutFact;
       } else {
         nextBalance = acc.balance + inflows - outflows;
         balanceExpected = Math.round(nextBalance);
         profitExpected = profit;
-        cumulativeInflowsExpected =
-          (prev?.cumulativeInflowsExpected ?? 0) + inflows;
-        cumulativeOutflowsExpected =
-          (prev?.cumulativeOutflowsExpected ?? 0) + outflows;
+        // Дни без факта: накапливаем ожидаемые значения в cumInFact/cumOutFact
+        nextCumInFact = Math.round(acc.cumInFact + inflows);
+        nextCumOutFact = Math.round(acc.cumOutFact + outflows);
+        cumulativeInflowsExpected = nextCumInFact;
+        cumulativeOutflowsExpected = nextCumOutFact;
       }
 
       const balanceForArea = hasFactData
@@ -151,12 +161,12 @@ export function DashboardCharts({
         : Math.round(d.balance);
       const positiveBalance = balanceForArea >= 0 ? balanceForArea : 0;
       const negativeBalance = balanceForArea < 0 ? balanceForArea : 0;
-      const cumulativeInflowsForArea = hasFactData
-        ? cumulativeInflowsExpected
-        : cumulativeInflows;
-      const cumulativeOutflowsForArea = hasFactData
-        ? cumulativeOutflowsExpected
-        : cumulativeOutflows;
+      const cumulativeInflowsForArea = Math.round(
+        hasFactData ? cumulativeInflowsExpected : cumulativeInflows,
+      );
+      const cumulativeOutflowsForArea = Math.round(
+        hasFactData ? cumulativeOutflowsExpected : cumulativeOutflows,
+      );
 
       const point: ChartPoint = {
         ...d,
@@ -173,8 +183,8 @@ export function DashboardCharts({
         cumulativeOutflows: cumulativeOutflowsForArea,
         balanceExpected,
         profitExpected,
-        cumulativeInflowsExpected,
-        cumulativeOutflowsExpected,
+        cumulativeInflowsExpected: Math.round(cumulativeInflowsExpected),
+        cumulativeOutflowsExpected: Math.round(cumulativeOutflowsExpected),
       };
 
       if (fact?.hasFactData) {
@@ -183,9 +193,9 @@ export function DashboardCharts({
             ? Math.round(fact.inflows - fact.outflows)
             : null;
         point.cumulativeInflowsFact =
-          fact.inflows != null ? nextCumInFact : null;
+          fact.inflows != null ? Math.round(nextCumInFact) : null;
         point.cumulativeOutflowsFact =
-          fact.outflows != null ? nextCumOutFact : null;
+          fact.outflows != null ? Math.round(nextCumOutFact) : null;
         point.balanceFact =
           fact.balance != null ? Math.round(fact.balance) : null;
       } else {
@@ -210,6 +220,16 @@ export function DashboardCharts({
   const chartDataWithBalanceCrossings = baseChartData;
   const chartData = baseChartData;
 
+  const manualByDate = useMemo(() => {
+    const m = new Map<string, ManualTx[]>();
+    for (const t of manualTransactions) {
+      const list = m.get(t.date) ?? [];
+      list.push(t);
+      m.set(t.date, list);
+    }
+    return m;
+  }, [manualTransactions]);
+
   const tooltipStyle = {
     backgroundColor: "var(--surface)",
     color: "var(--foreground)",
@@ -227,13 +247,13 @@ export function DashboardCharts({
     const fact = factByDateForTotals?.get(d.date);
     const inflows =
       fact?.hasFactData && fact.inflows != null ? fact.inflows : d.inflows;
-    return s + inflows;
+    return s + Math.max(0, inflows ?? 0);
   }, 0);
   const totalExpense = chartData.reduce((s, d) => {
     const fact = factByDateForTotals?.get(d.date);
     const outflows =
       fact?.hasFactData && fact.outflows != null ? fact.outflows : d.outflows;
-    return s + outflows;
+    return s + Math.max(0, outflows ?? 0);
   }, 0);
   const totalProfit = totalIncome - totalExpense;
 
@@ -339,6 +359,7 @@ export function DashboardCharts({
                     const balanceExp = p?.balanceExpected ?? 0;
                     const val = balanceFact != null ? balanceFact : balanceExp;
                     const label = balanceFact != null ? "Баланс" : "Ожидаемый баланс";
+                    const manualOnDate = (p?.date ? manualByDate.get(p.date) : []) ?? [];
                     return (
                       <div style={tooltipStyle} className="px-3 py-2">
                         <p className="font-medium">
@@ -352,6 +373,11 @@ export function DashboardCharts({
                         >
                           {label}: {formatValue(val)}
                         </p>
+                        {manualOnDate.map((t, i) => (
+                          <p key={i} className="text-xs text-muted-foreground">
+                            {t.description || (t.type === "IN" ? "Разовый доход" : "Разовый расход")}: {formatValue(t.amount)}
+                          </p>
+                        ))}
                       </div>
                     );
                   }}
@@ -469,6 +495,7 @@ export function DashboardCharts({
                     const profitExp = p?.profitExpected ?? 0;
                     const val = profitFact != null ? profitFact : profitExp;
                     const label = profitFact != null ? "Прибыль" : "Ожидаемая прибыль";
+                    const manualOnDate = (p?.date ? manualByDate.get(p.date) : []) ?? [];
                     return (
                       <div style={tooltipStyle} className="px-3 py-2">
                         <p className="font-medium">
@@ -482,6 +509,11 @@ export function DashboardCharts({
                         >
                           {label}: {formatValue(val)}
                         </p>
+                        {manualOnDate.map((t, i) => (
+                          <p key={i} className="text-xs text-muted-foreground">
+                            {t.description || (t.type === "IN" ? "Разовый доход" : "Разовый расход")}: {formatValue(t.amount)}
+                          </p>
+                        ))}
                       </div>
                     );
                   }}
@@ -555,6 +587,7 @@ export function DashboardCharts({
             <h3 className="mb-2 text-sm font-medium text-muted-foreground">
               Доход
             </h3>
+            {/* Only inflows (regular + one-time incomes). No expenses. */}
             <div className="h-80 min-h-[320px] min-w-0 w-full">
               <ResponsiveContainer
                 width="100%"
@@ -582,6 +615,7 @@ export function DashboardCharts({
                       const cumInFact = p?.cumulativeInflowsFact;
                       const val = cumInFact != null ? cumInFact : cumInExp;
                       const label = cumInFact != null ? "Доход" : "Ожидаемый доход";
+                      const manualIn = (p?.date ? manualByDate.get(p.date) : [])?.filter((t) => t.type === "IN") ?? [];
                       return (
                         <div style={tooltipStyle} className="px-3 py-2">
                           <p className="font-medium">
@@ -593,6 +627,12 @@ export function DashboardCharts({
                           <p className="text-xs text-muted-foreground">
                             За день: {formatValue(p?.inflows ?? 0)}
                           </p>
+                          {manualIn.length > 0 &&
+                            manualIn.map((t, i) => (
+                              <p key={i} className="text-xs text-muted-foreground">
+                                {t.description || "Разовый доход"}: {formatValue(t.amount)}
+                              </p>
+                            ))}
                         </div>
                       );
                     }}
@@ -654,6 +694,7 @@ export function DashboardCharts({
             <h3 className="mb-2 text-sm font-medium text-muted-foreground">
               Расход
             </h3>
+            {/* Only outflows (regular + one-time expenses). No incomes. */}
             <div className="h-80 min-h-[320px] min-w-0 w-full">
               <ResponsiveContainer
                 width="100%"
@@ -681,6 +722,7 @@ export function DashboardCharts({
                       const cumOutFact = p?.cumulativeOutflowsFact;
                       const val = cumOutFact != null ? cumOutFact : cumOutExp;
                       const label = cumOutFact != null ? "Расход" : "Ожидаемый расход";
+                      const manualOut = (p?.date ? manualByDate.get(p.date) : [])?.filter((t) => t.type === "OUT") ?? [];
                       return (
                         <div style={tooltipStyle} className="px-3 py-2">
                           <p className="font-medium">
@@ -692,6 +734,12 @@ export function DashboardCharts({
                           <p className="text-xs text-muted-foreground">
                             За день: {formatValue(p?.outflows ?? 0)}
                           </p>
+                          {manualOut.length > 0 &&
+                            manualOut.map((t, i) => (
+                              <p key={i} className="text-xs text-muted-foreground">
+                                {t.description || "Разовый расход"}: {formatValue(t.amount)}
+                              </p>
+                            ))}
                         </div>
                       );
                     }}

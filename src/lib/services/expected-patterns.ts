@@ -207,6 +207,9 @@ export function applyMonthlyScaling(
  * Apply monthly scaling with "remaining pattern allocation" for the current month.
  * For current month: uses actual data for past days, distributes remainder across future days by patterns.
  * For future months: uses standard applyMonthlyScaling (full distribution).
+ *
+ * INVARIANT: monthly.income goes ONLY to inflows; monthly.expense goes ONLY to outflows.
+ * Never mix: income must never appear in outflows, expense must never appear in inflows.
  */
 export function applyMonthlyScalingWithRemaining(
   patternMap: Map<string, PatternMapEntry> | null,

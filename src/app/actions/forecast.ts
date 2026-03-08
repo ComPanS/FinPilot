@@ -138,6 +138,7 @@ export async function getHalfYearChartDataAction(
     ]),
   );
 
+  // inflows = income only (regular + one-time IN). outflows = expense only (regular + one-time OUT).
   const aggregateByMonth = (
     dailyData: { date: string; inflows?: number | null; outflows?: number | null; hasFactData?: boolean }[],
     useFactOnly: boolean,

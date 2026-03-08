@@ -25,6 +25,7 @@ export default async function DashboardPage() {
           regularExpenses: true,
           regularIncomes: true,
           monthlyData: true,
+          manualTransactions: true,
         },
       },
       subscription: true,
@@ -172,6 +173,12 @@ export default async function DashboardPage() {
             showPatternHint
             usedPatterns={forecastRes?.usedPatterns}
             hasEnoughPatternData={forecastRes?.hasEnoughPatternData}
+            manualTransactions={(profile as { manualTransactions?: { date: Date; type: string; amount: unknown; description?: string | null }[] }).manualTransactions?.map((t) => ({
+              date: typeof t.date === "string" ? t.date : t.date.toISOString().slice(0, 10),
+              type: t.type as "IN" | "OUT",
+              amount: Number(t.amount),
+              description: t.description ?? undefined,
+            })) ?? []}
           />
         ) : (
           <p className="text-sm text-muted-foreground">
@@ -191,6 +198,12 @@ export default async function DashboardPage() {
             currency={profile.currency}
             usedPatterns={expectedForecastRes?.usedPatterns}
             hasEnoughPatternData={expectedForecastRes?.hasEnoughPatternData}
+            manualTransactions={(profile as { manualTransactions?: { date: Date; type: string; amount: unknown; description?: string | null }[] }).manualTransactions?.map((t) => ({
+              date: typeof t.date === "string" ? t.date : t.date.toISOString().slice(0, 10),
+              type: t.type as "IN" | "OUT",
+              amount: Number(t.amount),
+              description: t.description ?? undefined,
+            })) ?? []}
           />
         ) : (
           <p className="text-sm text-muted-foreground">

@@ -10,6 +10,8 @@ type ForecastDay = {
   outflows: number;
 };
 
+type ManualTx = { date: string; type: "IN" | "OUT"; amount: number; description?: string };
+
 export function ExpectedChartsSection({
   expectedMonth1Expected,
   expectedMonth2Expected,
@@ -18,6 +20,7 @@ export function ExpectedChartsSection({
   currency,
   usedPatterns,
   hasEnoughPatternData,
+  manualTransactions = [],
 }: {
   expectedMonth1Expected: ForecastDay[];
   expectedMonth2Expected: ForecastDay[];
@@ -26,6 +29,7 @@ export function ExpectedChartsSection({
   currency: string;
   usedPatterns?: boolean;
   hasEnoughPatternData?: boolean;
+  manualTransactions?: ManualTx[];
 }) {
   const [visibleCharts, setVisibleCharts] = useState<VisibleCharts>({
     balance: false,
@@ -82,6 +86,7 @@ export function ExpectedChartsSection({
               usedPatterns={usedPatterns}
               hasEnoughPatternData={hasEnoughPatternData}
               visibleCharts={visibleCharts}
+              manualTransactions={manualTransactions}
             />
           </div>
         )}
@@ -98,6 +103,7 @@ export function ExpectedChartsSection({
               usedPatterns={usedPatterns}
               hasEnoughPatternData={hasEnoughPatternData}
               visibleCharts={visibleCharts}
+              manualTransactions={manualTransactions}
             />
           </div>
         )}
