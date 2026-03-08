@@ -2,10 +2,19 @@
 # 1. Скопировать этот файл
 # 2. Запустить certbot — он добавит SSL
 # 3. После certbot можно заменить на nginx.conf.example (полный конфиг)
+#
+# ВАЖНО: В DNS должны быть A-запись для ffinplaner.ru и CNAME для www.ffinplaner.ru
+
+# Редирект www -> основной домен
+server {
+    listen 80;
+    server_name www.ffinplaner.ru;
+    return 301 http://ffinplaner.ru$request_uri;
+}
 
 server {
     listen 80;
-    server_name ffinplaner.ru www.ffinplaner.ru;
+    server_name ffinplaner.ru;
 
     location / {
         proxy_pass http://127.0.0.1:3000;

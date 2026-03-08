@@ -6,6 +6,12 @@
 - Docker и Docker Compose
 - Домен ffinplaner.ru, указывающий на IP сервера
 
+**DNS (важно!):** Чтобы работал и `ffinplaner.ru`, и `www.ffinplaner.ru`:
+- **A-запись** для `ffinplaner.ru` → IP вашего VPS
+- **CNAME** для `www.ffinplaner.ru` → `ffinplaner.ru` (или отдельная A-запись на тот же IP)
+
+Если работает только www — скорее всего, нет A-записи для корневого домена.
+
 ## 1. Подготовка сервера
 
 ```bash
