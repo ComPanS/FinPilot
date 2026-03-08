@@ -1,7 +1,7 @@
 import { VerifyEmailForm } from "@/components/auth/verify-email-form";
 
 export default function VerifyEmailPage({
-  searchParams,
+  searchParams: _searchParams,
 }: {
   searchParams: Promise<{ email?: string }>;
 }) {

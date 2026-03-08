@@ -12,7 +12,6 @@ import {
 } from "./cashflow";
 import {
   extractAndSanitize,
-  extractAndParseJson,
   getParseErrorPosition,
   fixJsonFragmentViaAI,
 } from "@/lib/parse-ai-json";
@@ -86,7 +85,7 @@ async function parseExcelToRows(base64: string): Promise<string[][]> {
   const rows: string[][] = [];
   let rowCount = 0;
 
-  worksheet.eachRow((row, _rowNumber) => {
+  worksheet.eachRow((row) => {
     if (rowCount >= MAX_ROWS) return;
     const values = (row.values as (string | number | Date | undefined)[]) ?? [];
     const rowStr = values.slice(1).map((v) => {
@@ -124,7 +123,7 @@ async function parseResponseWithRetry<T>(
         const fixed = await fixJsonFragmentViaAI(jsonStr, pos, askNeuro);
         const data = parse(fixed) as T;
         return { success: true, data };
-      } catch (e2) {
+      } catch (_e2) {
         return {
           success: false,
           error: "Не удалось исправить JSON. Попробуйте загрузить файл снова." as const,

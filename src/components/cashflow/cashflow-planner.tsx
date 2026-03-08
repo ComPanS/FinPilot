@@ -2,14 +2,12 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
   createExpense,
-  updateExpense,
   createIncome,
-  updateIncome,
   deleteExpense,
   deleteIncome,
   createCategory,
@@ -60,7 +58,7 @@ export function CashFlowPlanner({
   profile,
   expenseCategories,
   incomeCategories,
-  forecastDays,
+  forecastDays: _forecastDays,
   userId,
 }: {
   profile: Profile;
@@ -168,6 +166,9 @@ export function CashFlowPlanner({
     },
   });
 
+  const expenseFreq = useWatch({ name: "frequency", control: expenseForm.control });
+  const expenseCategoryId = useWatch({ name: "categoryId", control: expenseForm.control });
+
   const incomeForm = useForm<z.infer<typeof incomeSchema>>({
     resolver: zodResolver(incomeSchema),
     defaultValues: {
@@ -176,6 +177,9 @@ export function CashFlowPlanner({
       categoryId: firstIncomeCat?.id ?? "",
     },
   });
+
+  const incomeFreq = useWatch({ name: "frequency", control: incomeForm.control });
+  const incomeCategoryId = useWatch({ name: "categoryId", control: incomeForm.control });
 
   const onAddExpense = expenseForm.handleSubmit(async (data) => {
     if (data.frequency === "CUSTOM" && (!data.customDays || data.customDays < 1)) {
@@ -411,7 +415,7 @@ export function CashFlowPlanner({
                 <option value="CUSTOM">Кастомный</option>
               </select>
             </div>
-            {expenseForm.watch("frequency") === "CUSTOM" && (
+            {expenseFreq === "CUSTOM" && (
               <div>
                 <label className="mb-1 block text-xs text-muted-foreground">Каждые (дней)</label>
                 <input {...expenseForm.register("customDays")} type="number" min={1} placeholder="7" className="w-20 rounded border border-border bg-background px-2 py-1 text-foreground" />
@@ -426,7 +430,7 @@ export function CashFlowPlanner({
                 <option value={CUSTOM_CATEGORY_VALUE}>Своя категория</option>
               </select>
             </div>
-            {expenseForm.watch("categoryId") === CUSTOM_CATEGORY_VALUE && (
+            {expenseCategoryId === CUSTOM_CATEGORY_VALUE && (
               <div>
                 <label className="mb-1 block text-xs text-muted-foreground">Название своей категории</label>
                 <input
@@ -535,7 +539,7 @@ export function CashFlowPlanner({
                 <option value="CUSTOM">Кастомный</option>
               </select>
             </div>
-            {incomeForm.watch("frequency") === "CUSTOM" && (
+            {incomeFreq === "CUSTOM" && (
               <div>
                 <label className="mb-1 block text-xs text-muted-foreground">Каждые (дней)</label>
                 <input {...incomeForm.register("customDays")} type="number" min={1} placeholder="7" className="w-20 rounded border border-border bg-background px-2 py-1 text-foreground" />
@@ -551,7 +555,7 @@ export function CashFlowPlanner({
                 <option value="">Без категории</option>
               </select>
             </div>
-            {incomeForm.watch("categoryId") === CUSTOM_CATEGORY_VALUE && (
+            {incomeCategoryId === CUSTOM_CATEGORY_VALUE && (
               <div>
                 <label className="mb-1 block text-xs text-muted-foreground">Название своей категории</label>
                 <input

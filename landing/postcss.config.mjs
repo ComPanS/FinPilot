@@ -12,4 +12,5 @@
  *
  * Otherwise, you can leave this file empty.
  */
-export default {}
+const config = {};
+export default config;

@@ -295,7 +295,6 @@ export type ParsedOnboardingItem = {
 };
 
 async function parseTextToItem(text: string): Promise<ParsedOnboardingItem | null> {
-  const currentYear = new Date().getFullYear();
   const prompt = `Распарсь текст о доходе или расходе. Верни ТОЛЬКО один JSON объект без markdown:
 {"type":"expense"|"income","name":"название","amount":число,"frequency":"MONTHLY"|"QUARTERLY"|"YEARLY"|"WEEKLY"|"DAILY","taxes":число|null,"categorySlug":"rent"|"salary"|"taxes"|"purchases"|"subscriptions"|"utilities"|"marketing"|"insurance"|"equipment"|"transport"|"other"|"sales"|"services"|"investments"|null}
 

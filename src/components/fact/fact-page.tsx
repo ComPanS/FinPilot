@@ -2,12 +2,11 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
   createManualTransaction,
-  updateManualTransaction,
   deleteManualTransaction,
   createOrUpdateMonthlyDataAction,
   deleteMonthlyDataAction,
@@ -62,7 +61,7 @@ export function FactPage({
   profile,
   currency,
   profileId,
-  userId,
+  userId: _userId,
   expenseCategories,
   incomeCategories,
   forecastFactOnly = [],
@@ -156,6 +155,8 @@ export function FactPage({
       incomeCategoryId: firstIncomeCat?.id ?? "",
     },
   });
+
+  const manualType = useWatch({ name: "type", control: manualForm.control });
 
   const monthlyForm = useForm<z.infer<typeof monthlySchema>>({
     resolver: zodResolver(monthlySchema),
@@ -467,7 +468,7 @@ export function FactPage({
                 <option value="OUT">Расход</option>
               </select>
             </div>
-            {manualForm.watch("type") === "OUT" ? (
+            {manualType === "OUT" ? (
               <div>
                 <label className="mb-1 block text-xs text-muted-foreground">Категория</label>
                 <select {...manualForm.register("expenseCategoryId")} className="rounded border border-border bg-background px-2 py-1 text-foreground">

@@ -10,7 +10,7 @@ function toDateStr(d: Date): string {
 
 export function ReportGenerator({
   profileId,
-  profileName,
+  profileName: _profileName,
   canExport,
   exportsRemaining,
   exportsLimit,

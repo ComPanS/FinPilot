@@ -32,6 +32,7 @@ const FREQUENCIES = [
   { value: "DAILY", label: "Ежедневно" },
 ] as const;
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- used for type Step3Item
 const step3ItemSchema = z.object({
   type: z.enum(["expense", "income"]),
   name: z.string().min(1, "Обязательно"),
@@ -86,11 +87,11 @@ export function OnboardingWizard({
     defaultValues: { currency: "RUB" },
   });
 
-  async function handleStep1(data: Step1Data) {
+  async function handleStep1(_data: Step1Data) {
     setStep(2);
   }
 
-  async function handleStep2(data: Step2Data) {
+  async function handleStep2(_data: Step2Data) {
     setStep(3);
   }
 

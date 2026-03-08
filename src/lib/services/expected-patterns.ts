@@ -453,7 +453,7 @@ async function buildHistoricalDailyFlows(
   const outflows: Record<string, number> = {};
   const daysWithData = new Set<string>();
 
-  const startKey = dateKey(startDate);
+  const _startKey = dateKey(startDate);
   const endKey = dateKey(endDate);
   const totalDays = Math.ceil(
     (endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000)

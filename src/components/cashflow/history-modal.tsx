@@ -59,7 +59,7 @@ function getAmountFromData(d: unknown): number | null {
 export function HistoryModal({
   profileId,
   entityId,
-  entityType,
+  entityType: _entityType,
   currency,
   onClose,
 }: {

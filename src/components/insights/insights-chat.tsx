@@ -43,7 +43,7 @@ const QUICK_PROMPTS = [
 type AIRequest = { id: string; prompt: string; response: string | null; createdAt: Date };
 
 export function InsightsChat({
-  profileId,
+  profileId: _profileId,
   recentRequests,
 }: {
   profileId: string;

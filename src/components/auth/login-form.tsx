@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Link from "next/link";
@@ -54,11 +54,13 @@ export function LoginForm() {
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
+
+  const watchedEmail = useWatch({ name: "email", control });
 
   async function onSubmit(data: FormData) {
     setError(null);
@@ -94,7 +96,7 @@ export function LoginForm() {
             {error.includes("Подтвердите email") && (
               <span className="block mt-2">
                 <Link
-                  href={`/verify-email?email=${encodeURIComponent(watch("email") || "")}`}
+                  href={`/verify-email?email=${encodeURIComponent(watchedEmail || "")}`}
                   className="text-primary hover:underline"
                 >
                   Ввести код

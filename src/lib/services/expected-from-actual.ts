@@ -51,7 +51,7 @@ async function buildDailyFlowsFromActual(
   const dateKey = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-  const startKey = dateKey(startDate);
+  const _startKey = dateKey(startDate);
   const endKey = dateKey(endDate);
 
   for (let i = 0; i <= Math.ceil((endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000)); i++) {

@@ -5,10 +5,7 @@ import {
   monthKey,
   dailyAmountFromFrequency,
   fetchExpectedEntriesBatch,
-  getEffectiveMonthlyAmount,
-  getEffectiveDailyAmountForMonth,
   getEffectiveDailyAmountWithPatterns,
-  getSeasonalMultiplier,
 } from "./expected-data";
 import {
   fetchActualEntriesBatch,
@@ -529,49 +526,6 @@ export async function computeForecastActualOnly(
   return result;
 }
 
-function getDatesInRange(start: Date, days: number): Date[] {
-  const dates: Date[] = [];
-  for (let i = 0; i < days; i++) {
-    dates.push(addDays(start, i));
-  }
-  return dates;
-}
-
-function getMonthlyOccurrences(
-  startDate: Date,
-  endDate: Date,
-  frequency: "MONTHLY" | "QUARTERLY" | "YEARLY",
-): Date[] {
-  const occurrences: Date[] = [];
-  const current = new Date(startDate);
-  const stepMonths =
-    frequency === "MONTHLY" ? 1 : frequency === "QUARTERLY" ? 3 : 12;
-
-  while (current <= endDate) {
-    if (current >= startDate) occurrences.push(new Date(current));
-    current.setMonth(current.getMonth() + stepMonths);
-  }
-  return occurrences;
-}
-
-function getIntervalOccurrences(
-  startDate: Date,
-  endDate: Date,
-  intervalDays: number,
-): Date[] {
-  const occurrences: Date[] = [];
-  const current = new Date(startDate);
-  current.setHours(0, 0, 0, 0);
-  const end = new Date(endDate);
-  end.setHours(23, 59, 59, 999);
-
-  while (current <= end) {
-    if (current >= startDate) occurrences.push(new Date(current));
-    current.setDate(current.getDate() + intervalDays);
-  }
-  return occurrences;
-}
-
 export async function computeForecast(
   profileId: string,
   options: {
@@ -904,7 +858,7 @@ export async function computeForecast(
       Number(inc.amount ?? inc.avgCheck ?? 0);
     const taxPctNum = Number(inc.taxes ?? 0);
     const taxPct = taxPctNum / 100;
-    const amt = grossAmt * (1 - taxPct);
+    const _amt = grossAmt * (1 - taxPct);
     const salesPlan = inc.salesPlan as Record<string, number> | null;
     const expectedData = inc.expectedData as
       | Record<string, number>
@@ -1219,7 +1173,7 @@ export async function computeForecastDebug(
   options: { days?: number } = {},
 ) {
   const days = options.days ?? 30;
-  const [expenses, incomes, transactions] = await Promise.all([
+  const [expenses, _incomes, transactions] = await Promise.all([
     prisma.regularExpense.findMany({
       where: { profileId },
       include: { category: true },

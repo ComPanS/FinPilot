@@ -97,7 +97,7 @@ export function ExpectedPeriodsModal({
     const res = await getExpectedChartData(profileId, entity.id, entityType);
     setChartLoading(false);
     if (res && "data" in res && res.data) setChartData(res.data);
-  }, [profileId, entity?.id, entityType, addMode]);
+  }, [profileId, entity, entityType, addMode]);
 
   const chartDataDisplay =
     items.length >= 3
@@ -198,7 +198,7 @@ export function ExpectedPeriodsModal({
 
   useEffect(() => {
     if (activeTab === "manual" && entity && !addMode) loadChartData();
-  }, [activeTab, entity?.id, addMode, loadChartData]);
+  }, [activeTab, entity, addMode, loadChartData]);
 
   const handleAdd = () => {
     const num = parseFloat(amountInput);

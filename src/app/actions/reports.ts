@@ -59,7 +59,7 @@ export async function generateReportAction(
     return { error: "Экспорт отчётов доступен в тарифах Standard и Pro" };
   }
 
-  const profile = user.profiles.find((p) => p.id === profileId)!;
+  const _profile = user.profiles.find((p) => p.id === profileId)!;
   const startDate = new Date(options.startDate);
   startDate.setHours(0, 0, 0, 0);
 

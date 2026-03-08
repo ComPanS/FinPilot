@@ -15,7 +15,7 @@ import {
 import { Sparkles } from "lucide-react";
 
 function formatDateShort(dateStr: string): string {
-  const [y, m, d] = dateStr.split("-");
+  const [_y, m, d] = dateStr.split("-");
   return d && m ? `${d}.${m}` : dateStr;
 }
 

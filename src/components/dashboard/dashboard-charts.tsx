@@ -64,7 +64,7 @@ export function DashboardCharts({
   dataExpected,
   dataFact,
   currency,
-  section,
+  section: _section,
   showPatternHint,
   usedPatterns,
   hasEnoughPatternData,

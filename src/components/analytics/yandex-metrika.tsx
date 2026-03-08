@@ -34,6 +34,7 @@ export function YandexMetrika() {
       />
       <noscript>
         <div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={`https://mc.yandex.ru/watch/${YANDEX_METRIKA_ID}`}
             style={{ position: "absolute", left: "-9999px" }}

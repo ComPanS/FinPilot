@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useModalBodyClass } from "@/hooks/use-modal-body-class";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
@@ -93,6 +93,9 @@ export function EditModal({
         : undefined,
   });
 
+  const expenseFreq = useWatch({ name: "frequency", control: expenseForm.control });
+  const incomeFreq = useWatch({ name: "frequency", control: incomeForm.control });
+
   const manualForm = useForm<z.infer<typeof manualSchema>>({
     resolver: zodResolver(manualSchema),
     defaultValues:
@@ -108,6 +111,8 @@ export function EditModal({
           }
         : undefined,
   });
+
+  const manualType = useWatch({ name: "type", control: manualForm.control });
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -202,7 +207,7 @@ export function EditModal({
                 <option value="CUSTOM">Кастомный</option>
               </select>
             </div>
-            {expenseForm.watch("frequency") === "CUSTOM" && (
+            {expenseFreq === "CUSTOM" && (
               <div>
                 <label className="mb-1 block text-xs text-muted-foreground">Каждые (дней)</label>
                 <input {...expenseForm.register("customDays")} type="number" min={1} placeholder="7" className="w-full rounded border border-border bg-background px-2 py-1 text-foreground" />
@@ -253,7 +258,7 @@ export function EditModal({
                 <option value="CUSTOM">Кастомный</option>
               </select>
             </div>
-            {incomeForm.watch("frequency") === "CUSTOM" && (
+            {incomeFreq === "CUSTOM" && (
               <div>
                 <label className="mb-1 block text-xs text-muted-foreground">Каждые (дней)</label>
                 <input {...incomeForm.register("customDays")} type="number" min={1} placeholder="7" className="w-full rounded border border-border bg-background px-2 py-1 text-foreground" />
@@ -292,7 +297,7 @@ export function EditModal({
                 <option value="OUT">Расход</option>
               </select>
             </div>
-            {manualForm.watch("type") === "OUT" ? (
+            {manualType === "OUT" ? (
               <div>
                 <label className="mb-1 block text-xs text-muted-foreground">Категория</label>
                 <select {...manualForm.register("expenseCategoryId")} className="w-full rounded border border-border bg-background px-2 py-1 text-foreground">

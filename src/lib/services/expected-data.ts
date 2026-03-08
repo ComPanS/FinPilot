@@ -53,7 +53,7 @@ export function dailyAmountFromFrequency(
 export function dailyAmountFromMonthlyTotal(
   monthlyAmount: number,
   date: Date,
-  freq?: string,
+  _freq?: string,
 ): number {
   const days = daysInMonth(date);
   if (days <= 0) return 0;

@@ -10,7 +10,6 @@
  */
 
 import { prisma } from "@/lib/prisma";
-import { daysInMonth, monthKey } from "./expected-data";
 
 export type ActualByEntity = {
   byDay: Map<string, Map<string, number>>; // entityId -> dateKey -> amount
@@ -21,16 +20,10 @@ export type ActualByEntity = {
   >; // entityId -> ranges
 };
 
-function addDays(date: Date, days: number): Date {
-  const result = new Date(date);
-  result.setDate(result.getDate() + days);
-  return result;
-}
-
 function parseRange(period: string): { start: string; end: string } | null {
   const m = period.match(/^(\d{4}-\d{2}-\d{2}):(\d{4}-\d{2}-\d{2})$/);
   if (!m) return null;
-  const [_, start, end] = m;
+  const [, start, end] = m;
   if (!start || !end) return null;
   return { start, end };
 }
