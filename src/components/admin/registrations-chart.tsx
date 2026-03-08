@@ -34,15 +34,15 @@ export function RegistrationsChart({
   initialData?: ChartData;
 }) {
   const [period, setPeriod] = useState<30 | 90 | 365>(30);
-  const [data, setData] = useState<ChartData>(initialData ?? []);
+  const [fetchData, setFetchData] = useState<ChartData | null>(null);
+
+  const data =
+    period === 30 && initialData ? initialData : (fetchData ?? []);
 
   useEffect(() => {
-    if (initialData && period === 30) {
-      setData(initialData);
-      return;
-    }
-    getRegistrationsByDay(period).then(setData);
-  }, [period, initialData]);
+    if (period === 30) return;
+    getRegistrationsByDay(period).then(setFetchData);
+  }, [period]);
 
   return (
     <div className="rounded-xl border border-border bg-surface p-4">
@@ -100,7 +100,7 @@ export function RegistrationsChart({
               stroke="var(--muted)"
               fontSize={11}
               tickFormatter={(v) => String(Math.round(v))}
-              domain={[10, (_: number, dataMax: number) => Math.max(10, (dataMax ?? 0) + 2)]}
+              domain={([, dataMax]) => [10, Math.max(10, (dataMax ?? 0) + 2)]}
             />
             <Tooltip
               content={({ active, payload }) => {
