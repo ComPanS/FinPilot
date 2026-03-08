@@ -95,58 +95,50 @@ export function DashboardCharts({
           dataExpected[0].outflows
         : 0;
 
-    let runningBalance = initialBalance;
-    let cumIn = 0;
-    let cumOut = 0;
-    let lastCumInFact = 0;
-    let lastCumOutFact = 0;
+    type Acc = { points: ChartPoint[]; balance: number; cumInFact: number; cumOutFact: number };
+    const initial: Acc = { points: [], balance: initialBalance, cumInFact: 0, cumOutFact: 0 };
 
-    return dataExpected.reduce<ChartPoint[]>((acc, d) => {
+    const result = dataExpected.reduce<Acc>((acc, d) => {
       const inflows = Math.round(d.inflows);
       const outflows = Math.round(d.outflows);
       const profit = Math.round(d.inflows - d.outflows);
-      const prev = acc[acc.length - 1];
+      const prev = acc.points[acc.points.length - 1];
       const cumulativeInflows = (prev?.cumulativeInflows ?? 0) + inflows;
       const cumulativeOutflows = (prev?.cumulativeOutflows ?? 0) + outflows;
 
       const fact = factByDate?.get(d.date);
 
-      // Гибрид: на днях с фактом — факт, на остальных — ожидаемое
       let balanceExpected: number;
       let profitExpected: number;
       let cumulativeInflowsExpected: number;
       let cumulativeOutflowsExpected: number;
+      let nextCumInFact = acc.cumInFact;
+      let nextCumOutFact = acc.cumOutFact;
+      let nextBalance = acc.balance;
 
       if (hasFactData && fact?.hasFactData) {
-        // День с фактом — гибрид: факт где есть, иначе ожидаемое
         const inVal = fact.inflows ?? inflows;
         const outVal = fact.outflows ?? outflows;
-        cumIn += inVal;
-        cumOut += outVal;
-        if (fact.inflows != null) lastCumInFact += fact.inflows;
-        if (fact.outflows != null) lastCumOutFact += fact.outflows;
+        if (fact.inflows != null) nextCumInFact = acc.cumInFact + fact.inflows;
+        if (fact.outflows != null) nextCumOutFact = acc.cumOutFact + fact.outflows;
         if (fact.balance != null) {
-          runningBalance = Math.round(fact.balance);
+          nextBalance = Math.round(fact.balance);
         } else {
-          runningBalance = runningBalance + inVal - outVal;
+          nextBalance = acc.balance + inVal - outVal;
         }
-        balanceExpected = Math.round(runningBalance);
+        balanceExpected = Math.round(nextBalance);
         profitExpected = Math.round(inVal - outVal);
-        // На днях с фактом — совпадаем с линией факта; иначе продолжаем от предыдущего
         cumulativeInflowsExpected =
           fact.inflows != null
-            ? lastCumInFact
+            ? nextCumInFact
             : (prev?.cumulativeInflowsExpected ?? 0) + inflows;
         cumulativeOutflowsExpected =
           fact.outflows != null
-            ? lastCumOutFact
+            ? nextCumOutFact
             : (prev?.cumulativeOutflowsExpected ?? 0) + outflows;
       } else {
-        // День без факта — ожидаемое
-        cumIn += inflows;
-        cumOut += outflows;
-        runningBalance += inflows - outflows;
-        balanceExpected = Math.round(runningBalance);
+        nextBalance = acc.balance + inflows - outflows;
+        balanceExpected = Math.round(nextBalance);
         profitExpected = profit;
         cumulativeInflowsExpected =
           (prev?.cumulativeInflowsExpected ?? 0) + inflows;
@@ -154,7 +146,6 @@ export function DashboardCharts({
           (prev?.cumulativeOutflowsExpected ?? 0) + outflows;
       }
 
-      // Для Area используем гибридные значения при наличии dataFact
       const balanceForArea = hasFactData
         ? balanceExpected
         : Math.round(d.balance);
@@ -186,16 +177,15 @@ export function DashboardCharts({
         cumulativeOutflowsExpected,
       };
 
-      // profitFact, cumulativeInflowsFact, cumulativeOutflowsFact, balanceFact
       if (fact?.hasFactData) {
         point.profitFact =
           fact.inflows != null && fact.outflows != null
             ? Math.round(fact.inflows - fact.outflows)
             : null;
         point.cumulativeInflowsFact =
-          fact.inflows != null ? lastCumInFact : null;
+          fact.inflows != null ? nextCumInFact : null;
         point.cumulativeOutflowsFact =
-          fact.outflows != null ? lastCumOutFact : null;
+          fact.outflows != null ? nextCumOutFact : null;
         point.balanceFact =
           fact.balance != null ? Math.round(fact.balance) : null;
       } else {
@@ -205,9 +195,15 @@ export function DashboardCharts({
         point.balanceFact = null;
       }
 
-      acc.push(point);
-      return acc;
-    }, []);
+      return {
+        points: [...acc.points, point],
+        balance: nextBalance,
+        cumInFact: nextCumInFact,
+        cumOutFact: nextCumOutFact,
+      };
+    }, initial);
+
+    return result.points;
   }, [dataExpected, dataFact]);
 
   const chartDataWithProfitCrossings = baseChartData;

@@ -55,10 +55,15 @@ export async function getForecastAction(
   };
 
   if (options?.returnBoth) {
-    const [forecastRes, forecastFactOnly] = await Promise.all([
-      computeForecast(profileId, { ...baseOpts, useActualData: true }),
-      computeForecastActualOnly(profileId, { days, startDate }),
-    ]);
+    const forecastRes = await computeForecast(profileId, {
+      ...baseOpts,
+      useActualData: true,
+    });
+    const forecastFactOnly = await computeForecastActualOnly(profileId, {
+      days,
+      startDate,
+      forecast: forecastRes.forecast,
+    });
     return {
       forecast: forecastRes.forecast,
       forecastExpected: forecastRes.forecast,

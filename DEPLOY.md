@@ -7,8 +7,8 @@
 - Домен ffinplaner.ru, указывающий на IP сервера
 
 **DNS (важно!):** Чтобы работал и `ffinplaner.ru`, и `www.ffinplaner.ru`:
-- **A-запись** для `ffinplaner.ru` → IP вашего VPS
-- **CNAME** для `www.ffinplaner.ru` → `ffinplaner.ru` (или отдельная A-запись на тот же IP)
+- **A @** → IP вашего VPS
+- **A www** (или CNAME www) → тот же IP
 
 Если работает только www — скорее всего, нет A-записи для корневого домена.
 

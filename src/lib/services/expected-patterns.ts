@@ -33,7 +33,7 @@ export function calculateMonthFact(
   const entityIds = type === "INCOME" ? incomeIds : expenseIds;
   let sum = 0;
   const throughKey = `${throughDate.getFullYear()}-${String(throughDate.getMonth() + 1).padStart(2, "0")}-${String(throughDate.getDate()).padStart(2, "0")}`;
-  let current = new Date(monthStart);
+  const current = new Date(monthStart);
   current.setHours(0, 0, 0, 0);
 
   while (current <= throughDate) {

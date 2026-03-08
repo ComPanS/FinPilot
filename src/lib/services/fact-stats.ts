@@ -19,7 +19,7 @@ function periodToDateKeys(period: string): Set<string> {
     if (m) {
       const start = new Date(m[1]! + "T12:00:00");
       const end = new Date(m[2]! + "T12:00:00");
-      let current = new Date(start);
+      const current = new Date(start);
       while (current <= end) {
         keys.add(
           `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, "0")}-${String(current.getDate()).padStart(2, "0")}`,

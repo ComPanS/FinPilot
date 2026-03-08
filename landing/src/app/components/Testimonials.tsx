@@ -53,7 +53,7 @@ export function Testimonials() {
 
               {/* Content */}
               <p className="text-[#0F172A] mb-6 leading-relaxed">
-                "{testimonial.content}"
+                &quot;{testimonial.content}&quot;
               </p>
 
               {/* Author */}

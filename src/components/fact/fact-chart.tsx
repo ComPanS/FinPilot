@@ -44,15 +44,8 @@ export function FactChart({
     borderRadius: "8px",
   };
 
-  const CustomTooltip = ({
-    active,
-    payload,
-  }: {
-    active?: boolean;
-    payload?: {
-      payload?: { balance?: number; date?: string; dateShort?: string; inflows?: number; outflows?: number };
-    }[];
-  }) => {
+  const renderTooltip = (props: { active?: boolean; payload?: readonly { payload?: { balance?: number; date?: string; dateShort?: string; inflows?: number; outflows?: number } }[] }) => {
+    const { active, payload } = props;
     if (!active || !payload?.length) return null;
     const point = payload[0]?.payload;
     const value = point?.balance ?? 0;
@@ -102,7 +95,7 @@ export function FactChart({
             tickFormatter={(v) => v.toLocaleString()}
           />
           <Tooltip
-            content={<CustomTooltip />}
+            content={renderTooltip}
             cursor={{ stroke: "var(--muted)", strokeWidth: 1, strokeDasharray: "3 3" }}
           />
           <ReferenceLine

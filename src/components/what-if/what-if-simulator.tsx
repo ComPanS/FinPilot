@@ -147,7 +147,9 @@ export function WhatIfSimulator({
   };
 
   const loadForecastsRef = useRef(loadForecasts);
-  loadForecastsRef.current = loadForecasts;
+  useEffect(() => {
+    loadForecastsRef.current = loadForecasts;
+  });
   useEffect(() => {
     if (loadedScenarioId) loadForecastsRef.current();
   }, [loadedScenarioId]);

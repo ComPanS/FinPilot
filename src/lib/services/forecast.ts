@@ -323,12 +323,14 @@ export async function computeHistoricalBalance(
   return balance;
 }
 
-/** Compute daily flows from ACTUAL data only (ActualEntry + ManualTransaction). Returns null for days without data. */
+/** Compute daily flows from ACTUAL data only (ActualEntry + ManualTransaction). Returns null for days without data.
+ * When forecast is provided, days with hasFactData use forecast's merged values (actual + expected + manual) instead of actual-only. */
 export async function computeForecastActualOnly(
   profileId: string,
   options: {
     days?: number;
     startDate?: Date;
+    forecast?: ForecastDay[];
   } = {},
 ): Promise<ForecastDayFact[]> {
   const days = options.days ?? 90;
@@ -473,6 +475,11 @@ export async function computeForecastActualOnly(
     { useActualData: true },
   );
 
+  const forecastByDate =
+    options.forecast && options.forecast.length > 0
+      ? new Map(options.forecast.map((f) => [f.date, f]))
+      : null;
+
   const result: ForecastDayFact[] = [];
   let balance = initialBalance;
 
@@ -482,16 +489,28 @@ export async function computeForecastActualOnly(
     const hasFactInflows = hasFactInflowsByDay[key] === true;
     const hasFactOutflows = hasFactOutflowsByDay[key] === true;
     const hasFact = hasFactInflows || hasFactOutflows;
-    const inflows = hasFactInflows ? (dailyInflows[key] ?? 0) : null;
-    const outflows = hasFactOutflows ? (dailyOutflows[key] ?? 0) : null;
+    const forecastDay = forecastByDate?.get(key);
+
+    let inflows: number | null;
+    let outflows: number | null;
+    let dayBalance: number;
 
     if (hasFact) {
-      const inVal = inflows ?? 0;
-      const outVal = outflows ?? 0;
-      balance = balance + inVal - outVal;
+      if (forecastByDate && forecastDay) {
+        inflows = forecastDay.inflows;
+        outflows = forecastDay.outflows;
+        dayBalance = forecastDay.balance;
+      } else {
+        inflows = hasFactInflows ? (dailyInflows[key] ?? 0) : null;
+        outflows = hasFactOutflows ? (dailyOutflows[key] ?? 0) : null;
+        const inVal = inflows ?? 0;
+        const outVal = outflows ?? 0;
+        balance = balance + inVal - outVal;
+        dayBalance = balance;
+      }
       result.push({
         date: key,
-        balance,
+        balance: dayBalance,
         inflows,
         outflows,
         hasFactData: true,
@@ -524,7 +543,7 @@ function getMonthlyOccurrences(
   frequency: "MONTHLY" | "QUARTERLY" | "YEARLY",
 ): Date[] {
   const occurrences: Date[] = [];
-  let current = new Date(startDate);
+  const current = new Date(startDate);
   const stepMonths =
     frequency === "MONTHLY" ? 1 : frequency === "QUARTERLY" ? 3 : 12;
 
@@ -541,7 +560,7 @@ function getIntervalOccurrences(
   intervalDays: number,
 ): Date[] {
   const occurrences: Date[] = [];
-  let current = new Date(startDate);
+  const current = new Date(startDate);
   current.setHours(0, 0, 0, 0);
   const end = new Date(endDate);
   end.setHours(23, 59, 59, 999);

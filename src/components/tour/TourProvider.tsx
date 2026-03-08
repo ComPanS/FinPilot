@@ -260,7 +260,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       driverRef.current.destroy();
       driverRef.current = null;
       currentTourRouteRef.current = null;
-      setIsTourActive(false);
+      queueMicrotask(() => setIsTourActive(false));
     }
   }, [pathname]);
 
