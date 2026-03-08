@@ -53,6 +53,7 @@ nano .env
 - `NEUROAPI_API_KEY` — NEUROAPI
 - `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` — Upstash Redis
 - `SMTP_*` — почта
+- `ADMIN_PATH`, `ADMIN_ALLOWED_EMAILS` — админ-панель (опционально; список email через запятую)
 
 ## 4. Запуск приложения
 

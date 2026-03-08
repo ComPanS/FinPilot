@@ -1,10 +1,19 @@
 "use client";
 
 import Script from "next/script";
+import { usePathname } from "next/navigation";
 
 const YANDEX_METRIKA_ID = 107199672;
 
 export function YandexMetrika() {
+  const pathname = usePathname();
+  const adminPath = process.env.NEXT_PUBLIC_ADMIN_PATH;
+  const isAdminPage =
+    pathname === "/admin" ||
+    (adminPath && pathname === `/${adminPath}`);
+
+  if (isAdminPage) return null;
+
   return (
     <>
       <Script

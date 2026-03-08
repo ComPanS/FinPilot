@@ -49,6 +49,8 @@ services:
       - SMTP_USER=${SMTP_USER}
       - SMTP_PASSWORD=${SMTP_PASSWORD}
       - SMTP_FROM=${SMTP_FROM}
+      - ADMIN_PATH=${ADMIN_PATH}
+      - ADMIN_ALLOWED_EMAILS=${ADMIN_ALLOWED_EMAILS}
     depends_on:
       migrate:
         condition: service_completed_successfully

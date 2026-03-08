@@ -2,9 +2,26 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  env: {
+    NEXT_PUBLIC_ADMIN_PATH:
+      process.env.ADMIN_PATH ||
+      process.env.NEXT_PUBLIC_ADMIN_PATH ||
+      "",
+  },
   serverExternalPackages: ["@react-pdf/renderer"],
   experimental: {
     optimizePackageImports: ["recharts", "lucide-react"],
+  },
+  async rewrites() {
+    const adminPath =
+      process.env.ADMIN_PATH || process.env.NEXT_PUBLIC_ADMIN_PATH || "";
+    if (!adminPath) return [];
+    return {
+      beforeFiles: [
+        { source: `/${adminPath}`, destination: "/admin?internal=1" },
+        { source: `/${adminPath}/`, destination: "/admin?internal=1" },
+      ],
+    };
   },
   async headers() {
     const csp = [
