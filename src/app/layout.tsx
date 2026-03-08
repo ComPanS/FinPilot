@@ -34,6 +34,10 @@ export const metadata: Metadata = {
     "ФинПланер",
   ],
   robots: { index: true, follow: true },
+  verification: {
+    google: "yVHBM6NxpQ8WjkH9BBTOa1OTGoLDGfZfMiSnvG9WFUI",
+    yandex: "817448a5d525c4eb",
+  },
   category: "finance",
   alternates: { canonical: siteUrl },
   icons: {
