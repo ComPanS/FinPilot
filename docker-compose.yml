@@ -20,6 +20,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        ADMIN_PATH: ${ADMIN_PATH}
+        NEXT_PUBLIC_ADMIN_PATH: ${NEXT_PUBLIC_ADMIN_PATH:-${ADMIN_PATH}}
     ports:
       - "3000:3000"
     env_file:

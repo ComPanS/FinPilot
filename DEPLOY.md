@@ -53,7 +53,7 @@ nano .env
 - `NEUROAPI_API_KEY` — NEUROAPI
 - `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` — Upstash Redis
 - `SMTP_*` — почта
-- `ADMIN_PATH`, `ADMIN_ALLOWED_EMAILS` — админ-панель (опционально; список email через запятую)
+- `ADMIN_PATH`, `NEXT_PUBLIC_ADMIN_PATH`, `ADMIN_ALLOWED_EMAILS` — админ-панель (опционально; `ADMIN_PATH` и `NEXT_PUBLIC_ADMIN_PATH` должны быть в .env до сборки; при смене пути — пересобрать образ: `docker compose build --no-cache app`)
 
 ## 4. Запуск приложения
 
