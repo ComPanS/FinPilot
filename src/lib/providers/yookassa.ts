@@ -21,7 +21,7 @@ export async function createPayment(params: CreatePaymentParams) {
       value: params.amount.toFixed(2),
       currency: CurrencyEnum.RUB,
     },
-    //payment_method_data: { type: "sbp" } as never,
+    payment_method_data: { type: "sbp" } as never,
     confirmation: {
       type: "redirect",
       return_url: params.returnUrl,
