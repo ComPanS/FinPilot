@@ -32,7 +32,7 @@ export async function getRegistrationsByDay(days: number = 30): Promise<
   >`
     SELECT DATE("createdAt")::date as date, COUNT(*)::bigint as count
     FROM "User"
-    WHERE "createdAt" >= ${since}
+    WHERE "createdAt" >= ${since} AND "emailVerified" IS NOT NULL
     GROUP BY DATE("createdAt")
     ORDER BY date ASC
   `;
