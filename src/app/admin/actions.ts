@@ -73,6 +73,7 @@ export async function getUsersActivity(): Promise<UserActivityRow[]> {
   if (!(await isAdminAllowed())) return [];
 
   const users = await prisma.user.findMany({
+    where: { emailVerified: { not: null } },
     include: {
       profiles: {
         include: {
