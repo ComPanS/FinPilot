@@ -25,7 +25,7 @@ export default async function OnboardingPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto w-full min-w-0 max-w-[min(100%,28rem)] sm:max-w-[32rem] md:max-w-[36rem] lg:max-w-[42rem] xl:max-w-[48rem]">
       <h1 className="text-2xl font-bold text-foreground">Настройка профиля</h1>
       <p className="mt-2 text-muted-foreground">
         Заполните данные о вашем бизнесе — это займёт 2 минуты

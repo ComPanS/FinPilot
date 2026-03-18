@@ -3,11 +3,11 @@
 import { usePathname } from "next/navigation";
 import { SiteFooter } from "./site-footer";
 
-/** Показывает SiteFooter везде, кроме лендинга (/) — там свой футер */
+/** Показывает SiteFooter везде, кроме лендинга (/) и онбординга — там свой футер / скрыт */
 export function ConditionalFooter() {
   const pathname = usePathname();
 
-  if (pathname === "/") return null;
+  if (pathname === "/" || pathname === "/onboarding") return null;
 
   return <SiteFooter />;
 }

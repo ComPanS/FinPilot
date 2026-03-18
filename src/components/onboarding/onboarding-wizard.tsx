@@ -378,12 +378,21 @@ export function OnboardingWizard({
               <option value="EUR">Евро (EUR)</option>
             </select>
           </div>
-          <button
-            type="submit"
-            className="rounded-lg bg-primary px-4 py-2 font-medium text-white hover:bg-primary-dark"
-          >
-            Далее
-          </button>
+          <div className="flex gap-4">
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="rounded-lg border px-4 py-2"
+            >
+              Назад
+            </button>
+            <button
+              type="submit"
+              className="rounded-lg bg-primary px-4 py-2 font-medium text-white hover:bg-primary-dark"
+            >
+              Далее
+            </button>
+          </div>
         </form>
       )}
 
@@ -394,8 +403,8 @@ export function OnboardingWizard({
             <p className="mt-1 text-xs text-muted-foreground">
               Например: «аренда 50000 ежемесячно», «продажи 100000 в марте», «расход 15000 15.03»
             </p>
-            <div className="mt-2 flex gap-2">
-              <div className="flex-1">
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end">
+              <div className="min-w-0 flex-1">
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">Текст</label>
                 <input
                 value={aiText}
@@ -406,29 +415,31 @@ export function OnboardingWizard({
                 disabled={aiLoading}
               />
               </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">Добавить</label>
-              <button
-                type="button"
-                onClick={handleAiAdd}
-                disabled={aiLoading || !aiText.trim()}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-primary hover:bg-primary/10 disabled:opacity-50"
-                title="Добавить"
-              >
-                <Plus className="h-5 w-5" />
-              </button>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">Excel</label>
-                <button
-                  type="button"
-                  onClick={() => excelInputRefStep3.current?.click()}
-                  disabled={excelLoading || aiLoading}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-primary hover:bg-primary/10 disabled:opacity-50"
-                  title="Загрузить Excel"
-                >
-                  {excelLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileSpreadsheet className="h-5 w-5" />}
-                </button>
+              <div className="flex shrink-0 gap-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">Добавить</label>
+                  <button
+                    type="button"
+                    onClick={handleAiAdd}
+                    disabled={aiLoading || !aiText.trim()}
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-primary hover:bg-primary/10 disabled:opacity-50"
+                    title="Добавить"
+                  >
+                    <Plus className="h-5 w-5" />
+                  </button>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">Excel</label>
+                  <button
+                    type="button"
+                    onClick={() => excelInputRefStep3.current?.click()}
+                    disabled={excelLoading || aiLoading}
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-primary hover:bg-primary/10 disabled:opacity-50"
+                    title="Загрузить Excel"
+                  >
+                    {excelLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileSpreadsheet className="h-5 w-5" />}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -536,7 +547,21 @@ export function OnboardingWizard({
               + Добавить
             </button>
           )}
-          <div className="mt-4 flex gap-4">
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:gap-4">
+            <button
+              type="button"
+              onClick={() => setStep(2)}
+              className="rounded-lg border px-4 py-2"
+            >
+              Назад
+            </button>
+            <button
+              type="button"
+              onClick={handleStep3Submit}
+              className="rounded-lg border border-border px-4 py-2 text-muted-foreground hover:border-foreground/30 hover:bg-border hover:text-foreground"
+            >
+              Пропустить
+            </button>
             <button
               type="button"
               onClick={handleStep3Submit}
@@ -560,36 +585,40 @@ export function OnboardingWizard({
             <p className="mt-1 text-xs text-muted-foreground">
               Например: «В январе доход 100000 расход 80000. В феврале доход 120000 расход 90000»
             </p>
-            <div className="mt-2 flex gap-2">
-              <input
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end">
+              <div className="min-w-0 flex-1">
+                <input
                 value={pastDataText}
                 onChange={(e) => setPastDataText(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAiMonthlyAdd())}
                 placeholder="Введите текст..."
-                className="flex-1 rounded border border-border bg-background px-3 py-2"
+                className="w-full rounded border border-border bg-background px-3 py-2"
                 disabled={aiMonthlyLoading}
               />
-              <button
-                type="button"
-                onClick={handleAiMonthlyAdd}
-                disabled={aiMonthlyLoading || !pastDataText.trim()}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-primary hover:bg-primary/10 disabled:opacity-50"
-                title="Добавить через ИИ"
-              >
-                <Plus className="h-5 w-5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => excelInputRefStep4.current?.click()}
-                disabled={excelLoading || aiMonthlyLoading}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-primary hover:bg-primary/10 disabled:opacity-50"
-                title="Загрузить Excel"
-              >
-                {excelLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileSpreadsheet className="h-5 w-5" />}
-              </button>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                <button
+                  type="button"
+                  onClick={handleAiMonthlyAdd}
+                  disabled={aiMonthlyLoading || !pastDataText.trim()}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-primary hover:bg-primary/10 disabled:opacity-50"
+                  title="Добавить через ИИ"
+                >
+                  <Plus className="h-5 w-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => excelInputRefStep4.current?.click()}
+                  disabled={excelLoading || aiMonthlyLoading}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-primary hover:bg-primary/10 disabled:opacity-50"
+                  title="Загрузить Excel"
+                >
+                  {excelLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileSpreadsheet className="h-5 w-5" />}
+                </button>
+              </div>
             </div>
           </div>
-          <div className="rounded-lg border border-border bg-muted/30 p-4">
+          <div className="rounded-lg border border-border p-4">
             <label className="block text-sm font-medium">Добавить вручную</label>
             <p className="mt-1 text-xs text-muted-foreground">
               Месяц, доход и расход за месяц
@@ -679,13 +708,21 @@ export function OnboardingWizard({
               </div>
             )}
           </div>
-          <div className="mt-4 flex gap-4">
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:gap-4">
             <button
               type="button"
               onClick={() => setStep(3)}
               className="rounded-lg border px-4 py-2"
             >
               Назад
+            </button>
+            <button
+              type="button"
+              onClick={handleStep4}
+              disabled={aiLoading}
+              className="rounded-lg border border-border px-4 py-2 text-muted-foreground hover:border-foreground/30 hover:bg-border hover:text-foreground disabled:opacity-50"
+            >
+              Пропустить
             </button>
             <button
               type="button"
