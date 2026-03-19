@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
@@ -7,6 +8,13 @@ import { getEffectiveLimits } from "@/config/plans";
 import { CashFlowPlanner } from "@/components/cashflow/cashflow-planner";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Планировщик денежных потоков — прогноз кассовых разрывов",
+  description:
+    "Планируйте доходы и расходы, прогнозируйте кассовые разрывы на 3 месяца вперёд. Управление денежными потоками для ИП.",
+  alternates: { canonical: "/cashflow" },
+};
 
 function serializeProfile<T extends {
   regularExpenses: { amount: unknown }[];

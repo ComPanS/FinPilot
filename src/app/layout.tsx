@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { QueryProvider } from "@/components/providers/query-provider";
@@ -19,25 +19,41 @@ const baseUrl =
 
 const siteUrl = baseUrl.replace(/\/$/, "");
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title:
-    "ФинПланер — прогноз кассовых разрывов для ИП и разных бизнесов на основе доходов и расходов",
+  title: {
+    default:
+      "Прогноз кассовых разрывов онлайн — сервис для ИП за 5 минут | ФинПланер",
+    template: "%s | ФинПланер",
+  },
   description:
-    "Кассовый планировщик для ИП: прогноз денежных потоков на 3 месяца за 5 минут. Узнай кассовые разрывы до того, как они произойдут. Без Excel.",
+    "Онлайн-сервис для ИП: прогноз кассовых разрывов и денежных потоков за 5 минут. Найди дефицит денег заранее и управляй финансами без Excel.",
   keywords: [
-    "кассовый разрыв",
-    "прогноз кассовых разрывов",
-    "управленка для ИП",
-    "кассовый планировщик",
-    "прогноз денежных потоков",
-    "ИП",
-    "микробизнес",
-    "денежные потоки",
-    "ФинПланер",
-    "без Excel",
-  ],
-  robots: { index: true, follow: true },
+  "кассовый разрыв",
+  "прогноз кассовых разрывов онлайн",
+  "денежный поток прогноз",
+  "cash flow прогноз",
+  "кассовый планировщик онлайн",
+  "финансовый учет для ИП",
+  "управление денежными потоками",
+  "сервис для ИП финансы",
+  "планирование бюджета ИП",
+  "финансовая модель для ИП"
+],
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+    },
+  },
   verification: {
     google: "yVHBM6NxpQ8WjkH9BBTOa1OTGoLDGfZfMiSnvG9WFUI",
     yandex: "817448a5d525c4eb",
@@ -59,10 +75,10 @@ export const metadata: Metadata = {
     siteName: "ФинПланер",
     images: [
       {
-        url: "/logo.png",
-        width: 512,
-        height: 512,
-        alt: "ФинПланер",
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Прогноз кассовых разрывов за 5 минут — ФинПланер",
       },
     ],
   },

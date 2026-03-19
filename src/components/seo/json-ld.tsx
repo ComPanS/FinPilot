@@ -42,8 +42,29 @@ const softwareJsonLd = {
   },
 };
 
+const webApplicationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  name: "ФинПланер",
+  url: siteUrl,
+  applicationCategory: "FinanceApplication",
+  operatingSystem: "Web",
+  description:
+    "Онлайн-сервис для ИП: прогноз кассовых разрывов и денежных потоков за 5 минут. Найди дефицит денег заранее и управляй финансами без Excel.",
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "RUB",
+  },
+  publisher: {
+    "@type": "Organization",
+    name: "ФинПланер",
+    logo: `${siteUrl}/logo.png`,
+  },
+};
+
 export function JsonLd() {
-  const jsonLd = [organizationJsonLd, websiteJsonLd, softwareJsonLd];
+  const jsonLd = [organizationJsonLd, websiteJsonLd, softwareJsonLd, webApplicationJsonLd];
 
   return (
     <>

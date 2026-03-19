@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { PLANS } from "@/config/plans";
@@ -11,6 +12,13 @@ import { Testimonials } from "@/components/landing/testimonials";
 import { FAQ } from "@/components/landing/faq";
 import { FinalCTA } from "@/components/landing/final-cta";
 import { Footer } from "@/components/landing/footer";
+
+export const metadata: Metadata = {
+  title: "Прогноз кассовых разрывов онлайн — сервис для ИП за 5 минут",
+  description:
+    "Онлайн-сервис для ИП: прогноз кассовых разрывов и денежных потоков за 5 минут. Найди дефицит денег заранее и управляй финансами без Excel.",
+  alternates: { canonical: "/" },
+};
 
 export default async function LandingPage() {
   const session = await auth();
